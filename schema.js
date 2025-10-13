@@ -168,9 +168,23 @@ rpc.register({
     { name: 'updatedAt', type: 'uint', required: false },
     { name: 'title', type: 'string', required: false },
     { name: 'snapshot', type: 'buffer', required: false },
-    { name: 'ops', type: '@pear-docs-rpc/doc-operation', array: true, required: false },
-    { name: 'presence', type: '@pear-docs-rpc/doc-presence', array: true, required: false },
-    { name: 'capabilities', type: '@pear-docs-rpc/doc-capabilities', required: false }
+    {
+      name: 'ops',
+      type: '@pear-docs-rpc/doc-operation',
+      array: true,
+      required: false
+    },
+    {
+      name: 'presence',
+      type: '@pear-docs-rpc/doc-presence',
+      array: true,
+      required: false
+    },
+    {
+      name: 'capabilities',
+      type: '@pear-docs-rpc/doc-capabilities',
+      required: false
+    }
   ]
 })
 
@@ -291,7 +305,12 @@ rpc.register({
   compact: false,
   fields: [
     { name: 'key', type: 'string', required: true },
-    { name: 'ops', type: '@pear-docs-rpc/doc-operation', array: true, required: true },
+    {
+      name: 'ops',
+      type: '@pear-docs-rpc/doc-operation',
+      array: true,
+      required: true
+    },
     { name: 'clientTime', type: 'uint', required: false }
   ]
 })
@@ -337,7 +356,14 @@ rpc.register({
 rpc.register({
   name: 'list-invites-response',
   compact: false,
-  fields: [{ name: 'invites', type: '@pear-docs-rpc/doc-invite', array: true, required: true }]
+  fields: [
+    {
+      name: 'invites',
+      type: '@pear-docs-rpc/doc-invite',
+      array: true,
+      required: true
+    }
+  ]
 })
 
 rpc.register({
@@ -450,17 +476,35 @@ extendDispatch(dispatch)
 
 const docDispatch = dispatch.namespace('pear-docs')
 
-docDispatch.register({ name: 'metadata-upsert', requestType: '@pear-docs/metadata' })
-docDispatch.register({ name: 'operation-append', requestType: '@pear-docs/operation' })
-docDispatch.register({ name: 'snapshot-save', requestType: '@pear-docs/snapshot' })
-docDispatch.register({ name: 'presence-upsert', requestType: '@pear-docs/presence' })
-docDispatch.register({ name: 'presence-remove', requestType: '@pear-docs/presence-remove' })
+docDispatch.register({
+  name: 'metadata-upsert',
+  requestType: '@pear-docs/metadata'
+})
+docDispatch.register({
+  name: 'operation-append',
+  requestType: '@pear-docs/operation'
+})
+docDispatch.register({
+  name: 'snapshot-save',
+  requestType: '@pear-docs/snapshot'
+})
+docDispatch.register({
+  name: 'presence-upsert',
+  requestType: '@pear-docs/presence'
+})
+docDispatch.register({
+  name: 'presence-remove',
+  requestType: '@pear-docs/presence-remove'
+})
 
 const localDispatch = dispatch.namespace('local')
 
 localDispatch.register({ name: 'doc-upsert', requestType: '@local/doc' })
 localDispatch.register({ name: 'state-update', requestType: '@local/state' })
-localDispatch.register({ name: 'profile-upsert', requestType: '@local/profile' })
+localDispatch.register({
+  name: 'profile-upsert',
+  requestType: '@local/profile'
+})
 
 Hyperdispatch.toDisk(dispatch)
 
