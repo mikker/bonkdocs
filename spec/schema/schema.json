@@ -1,0 +1,456 @@
+{
+  "version": 1,
+  "schema": [
+    {
+      "name": "writer",
+      "namespace": "autobonk",
+      "compact": false,
+      "flagsPosition": 1,
+      "fields": [
+        {
+          "name": "key",
+          "required": true,
+          "type": "buffer",
+          "version": 1
+        },
+        {
+          "name": "isIndexer",
+          "required": false,
+          "type": "bool",
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "invite",
+      "namespace": "autobonk",
+      "compact": false,
+      "flagsPosition": 4,
+      "fields": [
+        {
+          "name": "id",
+          "required": true,
+          "type": "buffer",
+          "version": 1
+        },
+        {
+          "name": "invite",
+          "required": true,
+          "type": "buffer",
+          "version": 1
+        },
+        {
+          "name": "publicKey",
+          "required": true,
+          "type": "buffer",
+          "version": 1
+        },
+        {
+          "name": "expires",
+          "required": true,
+          "type": "int",
+          "version": 1
+        },
+        {
+          "name": "roles",
+          "required": false,
+          "array": true,
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "createdBy",
+          "required": false,
+          "type": "buffer",
+          "version": 1
+        },
+        {
+          "name": "createdAt",
+          "required": false,
+          "type": "uint",
+          "version": 1
+        },
+        {
+          "name": "revokedAt",
+          "required": false,
+          "type": "uint",
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "revoke-invite",
+      "namespace": "autobonk",
+      "compact": false,
+      "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "id",
+          "required": true,
+          "type": "buffer",
+          "version": 1
+        },
+        {
+          "name": "revokedAt",
+          "required": true,
+          "type": "uint",
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "context-init",
+      "namespace": "autobonk",
+      "compact": false,
+      "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "creatorKey",
+          "required": true,
+          "type": "buffer",
+          "version": 1
+        },
+        {
+          "name": "index",
+          "required": true,
+          "type": "uint",
+          "version": 1
+        },
+        {
+          "name": "timestamp",
+          "required": true,
+          "type": "uint",
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "role-def",
+      "namespace": "autobonk",
+      "compact": false,
+      "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "name",
+          "required": true,
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "permissions",
+          "required": true,
+          "array": true,
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "rev",
+          "required": true,
+          "type": "uint",
+          "version": 1
+        },
+        {
+          "name": "index",
+          "required": true,
+          "type": "uint",
+          "version": 1
+        },
+        {
+          "name": "timestamp",
+          "required": true,
+          "type": "uint",
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "acl-entry",
+      "namespace": "autobonk",
+      "compact": false,
+      "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "subjectKey",
+          "required": true,
+          "type": "buffer",
+          "version": 1
+        },
+        {
+          "name": "roles",
+          "required": true,
+          "array": true,
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "rev",
+          "required": true,
+          "type": "uint",
+          "version": 1
+        },
+        {
+          "name": "index",
+          "required": true,
+          "type": "uint",
+          "version": 1
+        },
+        {
+          "name": "timestamp",
+          "required": true,
+          "type": "uint",
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "doc",
+      "namespace": "local",
+      "compact": false,
+      "flagsPosition": 3,
+      "fields": [
+        {
+          "name": "key",
+          "required": true,
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "encryptionKey",
+          "required": true,
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "createdAt",
+          "required": true,
+          "type": "uint",
+          "version": 1
+        },
+        {
+          "name": "joinedAt",
+          "required": false,
+          "type": "uint",
+          "version": 1
+        },
+        {
+          "name": "isCreator",
+          "required": false,
+          "type": "bool",
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "initialize-request",
+      "namespace": "pear-docs-rpc",
+      "compact": false,
+      "flagsPosition": 0,
+      "fields": [
+        {
+          "name": "refresh",
+          "required": false,
+          "type": "bool",
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "initialize-response",
+      "namespace": "pear-docs-rpc",
+      "compact": false,
+      "flagsPosition": 1,
+      "fields": [
+        {
+          "name": "docs",
+          "required": true,
+          "array": true,
+          "type": "@local/doc",
+          "version": 1
+        },
+        {
+          "name": "activeDoc",
+          "required": false,
+          "type": "string",
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "list-docs-request",
+      "namespace": "pear-docs-rpc",
+      "compact": false,
+      "flagsPosition": 0,
+      "fields": [
+        {
+          "name": "refresh",
+          "required": false,
+          "type": "bool",
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "list-docs-response",
+      "namespace": "pear-docs-rpc",
+      "compact": false,
+      "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "docs",
+          "required": true,
+          "array": true,
+          "type": "@local/doc",
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "create-doc-request",
+      "namespace": "pear-docs-rpc",
+      "compact": false,
+      "flagsPosition": 0,
+      "fields": [
+        {
+          "name": "name",
+          "required": false,
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "displayName",
+          "required": false,
+          "type": "string",
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "create-doc-response",
+      "namespace": "pear-docs-rpc",
+      "compact": false,
+      "flagsPosition": 2,
+      "fields": [
+        {
+          "name": "doc",
+          "required": true,
+          "type": "@local/doc",
+          "version": 1
+        },
+        {
+          "name": "writerKey",
+          "required": true,
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "invite",
+          "required": false,
+          "type": "string",
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "join-doc-request",
+      "namespace": "pear-docs-rpc",
+      "compact": false,
+      "flagsPosition": 1,
+      "fields": [
+        {
+          "name": "invite",
+          "required": true,
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "name",
+          "required": false,
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "displayName",
+          "required": false,
+          "type": "string",
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "join-doc-response",
+      "namespace": "pear-docs-rpc",
+      "compact": false,
+      "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "doc",
+          "required": true,
+          "type": "@local/doc",
+          "version": 1
+        },
+        {
+          "name": "writerKey",
+          "required": true,
+          "type": "string",
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "remove-doc-request",
+      "namespace": "pear-docs-rpc",
+      "compact": false,
+      "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "key",
+          "required": true,
+          "type": "string",
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "remove-doc-response",
+      "namespace": "pear-docs-rpc",
+      "compact": false,
+      "flagsPosition": 0,
+      "fields": [
+        {
+          "name": "removed",
+          "required": false,
+          "type": "bool",
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "get-doc-request",
+      "namespace": "pear-docs-rpc",
+      "compact": false,
+      "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "key",
+          "required": true,
+          "type": "string",
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "get-doc-response",
+      "namespace": "pear-docs-rpc",
+      "compact": false,
+      "flagsPosition": 0,
+      "fields": [
+        {
+          "name": "doc",
+          "required": false,
+          "type": "@local/doc",
+          "version": 1
+        }
+      ]
+    }
+  ]
+}

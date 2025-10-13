@@ -1,0 +1,52 @@
+{
+  "name": "pear-app",
+  "type": "module",
+  "main": "index.js",
+  "pear": {
+    "gui": {
+      "main": "renderer/dist/index.html",
+      "width": 1280,
+      "height": 800,
+      "minWidth": 1000,
+      "minHeight": 700
+    },
+    "pre": "pear-electron/pre"
+  },
+  "scripts": {
+    "dev": "concurrently \"npm:dev:*\"",
+    "dev:vite": "vite build --config renderer/vite.config.js --watch --mode development",
+    "dev:pear": "pear run -d .",
+    "build": "vite build",
+    "test": "brittle test/*.test.js",
+    "schema:build": "node schema.js",
+    "lint": "prettier --check . && lunte .",
+    "format": "prettier --write ."
+  },
+  "dependencies": {
+    "autobonk": "github:mikker/autobonk",
+    "bare-pipe": "^4.0.7",
+    "hrpc": "^4.2.0",
+    "pear-bridge": "^1.2.4",
+    "pear-electron": "^1.7.22",
+    "pear-pipe": "^1.0.5",
+    "pear-run": "^1.0.5",
+    "pear-updates": "^1.1.0",
+    "protomux-wakeup": "^2.6.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.1.14",
+    "@vitejs/plugin-react": "^5.0.4",
+    "brittle": "^3.19.0",
+    "clsx": "^2.1.1",
+    "concurrently": "^9.2.1",
+    "lunte": "^0.2.3",
+    "prettier": "^3.6.2",
+    "prettier-config-standard": "^7.0.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "tailwind-merge": "^3.3.1",
+    "tailwindcss": "^4.1.14",
+    "vite": "^7.1.9"
+  },
+  "license": "MIT"
+}
