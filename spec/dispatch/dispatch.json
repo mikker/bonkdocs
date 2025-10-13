@@ -49,6 +49,54 @@
       "name": "@autobonk/revoke-roles",
       "requestType": "@autobonk/acl-entry",
       "version": 1
+    },
+    {
+      "id": 8,
+      "name": "@pear-docs/metadata-upsert",
+      "requestType": "@pear-docs/metadata",
+      "version": 1
+    },
+    {
+      "id": 9,
+      "name": "@pear-docs/operation-append",
+      "requestType": "@pear-docs/operation",
+      "version": 1
+    },
+    {
+      "id": 10,
+      "name": "@pear-docs/snapshot-save",
+      "requestType": "@pear-docs/snapshot",
+      "version": 1
+    },
+    {
+      "id": 11,
+      "name": "@pear-docs/presence-upsert",
+      "requestType": "@pear-docs/presence",
+      "version": 1
+    },
+    {
+      "id": 12,
+      "name": "@pear-docs/presence-remove",
+      "requestType": "@pear-docs/presence-remove",
+      "version": 1
+    },
+    {
+      "id": 13,
+      "name": "@local/doc-upsert",
+      "requestType": "@local/doc",
+      "version": 1
+    },
+    {
+      "id": 14,
+      "name": "@local/state-update",
+      "requestType": "@local/state",
+      "version": 1
+    },
+    {
+      "id": 15,
+      "name": "@local/profile-upsert",
+      "requestType": "@local/profile",
+      "version": 1
     }
   ]
 }

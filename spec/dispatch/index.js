@@ -16,8 +16,16 @@ class Router {
     this._handler5 = null
     this._handler6 = null
     this._handler7 = null
+    this._handler8 = null
+    this._handler9 = null
+    this._handler10 = null
+    this._handler11 = null
+    this._handler12 = null
+    this._handler13 = null
+    this._handler14 = null
+    this._handler15 = null
 
-    this._missing = 8
+    this._missing = 16
   }
 
   add (name, handler) {
@@ -46,6 +54,30 @@ class Router {
       case '@autobonk/revoke-roles':
         this._handler7 = handler
         break
+      case '@pear-docs/metadata-upsert':
+        this._handler8 = handler
+        break
+      case '@pear-docs/operation-append':
+        this._handler9 = handler
+        break
+      case '@pear-docs/snapshot-save':
+        this._handler10 = handler
+        break
+      case '@pear-docs/presence-upsert':
+        this._handler11 = handler
+        break
+      case '@pear-docs/presence-remove':
+        this._handler12 = handler
+        break
+      case '@local/doc-upsert':
+        this._handler13 = handler
+        break
+      case '@local/state-update':
+        this._handler14 = handler
+        break
+      case '@local/profile-upsert':
+        this._handler15 = handler
+        break
       default:
         throw new Error('Cannot register a handler for a nonexistent route: ' + name)
     }
@@ -61,6 +93,14 @@ class Router {
     assert(this._handler5 !== null, 'Missing handler for "@autobonk/define-role"')
     assert(this._handler6 !== null, 'Missing handler for "@autobonk/grant-roles"')
     assert(this._handler7 !== null, 'Missing handler for "@autobonk/revoke-roles"')
+    assert(this._handler8 !== null, 'Missing handler for "@pear-docs/metadata-upsert"')
+    assert(this._handler9 !== null, 'Missing handler for "@pear-docs/operation-append"')
+    assert(this._handler10 !== null, 'Missing handler for "@pear-docs/snapshot-save"')
+    assert(this._handler11 !== null, 'Missing handler for "@pear-docs/presence-upsert"')
+    assert(this._handler12 !== null, 'Missing handler for "@pear-docs/presence-remove"')
+    assert(this._handler13 !== null, 'Missing handler for "@local/doc-upsert"')
+    assert(this._handler14 !== null, 'Missing handler for "@local/state-update"')
+    assert(this._handler15 !== null, 'Missing handler for "@local/profile-upsert"')
   }
 
   async dispatch (message, context) {
@@ -89,6 +129,22 @@ class Router {
         return this._handler6(op.value, context)
       case 7:
         return this._handler7(op.value, context)
+      case 8:
+        return this._handler8(op.value, context)
+      case 9:
+        return this._handler9(op.value, context)
+      case 10:
+        return this._handler10(op.value, context)
+      case 11:
+        return this._handler11(op.value, context)
+      case 12:
+        return this._handler12(op.value, context)
+      case 13:
+        return this._handler13(op.value, context)
+      case 14:
+        return this._handler14(op.value, context)
+      case 15:
+        return this._handler15(op.value, context)
       default:
         throw new Error('Handler not found for ID:' + op.id)
     }
@@ -170,6 +226,54 @@ const route7 = {
   enc: getEncoding('@autobonk/acl-entry')
 }
 
+const route8 = {
+  name: '@pear-docs/metadata-upsert',
+  id: 8,
+  enc: getEncoding('@pear-docs/metadata')
+}
+
+const route9 = {
+  name: '@pear-docs/operation-append',
+  id: 9,
+  enc: getEncoding('@pear-docs/operation')
+}
+
+const route10 = {
+  name: '@pear-docs/snapshot-save',
+  id: 10,
+  enc: getEncoding('@pear-docs/snapshot')
+}
+
+const route11 = {
+  name: '@pear-docs/presence-upsert',
+  id: 11,
+  enc: getEncoding('@pear-docs/presence')
+}
+
+const route12 = {
+  name: '@pear-docs/presence-remove',
+  id: 12,
+  enc: getEncoding('@pear-docs/presence-remove')
+}
+
+const route13 = {
+  name: '@local/doc-upsert',
+  id: 13,
+  enc: getEncoding('@local/doc')
+}
+
+const route14 = {
+  name: '@local/state-update',
+  id: 14,
+  enc: getEncoding('@local/state')
+}
+
+const route15 = {
+  name: '@local/profile-upsert',
+  id: 15,
+  enc: getEncoding('@local/profile')
+}
+
 function getRouteByName (name) {
   switch (name) {
     case '@autobonk/remove-writer':
@@ -188,6 +292,22 @@ function getRouteByName (name) {
       return route6
     case '@autobonk/revoke-roles':
       return route7
+    case '@pear-docs/metadata-upsert':
+      return route8
+    case '@pear-docs/operation-append':
+      return route9
+    case '@pear-docs/snapshot-save':
+      return route10
+    case '@pear-docs/presence-upsert':
+      return route11
+    case '@pear-docs/presence-remove':
+      return route12
+    case '@local/doc-upsert':
+      return route13
+    case '@local/state-update':
+      return route14
+    case '@local/profile-upsert':
+      return route15
     default:
       throw new Error('Handler not found for name: ' + name)
   }
@@ -211,6 +331,22 @@ function getRouteById (id) {
       return route6
     case 7:
       return route7
+    case 8:
+      return route8
+    case 9:
+      return route9
+    case 10:
+      return route10
+    case 11:
+      return route11
+    case 12:
+      return route12
+    case 13:
+      return route13
+    case 14:
+      return route14
+    case 15:
+      return route15
     default:
       throw new Error('Handler not found for ID: ' + id)
   }

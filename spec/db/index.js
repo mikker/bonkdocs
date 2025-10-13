@@ -279,41 +279,41 @@ const collection4 = {
   indexes: []
 }
 
-// '@local/docs' collection key
+// '@pear-docs/metadata' collection key
 const collection5_key = new IndexEncoder([
   IndexEncoder.STRING
 ], { prefix: 5 })
 
 function collection5_indexify (record) {
-  const a = record.key
+  const a = record.id
   return a === undefined ? [] : [a]
 }
 
-// '@local/docs' value encoding
-const collection5_enc = getEncoding('@local/doc/hyperdb#5')
+// '@pear-docs/metadata' value encoding
+const collection5_enc = getEncoding('@pear-docs/metadata/hyperdb#5')
 
-// '@local/docs' reconstruction function
+// '@pear-docs/metadata' reconstruction function
 function collection5_reconstruct (version, keyBuf, valueBuf) {
   const key = collection5_key.decode(keyBuf)
   setVersion(version)
   const record = c.decode(collection5_enc, valueBuf)
-  record.key = key[0]
+  record.id = key[0]
   return record
 }
-// '@local/docs' key reconstruction function
+// '@pear-docs/metadata' key reconstruction function
 function collection5_reconstruct_key (keyBuf) {
   const key = collection5_key.decode(keyBuf)
   return {
-    key: key[0]
+    id: key[0]
   }
 }
 
-// '@local/docs'
+// '@pear-docs/metadata'
 const collection5 = {
-  name: '@local/docs',
+  name: '@pear-docs/metadata',
   id: 5,
   encodeKey (record) {
-    const key = [record.key]
+    const key = [record.id]
     return collection5_key.encode(key)
   },
   encodeKeyRange ({ gt, lt, gte, lte } = {}) {
@@ -334,13 +334,349 @@ const collection5 = {
   indexes: []
 }
 
+// '@pear-docs/operations' collection key
+const collection6_key = new IndexEncoder([
+  IndexEncoder.UINT
+], { prefix: 6 })
+
+function collection6_indexify (record) {
+  const a = record.rev
+  return a === undefined ? [] : [a]
+}
+
+// '@pear-docs/operations' value encoding
+const collection6_enc = getEncoding('@pear-docs/operation/hyperdb#6')
+
+// '@pear-docs/operations' reconstruction function
+function collection6_reconstruct (version, keyBuf, valueBuf) {
+  const key = collection6_key.decode(keyBuf)
+  setVersion(version)
+  const record = c.decode(collection6_enc, valueBuf)
+  record.rev = key[0]
+  return record
+}
+// '@pear-docs/operations' key reconstruction function
+function collection6_reconstruct_key (keyBuf) {
+  const key = collection6_key.decode(keyBuf)
+  return {
+    rev: key[0]
+  }
+}
+
+// '@pear-docs/operations'
+const collection6 = {
+  name: '@pear-docs/operations',
+  id: 6,
+  encodeKey (record) {
+    const key = [record.rev]
+    return collection6_key.encode(key)
+  },
+  encodeKeyRange ({ gt, lt, gte, lte } = {}) {
+    return collection6_key.encodeRange({
+      gt: gt ? collection6_indexify(gt) : null,
+      lt: lt ? collection6_indexify(lt) : null,
+      gte: gte ? collection6_indexify(gte) : null,
+      lte: lte ? collection6_indexify(lte) : null
+    })
+  },
+  encodeValue (version, record) {
+    setVersion(version)
+    return c.encode(collection6_enc, record)
+  },
+  trigger: null,
+  reconstruct: collection6_reconstruct,
+  reconstructKey: collection6_reconstruct_key,
+  indexes: []
+}
+
+// '@pear-docs/snapshots' collection key
+const collection7_key = new IndexEncoder([
+  IndexEncoder.UINT
+], { prefix: 7 })
+
+function collection7_indexify (record) {
+  const a = record.rev
+  return a === undefined ? [] : [a]
+}
+
+// '@pear-docs/snapshots' value encoding
+const collection7_enc = getEncoding('@pear-docs/snapshot/hyperdb#7')
+
+// '@pear-docs/snapshots' reconstruction function
+function collection7_reconstruct (version, keyBuf, valueBuf) {
+  const key = collection7_key.decode(keyBuf)
+  setVersion(version)
+  const record = c.decode(collection7_enc, valueBuf)
+  record.rev = key[0]
+  return record
+}
+// '@pear-docs/snapshots' key reconstruction function
+function collection7_reconstruct_key (keyBuf) {
+  const key = collection7_key.decode(keyBuf)
+  return {
+    rev: key[0]
+  }
+}
+
+// '@pear-docs/snapshots'
+const collection7 = {
+  name: '@pear-docs/snapshots',
+  id: 7,
+  encodeKey (record) {
+    const key = [record.rev]
+    return collection7_key.encode(key)
+  },
+  encodeKeyRange ({ gt, lt, gte, lte } = {}) {
+    return collection7_key.encodeRange({
+      gt: gt ? collection7_indexify(gt) : null,
+      lt: lt ? collection7_indexify(lt) : null,
+      gte: gte ? collection7_indexify(gte) : null,
+      lte: lte ? collection7_indexify(lte) : null
+    })
+  },
+  encodeValue (version, record) {
+    setVersion(version)
+    return c.encode(collection7_enc, record)
+  },
+  trigger: null,
+  reconstruct: collection7_reconstruct,
+  reconstructKey: collection7_reconstruct_key,
+  indexes: []
+}
+
+// '@pear-docs/presence' collection key
+const collection8_key = new IndexEncoder([
+  IndexEncoder.STRING
+], { prefix: 8 })
+
+function collection8_indexify (record) {
+  const a = record.id
+  return a === undefined ? [] : [a]
+}
+
+// '@pear-docs/presence' value encoding
+const collection8_enc = getEncoding('@pear-docs/presence/hyperdb#8')
+
+// '@pear-docs/presence' reconstruction function
+function collection8_reconstruct (version, keyBuf, valueBuf) {
+  const key = collection8_key.decode(keyBuf)
+  setVersion(version)
+  const record = c.decode(collection8_enc, valueBuf)
+  record.id = key[0]
+  return record
+}
+// '@pear-docs/presence' key reconstruction function
+function collection8_reconstruct_key (keyBuf) {
+  const key = collection8_key.decode(keyBuf)
+  return {
+    id: key[0]
+  }
+}
+
+// '@pear-docs/presence'
+const collection8 = {
+  name: '@pear-docs/presence',
+  id: 8,
+  encodeKey (record) {
+    const key = [record.id]
+    return collection8_key.encode(key)
+  },
+  encodeKeyRange ({ gt, lt, gte, lte } = {}) {
+    return collection8_key.encodeRange({
+      gt: gt ? collection8_indexify(gt) : null,
+      lt: lt ? collection8_indexify(lt) : null,
+      gte: gte ? collection8_indexify(gte) : null,
+      lte: lte ? collection8_indexify(lte) : null
+    })
+  },
+  encodeValue (version, record) {
+    setVersion(version)
+    return c.encode(collection8_enc, record)
+  },
+  trigger: null,
+  reconstruct: collection8_reconstruct,
+  reconstructKey: collection8_reconstruct_key,
+  indexes: []
+}
+
+// '@local/docs' collection key
+const collection9_key = new IndexEncoder([
+  IndexEncoder.STRING
+], { prefix: 9 })
+
+function collection9_indexify (record) {
+  const a = record.key
+  return a === undefined ? [] : [a]
+}
+
+// '@local/docs' value encoding
+const collection9_enc = getEncoding('@local/doc/hyperdb#9')
+
+// '@local/docs' reconstruction function
+function collection9_reconstruct (version, keyBuf, valueBuf) {
+  const key = collection9_key.decode(keyBuf)
+  setVersion(version)
+  const record = c.decode(collection9_enc, valueBuf)
+  record.key = key[0]
+  return record
+}
+// '@local/docs' key reconstruction function
+function collection9_reconstruct_key (keyBuf) {
+  const key = collection9_key.decode(keyBuf)
+  return {
+    key: key[0]
+  }
+}
+
+// '@local/docs'
+const collection9 = {
+  name: '@local/docs',
+  id: 9,
+  encodeKey (record) {
+    const key = [record.key]
+    return collection9_key.encode(key)
+  },
+  encodeKeyRange ({ gt, lt, gte, lte } = {}) {
+    return collection9_key.encodeRange({
+      gt: gt ? collection9_indexify(gt) : null,
+      lt: lt ? collection9_indexify(lt) : null,
+      gte: gte ? collection9_indexify(gte) : null,
+      lte: lte ? collection9_indexify(lte) : null
+    })
+  },
+  encodeValue (version, record) {
+    setVersion(version)
+    return c.encode(collection9_enc, record)
+  },
+  trigger: null,
+  reconstruct: collection9_reconstruct,
+  reconstructKey: collection9_reconstruct_key,
+  indexes: []
+}
+
+// '@local/state' collection key
+const collection10_key = new IndexEncoder([
+  IndexEncoder.STRING
+], { prefix: 10 })
+
+function collection10_indexify (record) {
+  const a = record.id
+  return a === undefined ? [] : [a]
+}
+
+// '@local/state' value encoding
+const collection10_enc = getEncoding('@local/state/hyperdb#10')
+
+// '@local/state' reconstruction function
+function collection10_reconstruct (version, keyBuf, valueBuf) {
+  const key = collection10_key.decode(keyBuf)
+  setVersion(version)
+  const record = c.decode(collection10_enc, valueBuf)
+  record.id = key[0]
+  return record
+}
+// '@local/state' key reconstruction function
+function collection10_reconstruct_key (keyBuf) {
+  const key = collection10_key.decode(keyBuf)
+  return {
+    id: key[0]
+  }
+}
+
+// '@local/state'
+const collection10 = {
+  name: '@local/state',
+  id: 10,
+  encodeKey (record) {
+    const key = [record.id]
+    return collection10_key.encode(key)
+  },
+  encodeKeyRange ({ gt, lt, gte, lte } = {}) {
+    return collection10_key.encodeRange({
+      gt: gt ? collection10_indexify(gt) : null,
+      lt: lt ? collection10_indexify(lt) : null,
+      gte: gte ? collection10_indexify(gte) : null,
+      lte: lte ? collection10_indexify(lte) : null
+    })
+  },
+  encodeValue (version, record) {
+    setVersion(version)
+    return c.encode(collection10_enc, record)
+  },
+  trigger: null,
+  reconstruct: collection10_reconstruct,
+  reconstructKey: collection10_reconstruct_key,
+  indexes: []
+}
+
+// '@local/profile' collection key
+const collection11_key = new IndexEncoder([
+  IndexEncoder.STRING
+], { prefix: 11 })
+
+function collection11_indexify (record) {
+  const a = record.id
+  return a === undefined ? [] : [a]
+}
+
+// '@local/profile' value encoding
+const collection11_enc = getEncoding('@local/profile/hyperdb#11')
+
+// '@local/profile' reconstruction function
+function collection11_reconstruct (version, keyBuf, valueBuf) {
+  const key = collection11_key.decode(keyBuf)
+  setVersion(version)
+  const record = c.decode(collection11_enc, valueBuf)
+  record.id = key[0]
+  return record
+}
+// '@local/profile' key reconstruction function
+function collection11_reconstruct_key (keyBuf) {
+  const key = collection11_key.decode(keyBuf)
+  return {
+    id: key[0]
+  }
+}
+
+// '@local/profile'
+const collection11 = {
+  name: '@local/profile',
+  id: 11,
+  encodeKey (record) {
+    const key = [record.id]
+    return collection11_key.encode(key)
+  },
+  encodeKeyRange ({ gt, lt, gte, lte } = {}) {
+    return collection11_key.encodeRange({
+      gt: gt ? collection11_indexify(gt) : null,
+      lt: lt ? collection11_indexify(lt) : null,
+      gte: gte ? collection11_indexify(gte) : null,
+      lte: lte ? collection11_indexify(lte) : null
+    })
+  },
+  encodeValue (version, record) {
+    setVersion(version)
+    return c.encode(collection11_enc, record)
+  },
+  trigger: null,
+  reconstruct: collection11_reconstruct,
+  reconstructKey: collection11_reconstruct_key,
+  indexes: []
+}
+
 const collections = [
   collection0,
   collection1,
   collection2,
   collection3,
   collection4,
-  collection5
+  collection5,
+  collection6,
+  collection7,
+  collection8,
+  collection9,
+  collection10,
+  collection11
 ]
 
 const indexes = [
@@ -355,7 +691,13 @@ function resolveCollection (name) {
     case '@autobonk/context-init': return collection2
     case '@autobonk/role-def': return collection3
     case '@autobonk/acl-entry': return collection4
-    case '@local/docs': return collection5
+    case '@pear-docs/metadata': return collection5
+    case '@pear-docs/operations': return collection6
+    case '@pear-docs/snapshots': return collection7
+    case '@pear-docs/presence': return collection8
+    case '@local/docs': return collection9
+    case '@local/state': return collection10
+    case '@local/profile': return collection11
     default: return null
   }
 }

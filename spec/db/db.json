@@ -68,15 +68,93 @@
       "trigger": null
     },
     {
+      "name": "metadata",
+      "namespace": "pear-docs",
+      "id": 5,
+      "type": 1,
+      "indexes": [],
+      "schema": "@pear-docs/metadata",
+      "derived": false,
+      "key": [
+        "id"
+      ],
+      "trigger": null
+    },
+    {
+      "name": "operations",
+      "namespace": "pear-docs",
+      "id": 6,
+      "type": 1,
+      "indexes": [],
+      "schema": "@pear-docs/operation",
+      "derived": false,
+      "key": [
+        "rev"
+      ],
+      "trigger": null
+    },
+    {
+      "name": "snapshots",
+      "namespace": "pear-docs",
+      "id": 7,
+      "type": 1,
+      "indexes": [],
+      "schema": "@pear-docs/snapshot",
+      "derived": false,
+      "key": [
+        "rev"
+      ],
+      "trigger": null
+    },
+    {
+      "name": "presence",
+      "namespace": "pear-docs",
+      "id": 8,
+      "type": 1,
+      "indexes": [],
+      "schema": "@pear-docs/presence",
+      "derived": false,
+      "key": [
+        "id"
+      ],
+      "trigger": null
+    },
+    {
       "name": "docs",
       "namespace": "local",
-      "id": 5,
+      "id": 9,
       "type": 1,
       "indexes": [],
       "schema": "@local/doc",
       "derived": false,
       "key": [
         "key"
+      ],
+      "trigger": null
+    },
+    {
+      "name": "state",
+      "namespace": "local",
+      "id": 10,
+      "type": 1,
+      "indexes": [],
+      "schema": "@local/state",
+      "derived": false,
+      "key": [
+        "id"
+      ],
+      "trigger": null
+    },
+    {
+      "name": "profile",
+      "namespace": "local",
+      "id": 11,
+      "type": 1,
+      "indexes": [],
+      "schema": "@local/profile",
+      "derived": false,
+      "key": [
+        "id"
       ],
       "trigger": null
     }

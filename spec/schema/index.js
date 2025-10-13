@@ -207,20 +207,220 @@ const encoding5 = {
   }
 }
 
-// @local/doc
+// @pear-docs/metadata
 const encoding6 = {
+  preencode(state, m) {
+    c.string.preencode(state, m.id)
+    state.end++ // max flag is 8 so always one byte
+
+    if (m.title) c.string.preencode(state, m.title)
+    if (m.description) c.string.preencode(state, m.description)
+    c.uint.preencode(state, m.createdAt)
+    if (m.updatedAt) c.uint.preencode(state, m.updatedAt)
+    if (m.creatorKey) c.fixed32.preencode(state, m.creatorKey)
+    c.uint.preencode(state, m.rev)
+  },
+  encode(state, m) {
+    const flags =
+      (m.title ? 1 : 0) |
+      (m.description ? 2 : 0) |
+      (m.updatedAt ? 4 : 0) |
+      (m.creatorKey ? 8 : 0)
+
+    c.string.encode(state, m.id)
+    c.uint.encode(state, flags)
+
+    if (m.title) c.string.encode(state, m.title)
+    if (m.description) c.string.encode(state, m.description)
+    c.uint.encode(state, m.createdAt)
+    if (m.updatedAt) c.uint.encode(state, m.updatedAt)
+    if (m.creatorKey) c.fixed32.encode(state, m.creatorKey)
+    c.uint.encode(state, m.rev)
+  },
+  decode(state) {
+    const r0 = c.string.decode(state)
+    const flags = c.uint.decode(state)
+
+    return {
+      id: r0,
+      title: (flags & 1) !== 0 ? c.string.decode(state) : null,
+      description: (flags & 2) !== 0 ? c.string.decode(state) : null,
+      createdAt: c.uint.decode(state),
+      updatedAt: (flags & 4) !== 0 ? c.uint.decode(state) : 0,
+      creatorKey: (flags & 8) !== 0 ? c.fixed32.decode(state) : null,
+      rev: c.uint.decode(state)
+    }
+  }
+}
+
+// @pear-docs/operation
+const encoding7 = {
+  preencode(state, m) {
+    c.uint.preencode(state, m.rev)
+    c.uint.preencode(state, m.baseRev)
+    c.fixed32.preencode(state, m.clientId)
+    state.end++ // max flag is 1 so always one byte
+
+    if (m.sessionId) c.fixed32.preencode(state, m.sessionId)
+    c.uint.preencode(state, m.timestamp)
+    c.buffer.preencode(state, m.data)
+  },
+  encode(state, m) {
+    const flags = m.sessionId ? 1 : 0
+
+    c.uint.encode(state, m.rev)
+    c.uint.encode(state, m.baseRev)
+    c.fixed32.encode(state, m.clientId)
+    c.uint.encode(state, flags)
+
+    if (m.sessionId) c.fixed32.encode(state, m.sessionId)
+    c.uint.encode(state, m.timestamp)
+    c.buffer.encode(state, m.data)
+  },
+  decode(state) {
+    const r0 = c.uint.decode(state)
+    const r1 = c.uint.decode(state)
+    const r2 = c.fixed32.decode(state)
+    const flags = c.uint.decode(state)
+
+    return {
+      rev: r0,
+      baseRev: r1,
+      clientId: r2,
+      sessionId: (flags & 1) !== 0 ? c.fixed32.decode(state) : null,
+      timestamp: c.uint.decode(state),
+      data: c.buffer.decode(state)
+    }
+  }
+}
+
+// @pear-docs/snapshot
+const encoding8 = {
+  preencode(state, m) {
+    c.uint.preencode(state, m.rev)
+    c.uint.preencode(state, m.createdAt)
+    state.end++ // max flag is 2 so always one byte
+
+    if (m.compression) c.string.preencode(state, m.compression)
+    c.buffer.preencode(state, m.data)
+    if (m.hash) c.buffer.preencode(state, m.hash)
+  },
+  encode(state, m) {
+    const flags =
+      (m.compression ? 1 : 0) |
+      (m.hash ? 2 : 0)
+
+    c.uint.encode(state, m.rev)
+    c.uint.encode(state, m.createdAt)
+    c.uint.encode(state, flags)
+
+    if (m.compression) c.string.encode(state, m.compression)
+    c.buffer.encode(state, m.data)
+    if (m.hash) c.buffer.encode(state, m.hash)
+  },
+  decode(state) {
+    const r0 = c.uint.decode(state)
+    const r1 = c.uint.decode(state)
+    const flags = c.uint.decode(state)
+
+    return {
+      rev: r0,
+      createdAt: r1,
+      compression: (flags & 1) !== 0 ? c.string.decode(state) : null,
+      data: c.buffer.decode(state),
+      hash: (flags & 2) !== 0 ? c.buffer.decode(state) : null
+    }
+  }
+}
+
+// @pear-docs/presence
+const encoding9 = {
+  preencode(state, m) {
+    c.string.preencode(state, m.id)
+    c.fixed32.preencode(state, m.writerKey)
+    c.fixed32.preencode(state, m.sessionId)
+    state.end++ // max flag is 4 so always one byte
+
+    if (m.displayName) c.string.preencode(state, m.displayName)
+    if (m.color) c.string.preencode(state, m.color)
+    c.uint.preencode(state, m.updatedAt)
+    if (m.payload) c.buffer.preencode(state, m.payload)
+  },
+  encode(state, m) {
+    const flags =
+      (m.displayName ? 1 : 0) |
+      (m.color ? 2 : 0) |
+      (m.payload ? 4 : 0)
+
+    c.string.encode(state, m.id)
+    c.fixed32.encode(state, m.writerKey)
+    c.fixed32.encode(state, m.sessionId)
+    c.uint.encode(state, flags)
+
+    if (m.displayName) c.string.encode(state, m.displayName)
+    if (m.color) c.string.encode(state, m.color)
+    c.uint.encode(state, m.updatedAt)
+    if (m.payload) c.buffer.encode(state, m.payload)
+  },
+  decode(state) {
+    const r0 = c.string.decode(state)
+    const r1 = c.fixed32.decode(state)
+    const r2 = c.fixed32.decode(state)
+    const flags = c.uint.decode(state)
+
+    return {
+      id: r0,
+      writerKey: r1,
+      sessionId: r2,
+      displayName: (flags & 1) !== 0 ? c.string.decode(state) : null,
+      color: (flags & 2) !== 0 ? c.string.decode(state) : null,
+      updatedAt: c.uint.decode(state),
+      payload: (flags & 4) !== 0 ? c.buffer.decode(state) : null
+    }
+  }
+}
+
+// @pear-docs/presence-remove
+const encoding10 = {
+  preencode(state, m) {
+    c.string.preencode(state, m.id)
+    c.uint.preencode(state, m.removedAt)
+  },
+  encode(state, m) {
+    c.string.encode(state, m.id)
+    c.uint.encode(state, m.removedAt)
+  },
+  decode(state) {
+    const r0 = c.string.decode(state)
+    const r1 = c.uint.decode(state)
+
+    return {
+      id: r0,
+      removedAt: r1
+    }
+  }
+}
+
+// @local/doc
+const encoding11 = {
   preencode(state, m) {
     c.string.preencode(state, m.key)
     c.string.preencode(state, m.encryptionKey)
     c.uint.preencode(state, m.createdAt)
-    state.end++ // max flag is 2 so always one byte
+    state.end++ // max flag is 16 so always one byte
 
     if (m.joinedAt) c.uint.preencode(state, m.joinedAt)
+    if (m.title) c.string.preencode(state, m.title)
+    if (m.lastRevision) c.uint.preencode(state, m.lastRevision)
+    if (m.lastOpenedAt) c.uint.preencode(state, m.lastOpenedAt)
   },
   encode(state, m) {
     const flags =
       (m.joinedAt ? 1 : 0) |
-      (m.isCreator ? 2 : 0)
+      (m.isCreator ? 2 : 0) |
+      (m.title ? 4 : 0) |
+      (m.lastRevision ? 8 : 0) |
+      (m.lastOpenedAt ? 16 : 0)
 
     c.string.encode(state, m.key)
     c.string.encode(state, m.encryptionKey)
@@ -228,6 +428,9 @@ const encoding6 = {
     c.uint.encode(state, flags)
 
     if (m.joinedAt) c.uint.encode(state, m.joinedAt)
+    if (m.title) c.string.encode(state, m.title)
+    if (m.lastRevision) c.uint.encode(state, m.lastRevision)
+    if (m.lastOpenedAt) c.uint.encode(state, m.lastOpenedAt)
   },
   decode(state) {
     const r0 = c.string.decode(state)
@@ -240,13 +443,334 @@ const encoding6 = {
       encryptionKey: r1,
       createdAt: r2,
       joinedAt: (flags & 1) !== 0 ? c.uint.decode(state) : 0,
-      isCreator: (flags & 2) !== 0
+      isCreator: (flags & 2) !== 0,
+      title: (flags & 4) !== 0 ? c.string.decode(state) : null,
+      lastRevision: (flags & 8) !== 0 ? c.uint.decode(state) : 0,
+      lastOpenedAt: (flags & 16) !== 0 ? c.uint.decode(state) : 0
+    }
+  }
+}
+
+// @local/state
+const encoding12 = {
+  preencode(state, m) {
+    c.string.preencode(state, m.id)
+    state.end++ // max flag is 2 so always one byte
+
+    if (m.activeDoc) c.string.preencode(state, m.activeDoc)
+    if (m.lastSeenAt) c.uint.preencode(state, m.lastSeenAt)
+  },
+  encode(state, m) {
+    const flags =
+      (m.activeDoc ? 1 : 0) |
+      (m.lastSeenAt ? 2 : 0)
+
+    c.string.encode(state, m.id)
+    c.uint.encode(state, flags)
+
+    if (m.activeDoc) c.string.encode(state, m.activeDoc)
+    if (m.lastSeenAt) c.uint.encode(state, m.lastSeenAt)
+  },
+  decode(state) {
+    const r0 = c.string.decode(state)
+    const flags = c.uint.decode(state)
+
+    return {
+      id: r0,
+      activeDoc: (flags & 1) !== 0 ? c.string.decode(state) : null,
+      lastSeenAt: (flags & 2) !== 0 ? c.uint.decode(state) : 0
+    }
+  }
+}
+
+// @local/profile
+const encoding13 = {
+  preencode(state, m) {
+    c.string.preencode(state, m.id)
+    state.end++ // max flag is 4 so always one byte
+
+    if (m.displayName) c.string.preencode(state, m.displayName)
+    if (m.color) c.string.preencode(state, m.color)
+    if (m.updatedAt) c.uint.preencode(state, m.updatedAt)
+  },
+  encode(state, m) {
+    const flags =
+      (m.displayName ? 1 : 0) |
+      (m.color ? 2 : 0) |
+      (m.updatedAt ? 4 : 0)
+
+    c.string.encode(state, m.id)
+    c.uint.encode(state, flags)
+
+    if (m.displayName) c.string.encode(state, m.displayName)
+    if (m.color) c.string.encode(state, m.color)
+    if (m.updatedAt) c.uint.encode(state, m.updatedAt)
+  },
+  decode(state) {
+    const r0 = c.string.decode(state)
+    const flags = c.uint.decode(state)
+
+    return {
+      id: r0,
+      displayName: (flags & 1) !== 0 ? c.string.decode(state) : null,
+      color: (flags & 2) !== 0 ? c.string.decode(state) : null,
+      updatedAt: (flags & 4) !== 0 ? c.uint.decode(state) : 0
+    }
+  }
+}
+
+// @pear-docs-rpc/doc-capabilities.roles
+const encoding14_3 = encoding1_4
+
+// @pear-docs-rpc/doc-capabilities
+const encoding14 = {
+  preencode(state, m) {
+    state.end++ // max flag is 8 so always one byte
+
+    if (m.roles) encoding14_3.preencode(state, m.roles)
+  },
+  encode(state, m) {
+    const flags =
+      (m.canEdit ? 1 : 0) |
+      (m.canComment ? 2 : 0) |
+      (m.canInvite ? 4 : 0) |
+      (m.roles ? 8 : 0)
+
+    c.uint.encode(state, flags)
+
+    if (m.roles) encoding14_3.encode(state, m.roles)
+  },
+  decode(state) {
+    const flags = c.uint.decode(state)
+
+    return {
+      canEdit: (flags & 1) !== 0,
+      canComment: (flags & 2) !== 0,
+      canInvite: (flags & 4) !== 0,
+      roles: (flags & 8) !== 0 ? encoding14_3.decode(state) : null
+    }
+  }
+}
+
+// @pear-docs-rpc/doc-presence
+const encoding15 = {
+  preencode(state, m) {
+    c.string.preencode(state, m.id)
+    c.string.preencode(state, m.writerKey)
+    c.string.preencode(state, m.sessionId)
+    state.end++ // max flag is 4 so always one byte
+
+    if (m.displayName) c.string.preencode(state, m.displayName)
+    if (m.color) c.string.preencode(state, m.color)
+    c.uint.preencode(state, m.updatedAt)
+    if (m.payload) c.buffer.preencode(state, m.payload)
+  },
+  encode(state, m) {
+    const flags =
+      (m.displayName ? 1 : 0) |
+      (m.color ? 2 : 0) |
+      (m.payload ? 4 : 0)
+
+    c.string.encode(state, m.id)
+    c.string.encode(state, m.writerKey)
+    c.string.encode(state, m.sessionId)
+    c.uint.encode(state, flags)
+
+    if (m.displayName) c.string.encode(state, m.displayName)
+    if (m.color) c.string.encode(state, m.color)
+    c.uint.encode(state, m.updatedAt)
+    if (m.payload) c.buffer.encode(state, m.payload)
+  },
+  decode(state) {
+    const r0 = c.string.decode(state)
+    const r1 = c.string.decode(state)
+    const r2 = c.string.decode(state)
+    const flags = c.uint.decode(state)
+
+    return {
+      id: r0,
+      writerKey: r1,
+      sessionId: r2,
+      displayName: (flags & 1) !== 0 ? c.string.decode(state) : null,
+      color: (flags & 2) !== 0 ? c.string.decode(state) : null,
+      updatedAt: c.uint.decode(state),
+      payload: (flags & 4) !== 0 ? c.buffer.decode(state) : null
+    }
+  }
+}
+
+// @pear-docs-rpc/doc-operation
+const encoding16 = {
+  preencode(state, m) {
+    state.end++ // max flag is 8 so always one byte
+
+    if (m.rev) c.uint.preencode(state, m.rev)
+    if (m.baseRev) c.uint.preencode(state, m.baseRev)
+    c.string.preencode(state, m.clientId)
+    if (m.sessionId) c.string.preencode(state, m.sessionId)
+    if (m.timestamp) c.uint.preencode(state, m.timestamp)
+    c.buffer.preencode(state, m.data)
+  },
+  encode(state, m) {
+    const flags =
+      (m.rev ? 1 : 0) |
+      (m.baseRev ? 2 : 0) |
+      (m.sessionId ? 4 : 0) |
+      (m.timestamp ? 8 : 0)
+
+    c.uint.encode(state, flags)
+
+    if (m.rev) c.uint.encode(state, m.rev)
+    if (m.baseRev) c.uint.encode(state, m.baseRev)
+    c.string.encode(state, m.clientId)
+    if (m.sessionId) c.string.encode(state, m.sessionId)
+    if (m.timestamp) c.uint.encode(state, m.timestamp)
+    c.buffer.encode(state, m.data)
+  },
+  decode(state) {
+    const flags = c.uint.decode(state)
+
+    return {
+      rev: (flags & 1) !== 0 ? c.uint.decode(state) : 0,
+      baseRev: (flags & 2) !== 0 ? c.uint.decode(state) : 0,
+      clientId: c.string.decode(state),
+      sessionId: (flags & 4) !== 0 ? c.string.decode(state) : null,
+      timestamp: (flags & 8) !== 0 ? c.uint.decode(state) : 0,
+      data: c.buffer.decode(state)
+    }
+  }
+}
+
+// @pear-docs-rpc/doc-update.ops
+const encoding17_7 = c.array(c.frame(encoding16))
+// @pear-docs-rpc/doc-update.presence
+const encoding17_8 = c.array(c.frame(encoding15))
+// @pear-docs-rpc/doc-update.capabilities
+const encoding17_9 = c.frame(encoding14)
+
+// @pear-docs-rpc/doc-update
+const encoding17 = {
+  preencode(state, m) {
+    const flags =
+      (m.baseRevision ? 1 : 0) |
+      (m.snapshotRevision ? 2 : 0) |
+      (m.updatedAt ? 4 : 0) |
+      (m.title ? 8 : 0) |
+      (m.snapshot ? 16 : 0) |
+      (m.ops ? 32 : 0) |
+      (m.presence ? 64 : 0) |
+      (m.capabilities ? 128 : 0)
+
+    c.string.preencode(state, m.key)
+    c.uint.preencode(state, m.revision)
+    c.uint.preencode(state, flags)
+
+    if (m.baseRevision) c.uint.preencode(state, m.baseRevision)
+    if (m.snapshotRevision) c.uint.preencode(state, m.snapshotRevision)
+    if (m.updatedAt) c.uint.preencode(state, m.updatedAt)
+    if (m.title) c.string.preencode(state, m.title)
+    if (m.snapshot) c.buffer.preencode(state, m.snapshot)
+    if (m.ops) encoding17_7.preencode(state, m.ops)
+    if (m.presence) encoding17_8.preencode(state, m.presence)
+    if (m.capabilities) encoding17_9.preencode(state, m.capabilities)
+  },
+  encode(state, m) {
+    const flags =
+      (m.baseRevision ? 1 : 0) |
+      (m.snapshotRevision ? 2 : 0) |
+      (m.updatedAt ? 4 : 0) |
+      (m.title ? 8 : 0) |
+      (m.snapshot ? 16 : 0) |
+      (m.ops ? 32 : 0) |
+      (m.presence ? 64 : 0) |
+      (m.capabilities ? 128 : 0)
+
+    c.string.encode(state, m.key)
+    c.uint.encode(state, m.revision)
+    c.uint.encode(state, flags)
+
+    if (m.baseRevision) c.uint.encode(state, m.baseRevision)
+    if (m.snapshotRevision) c.uint.encode(state, m.snapshotRevision)
+    if (m.updatedAt) c.uint.encode(state, m.updatedAt)
+    if (m.title) c.string.encode(state, m.title)
+    if (m.snapshot) c.buffer.encode(state, m.snapshot)
+    if (m.ops) encoding17_7.encode(state, m.ops)
+    if (m.presence) encoding17_8.encode(state, m.presence)
+    if (m.capabilities) encoding17_9.encode(state, m.capabilities)
+  },
+  decode(state) {
+    const r0 = c.string.decode(state)
+    const r1 = c.uint.decode(state)
+    const flags = c.uint.decode(state)
+
+    return {
+      key: r0,
+      revision: r1,
+      baseRevision: (flags & 1) !== 0 ? c.uint.decode(state) : 0,
+      snapshotRevision: (flags & 2) !== 0 ? c.uint.decode(state) : 0,
+      updatedAt: (flags & 4) !== 0 ? c.uint.decode(state) : 0,
+      title: (flags & 8) !== 0 ? c.string.decode(state) : null,
+      snapshot: (flags & 16) !== 0 ? c.buffer.decode(state) : null,
+      ops: (flags & 32) !== 0 ? encoding17_7.decode(state) : null,
+      presence: (flags & 64) !== 0 ? encoding17_8.decode(state) : null,
+      capabilities: (flags & 128) !== 0 ? encoding17_9.decode(state) : null
+    }
+  }
+}
+
+// @pear-docs-rpc/doc-invite.roles
+const encoding18_2 = encoding1_4
+
+// @pear-docs-rpc/doc-invite
+const encoding18 = {
+  preencode(state, m) {
+    c.string.preencode(state, m.id)
+    c.string.preencode(state, m.invite)
+    state.end++ // max flag is 16 so always one byte
+
+    if (m.roles) encoding18_2.preencode(state, m.roles)
+    if (m.createdBy) c.string.preencode(state, m.createdBy)
+    if (m.createdAt) c.uint.preencode(state, m.createdAt)
+    if (m.revokedAt) c.uint.preencode(state, m.revokedAt)
+    if (m.expiresAt) c.int.preencode(state, m.expiresAt)
+  },
+  encode(state, m) {
+    const flags =
+      (m.roles ? 1 : 0) |
+      (m.createdBy ? 2 : 0) |
+      (m.createdAt ? 4 : 0) |
+      (m.revokedAt ? 8 : 0) |
+      (m.expiresAt ? 16 : 0)
+
+    c.string.encode(state, m.id)
+    c.string.encode(state, m.invite)
+    c.uint.encode(state, flags)
+
+    if (m.roles) encoding18_2.encode(state, m.roles)
+    if (m.createdBy) c.string.encode(state, m.createdBy)
+    if (m.createdAt) c.uint.encode(state, m.createdAt)
+    if (m.revokedAt) c.uint.encode(state, m.revokedAt)
+    if (m.expiresAt) c.int.encode(state, m.expiresAt)
+  },
+  decode(state) {
+    const r0 = c.string.decode(state)
+    const r1 = c.string.decode(state)
+    const flags = c.uint.decode(state)
+
+    return {
+      id: r0,
+      invite: r1,
+      roles: (flags & 1) !== 0 ? encoding18_2.decode(state) : null,
+      createdBy: (flags & 2) !== 0 ? c.string.decode(state) : null,
+      createdAt: (flags & 4) !== 0 ? c.uint.decode(state) : 0,
+      revokedAt: (flags & 8) !== 0 ? c.uint.decode(state) : 0,
+      expiresAt: (flags & 16) !== 0 ? c.int.decode(state) : 0
     }
   }
 }
 
 // @pear-docs-rpc/initialize-request
-const encoding7 = {
+const encoding19 = {
   preencode(state, m) {
     state.end++ // max flag is 1 so always one byte
   },
@@ -265,12 +789,12 @@ const encoding7 = {
 }
 
 // @pear-docs-rpc/initialize-response.docs
-const encoding8_0 = c.array(c.frame(encoding6))
+const encoding20_0 = c.array(c.frame(encoding11))
 
 // @pear-docs-rpc/initialize-response
-const encoding8 = {
+const encoding20 = {
   preencode(state, m) {
-    encoding8_0.preencode(state, m.docs)
+    encoding20_0.preencode(state, m.docs)
     state.end++ // max flag is 1 so always one byte
 
     if (m.activeDoc) c.string.preencode(state, m.activeDoc)
@@ -278,13 +802,13 @@ const encoding8 = {
   encode(state, m) {
     const flags = m.activeDoc ? 1 : 0
 
-    encoding8_0.encode(state, m.docs)
+    encoding20_0.encode(state, m.docs)
     c.uint.encode(state, flags)
 
     if (m.activeDoc) c.string.encode(state, m.activeDoc)
   },
   decode(state) {
-    const r0 = encoding8_0.decode(state)
+    const r0 = encoding20_0.decode(state)
     const flags = c.uint.decode(state)
 
     return {
@@ -295,21 +819,21 @@ const encoding8 = {
 }
 
 // @pear-docs-rpc/list-docs-request
-const encoding9 = encoding7
+const encoding21 = encoding19
 
 // @pear-docs-rpc/list-docs-response.docs
-const encoding10_0 = encoding8_0
+const encoding22_0 = encoding20_0
 
 // @pear-docs-rpc/list-docs-response
-const encoding10 = {
+const encoding22 = {
   preencode(state, m) {
-    encoding10_0.preencode(state, m.docs)
+    encoding22_0.preencode(state, m.docs)
   },
   encode(state, m) {
-    encoding10_0.encode(state, m.docs)
+    encoding22_0.encode(state, m.docs)
   },
   decode(state) {
-    const r0 = encoding10_0.decode(state)
+    const r0 = encoding22_0.decode(state)
 
     return {
       docs: r0
@@ -318,40 +842,40 @@ const encoding10 = {
 }
 
 // @pear-docs-rpc/create-doc-request
-const encoding11 = {
+const encoding23 = {
   preencode(state, m) {
     state.end++ // max flag is 2 so always one byte
 
-    if (m.name) c.string.preencode(state, m.name)
+    if (m.title) c.string.preencode(state, m.title)
     if (m.displayName) c.string.preencode(state, m.displayName)
   },
   encode(state, m) {
     const flags =
-      (m.name ? 1 : 0) |
+      (m.title ? 1 : 0) |
       (m.displayName ? 2 : 0)
 
     c.uint.encode(state, flags)
 
-    if (m.name) c.string.encode(state, m.name)
+    if (m.title) c.string.encode(state, m.title)
     if (m.displayName) c.string.encode(state, m.displayName)
   },
   decode(state) {
     const flags = c.uint.decode(state)
 
     return {
-      name: (flags & 1) !== 0 ? c.string.decode(state) : null,
+      title: (flags & 1) !== 0 ? c.string.decode(state) : null,
       displayName: (flags & 2) !== 0 ? c.string.decode(state) : null
     }
   }
 }
 
 // @pear-docs-rpc/create-doc-response.doc
-const encoding12_0 = c.frame(encoding6)
+const encoding24_0 = c.frame(encoding11)
 
 // @pear-docs-rpc/create-doc-response
-const encoding12 = {
+const encoding24 = {
   preencode(state, m) {
-    encoding12_0.preencode(state, m.doc)
+    encoding24_0.preencode(state, m.doc)
     c.string.preencode(state, m.writerKey)
     state.end++ // max flag is 1 so always one byte
 
@@ -360,14 +884,14 @@ const encoding12 = {
   encode(state, m) {
     const flags = m.invite ? 1 : 0
 
-    encoding12_0.encode(state, m.doc)
+    encoding24_0.encode(state, m.doc)
     c.string.encode(state, m.writerKey)
     c.uint.encode(state, flags)
 
     if (m.invite) c.string.encode(state, m.invite)
   },
   decode(state) {
-    const r0 = encoding12_0.decode(state)
+    const r0 = encoding24_0.decode(state)
     const r1 = c.string.decode(state)
     const flags = c.uint.decode(state)
 
@@ -380,24 +904,20 @@ const encoding12 = {
 }
 
 // @pear-docs-rpc/join-doc-request
-const encoding13 = {
+const encoding25 = {
   preencode(state, m) {
     c.string.preencode(state, m.invite)
-    state.end++ // max flag is 2 so always one byte
+    state.end++ // max flag is 1 so always one byte
 
-    if (m.name) c.string.preencode(state, m.name)
-    if (m.displayName) c.string.preencode(state, m.displayName)
+    if (m.title) c.string.preencode(state, m.title)
   },
   encode(state, m) {
-    const flags =
-      (m.name ? 1 : 0) |
-      (m.displayName ? 2 : 0)
+    const flags = m.title ? 1 : 0
 
     c.string.encode(state, m.invite)
     c.uint.encode(state, flags)
 
-    if (m.name) c.string.encode(state, m.name)
-    if (m.displayName) c.string.encode(state, m.displayName)
+    if (m.title) c.string.encode(state, m.title)
   },
   decode(state) {
     const r0 = c.string.decode(state)
@@ -405,27 +925,26 @@ const encoding13 = {
 
     return {
       invite: r0,
-      name: (flags & 1) !== 0 ? c.string.decode(state) : null,
-      displayName: (flags & 2) !== 0 ? c.string.decode(state) : null
+      title: (flags & 1) !== 0 ? c.string.decode(state) : null
     }
   }
 }
 
 // @pear-docs-rpc/join-doc-response.doc
-const encoding14_0 = encoding12_0
+const encoding26_0 = encoding24_0
 
 // @pear-docs-rpc/join-doc-response
-const encoding14 = {
+const encoding26 = {
   preencode(state, m) {
-    encoding14_0.preencode(state, m.doc)
+    encoding26_0.preencode(state, m.doc)
     c.string.preencode(state, m.writerKey)
   },
   encode(state, m) {
-    encoding14_0.encode(state, m.doc)
+    encoding26_0.encode(state, m.doc)
     c.string.encode(state, m.writerKey)
   },
   decode(state) {
-    const r0 = encoding14_0.decode(state)
+    const r0 = encoding26_0.decode(state)
     const r1 = c.string.decode(state)
 
     return {
@@ -436,7 +955,7 @@ const encoding14 = {
 }
 
 // @pear-docs-rpc/remove-doc-request
-const encoding15 = {
+const encoding27 = {
   preencode(state, m) {
     c.string.preencode(state, m.key)
   },
@@ -453,7 +972,7 @@ const encoding15 = {
 }
 
 // @pear-docs-rpc/remove-doc-response
-const encoding16 = {
+const encoding28 = {
   preencode(state, m) {
     state.end++ // max flag is 1 so always one byte
   },
@@ -472,30 +991,376 @@ const encoding16 = {
 }
 
 // @pear-docs-rpc/get-doc-request
-const encoding17 = encoding15
+const encoding29 = encoding27
 
 // @pear-docs-rpc/get-doc-response.doc
-const encoding18_0 = encoding12_0
+const encoding30_0 = encoding24_0
 
 // @pear-docs-rpc/get-doc-response
-const encoding18 = {
+const encoding30 = {
   preencode(state, m) {
     state.end++ // max flag is 1 so always one byte
 
-    if (m.doc) encoding18_0.preencode(state, m.doc)
+    if (m.doc) encoding30_0.preencode(state, m.doc)
   },
   encode(state, m) {
     const flags = m.doc ? 1 : 0
 
     c.uint.encode(state, flags)
 
-    if (m.doc) encoding18_0.encode(state, m.doc)
+    if (m.doc) encoding30_0.encode(state, m.doc)
   },
   decode(state) {
     const flags = c.uint.decode(state)
 
     return {
-      doc: (flags & 1) !== 0 ? encoding18_0.decode(state) : null
+      doc: (flags & 1) !== 0 ? encoding30_0.decode(state) : null
+    }
+  }
+}
+
+// @pear-docs-rpc/watch-doc-request
+const encoding31 = {
+  preencode(state, m) {
+    c.string.preencode(state, m.key)
+    state.end++ // max flag is 2 so always one byte
+
+    if (m.sinceRevision) c.uint.preencode(state, m.sinceRevision)
+  },
+  encode(state, m) {
+    const flags =
+      (m.sinceRevision ? 1 : 0) |
+      (m.includeSnapshot ? 2 : 0)
+
+    c.string.encode(state, m.key)
+    c.uint.encode(state, flags)
+
+    if (m.sinceRevision) c.uint.encode(state, m.sinceRevision)
+  },
+  decode(state) {
+    const r0 = c.string.decode(state)
+    const flags = c.uint.decode(state)
+
+    return {
+      key: r0,
+      sinceRevision: (flags & 1) !== 0 ? c.uint.decode(state) : 0,
+      includeSnapshot: (flags & 2) !== 0
+    }
+  }
+}
+
+// @pear-docs-rpc/apply-ops-request.ops
+const encoding32_1 = encoding17_7
+
+// @pear-docs-rpc/apply-ops-request
+const encoding32 = {
+  preencode(state, m) {
+    c.string.preencode(state, m.key)
+    encoding32_1.preencode(state, m.ops)
+    state.end++ // max flag is 1 so always one byte
+
+    if (m.clientTime) c.uint.preencode(state, m.clientTime)
+  },
+  encode(state, m) {
+    const flags = m.clientTime ? 1 : 0
+
+    c.string.encode(state, m.key)
+    encoding32_1.encode(state, m.ops)
+    c.uint.encode(state, flags)
+
+    if (m.clientTime) c.uint.encode(state, m.clientTime)
+  },
+  decode(state) {
+    const r0 = c.string.decode(state)
+    const r1 = encoding32_1.decode(state)
+    const flags = c.uint.decode(state)
+
+    return {
+      key: r0,
+      ops: r1,
+      clientTime: (flags & 1) !== 0 ? c.uint.decode(state) : 0
+    }
+  }
+}
+
+// @pear-docs-rpc/apply-ops-response
+const encoding33 = {
+  preencode(state, m) {
+    state.end++ // max flag is 4 so always one byte
+
+    if (m.revision) c.uint.preencode(state, m.revision)
+    if (m.error) c.string.preencode(state, m.error)
+  },
+  encode(state, m) {
+    const flags =
+      (m.accepted ? 1 : 0) |
+      (m.revision ? 2 : 0) |
+      (m.error ? 4 : 0)
+
+    c.uint.encode(state, flags)
+
+    if (m.revision) c.uint.encode(state, m.revision)
+    if (m.error) c.string.encode(state, m.error)
+  },
+  decode(state) {
+    const flags = c.uint.decode(state)
+
+    return {
+      accepted: (flags & 1) !== 0,
+      revision: (flags & 2) !== 0 ? c.uint.decode(state) : 0,
+      error: (flags & 4) !== 0 ? c.string.decode(state) : null
+    }
+  }
+}
+
+// @pear-docs-rpc/update-presence-request
+const encoding34 = {
+  preencode(state, m) {
+    c.string.preencode(state, m.key)
+    c.string.preencode(state, m.sessionId)
+    state.end++ // max flag is 8 so always one byte
+
+    if (m.displayName) c.string.preencode(state, m.displayName)
+    if (m.color) c.string.preencode(state, m.color)
+    if (m.payload) c.buffer.preencode(state, m.payload)
+    if (m.updatedAt) c.uint.preencode(state, m.updatedAt)
+  },
+  encode(state, m) {
+    const flags =
+      (m.displayName ? 1 : 0) |
+      (m.color ? 2 : 0) |
+      (m.payload ? 4 : 0) |
+      (m.updatedAt ? 8 : 0)
+
+    c.string.encode(state, m.key)
+    c.string.encode(state, m.sessionId)
+    c.uint.encode(state, flags)
+
+    if (m.displayName) c.string.encode(state, m.displayName)
+    if (m.color) c.string.encode(state, m.color)
+    if (m.payload) c.buffer.encode(state, m.payload)
+    if (m.updatedAt) c.uint.encode(state, m.updatedAt)
+  },
+  decode(state) {
+    const r0 = c.string.decode(state)
+    const r1 = c.string.decode(state)
+    const flags = c.uint.decode(state)
+
+    return {
+      key: r0,
+      sessionId: r1,
+      displayName: (flags & 1) !== 0 ? c.string.decode(state) : null,
+      color: (flags & 2) !== 0 ? c.string.decode(state) : null,
+      payload: (flags & 4) !== 0 ? c.buffer.decode(state) : null,
+      updatedAt: (flags & 8) !== 0 ? c.uint.decode(state) : 0
+    }
+  }
+}
+
+// @pear-docs-rpc/update-presence-response
+const encoding35 = {
+  preencode(state, m) {
+    state.end++ // max flag is 1 so always one byte
+
+    if (m.status) c.string.preencode(state, m.status)
+  },
+  encode(state, m) {
+    const flags = m.status ? 1 : 0
+
+    c.uint.encode(state, flags)
+
+    if (m.status) c.string.encode(state, m.status)
+  },
+  decode(state) {
+    const flags = c.uint.decode(state)
+
+    return {
+      status: (flags & 1) !== 0 ? c.string.decode(state) : null
+    }
+  }
+}
+
+// @pear-docs-rpc/list-invites-request
+const encoding36 = {
+  preencode(state, m) {
+    c.string.preencode(state, m.key)
+    state.end++ // max flag is 1 so always one byte
+  },
+  encode(state, m) {
+    const flags = m.includeRevoked ? 1 : 0
+
+    c.string.encode(state, m.key)
+    c.uint.encode(state, flags)
+  },
+  decode(state) {
+    const r0 = c.string.decode(state)
+    const flags = c.uint.decode(state)
+
+    return {
+      key: r0,
+      includeRevoked: (flags & 1) !== 0
+    }
+  }
+}
+
+// @pear-docs-rpc/list-invites-response.invites
+const encoding37_0 = c.array(c.frame(encoding18))
+
+// @pear-docs-rpc/list-invites-response
+const encoding37 = {
+  preencode(state, m) {
+    encoding37_0.preencode(state, m.invites)
+  },
+  encode(state, m) {
+    encoding37_0.encode(state, m.invites)
+  },
+  decode(state) {
+    const r0 = encoding37_0.decode(state)
+
+    return {
+      invites: r0
+    }
+  }
+}
+
+// @pear-docs-rpc/create-invite-request.roles
+const encoding38_1 = encoding1_4
+
+// @pear-docs-rpc/create-invite-request
+const encoding38 = {
+  preencode(state, m) {
+    c.string.preencode(state, m.key)
+    state.end++ // max flag is 2 so always one byte
+
+    if (m.roles) encoding38_1.preencode(state, m.roles)
+    if (m.expiresAt) c.uint.preencode(state, m.expiresAt)
+  },
+  encode(state, m) {
+    const flags =
+      (m.roles ? 1 : 0) |
+      (m.expiresAt ? 2 : 0)
+
+    c.string.encode(state, m.key)
+    c.uint.encode(state, flags)
+
+    if (m.roles) encoding38_1.encode(state, m.roles)
+    if (m.expiresAt) c.uint.encode(state, m.expiresAt)
+  },
+  decode(state) {
+    const r0 = c.string.decode(state)
+    const flags = c.uint.decode(state)
+
+    return {
+      key: r0,
+      roles: (flags & 1) !== 0 ? encoding38_1.decode(state) : null,
+      expiresAt: (flags & 2) !== 0 ? c.uint.decode(state) : 0
+    }
+  }
+}
+
+// @pear-docs-rpc/create-invite-response
+const encoding39 = {
+  preencode(state, m) {
+    c.string.preencode(state, m.invite)
+    c.string.preencode(state, m.inviteId)
+  },
+  encode(state, m) {
+    c.string.encode(state, m.invite)
+    c.string.encode(state, m.inviteId)
+  },
+  decode(state) {
+    const r0 = c.string.decode(state)
+    const r1 = c.string.decode(state)
+
+    return {
+      invite: r0,
+      inviteId: r1
+    }
+  }
+}
+
+// @pear-docs-rpc/revoke-invite-request
+const encoding40 = {
+  preencode(state, m) {
+    c.string.preencode(state, m.key)
+    c.string.preencode(state, m.inviteId)
+  },
+  encode(state, m) {
+    c.string.encode(state, m.key)
+    c.string.encode(state, m.inviteId)
+  },
+  decode(state) {
+    const r0 = c.string.decode(state)
+    const r1 = c.string.decode(state)
+
+    return {
+      key: r0,
+      inviteId: r1
+    }
+  }
+}
+
+// @pear-docs-rpc/revoke-invite-response
+const encoding41 = {
+  preencode(state, m) {
+    state.end++ // max flag is 1 so always one byte
+  },
+  encode(state, m) {
+    const flags = m.revoked ? 1 : 0
+
+    c.uint.encode(state, flags)
+  },
+  decode(state) {
+    const flags = c.uint.decode(state)
+
+    return {
+      revoked: (flags & 1) !== 0
+    }
+  }
+}
+
+// @pear-docs-rpc/pair-invite-request
+const encoding42 = encoding25
+
+// @pear-docs-rpc/pair-status.doc
+const encoding43_3 = encoding24_0
+
+// @pear-docs-rpc/pair-status
+const encoding43 = {
+  preencode(state, m) {
+    c.string.preencode(state, m.state)
+    state.end++ // max flag is 8 so always one byte
+
+    if (m.message) c.string.preencode(state, m.message)
+    if (m.progress) c.uint.preencode(state, m.progress)
+    if (m.doc) encoding43_3.preencode(state, m.doc)
+    if (m.writerKey) c.string.preencode(state, m.writerKey)
+  },
+  encode(state, m) {
+    const flags =
+      (m.message ? 1 : 0) |
+      (m.progress ? 2 : 0) |
+      (m.doc ? 4 : 0) |
+      (m.writerKey ? 8 : 0)
+
+    c.string.encode(state, m.state)
+    c.uint.encode(state, flags)
+
+    if (m.message) c.string.encode(state, m.message)
+    if (m.progress) c.uint.encode(state, m.progress)
+    if (m.doc) encoding43_3.encode(state, m.doc)
+    if (m.writerKey) c.string.encode(state, m.writerKey)
+  },
+  decode(state) {
+    const r0 = c.string.decode(state)
+    const flags = c.uint.decode(state)
+
+    return {
+      state: r0,
+      message: (flags & 1) !== 0 ? c.string.decode(state) : null,
+      progress: (flags & 2) !== 0 ? c.uint.decode(state) : 0,
+      doc: (flags & 4) !== 0 ? encoding43_3.decode(state) : null,
+      writerKey: (flags & 8) !== 0 ? c.string.decode(state) : null
     }
   }
 }
@@ -535,32 +1400,82 @@ function getEncoding(name) {
       return encoding4
     case '@autobonk/acl-entry':
       return encoding5
-    case '@local/doc':
+    case '@pear-docs/metadata':
       return encoding6
-    case '@pear-docs-rpc/initialize-request':
+    case '@pear-docs/operation':
       return encoding7
-    case '@pear-docs-rpc/initialize-response':
+    case '@pear-docs/snapshot':
       return encoding8
-    case '@pear-docs-rpc/list-docs-request':
+    case '@pear-docs/presence':
       return encoding9
-    case '@pear-docs-rpc/list-docs-response':
+    case '@pear-docs/presence-remove':
       return encoding10
-    case '@pear-docs-rpc/create-doc-request':
+    case '@local/doc':
       return encoding11
-    case '@pear-docs-rpc/create-doc-response':
+    case '@local/state':
       return encoding12
-    case '@pear-docs-rpc/join-doc-request':
+    case '@local/profile':
       return encoding13
-    case '@pear-docs-rpc/join-doc-response':
+    case '@pear-docs-rpc/doc-capabilities':
       return encoding14
-    case '@pear-docs-rpc/remove-doc-request':
+    case '@pear-docs-rpc/doc-presence':
       return encoding15
-    case '@pear-docs-rpc/remove-doc-response':
+    case '@pear-docs-rpc/doc-operation':
       return encoding16
-    case '@pear-docs-rpc/get-doc-request':
+    case '@pear-docs-rpc/doc-update':
       return encoding17
-    case '@pear-docs-rpc/get-doc-response':
+    case '@pear-docs-rpc/doc-invite':
       return encoding18
+    case '@pear-docs-rpc/initialize-request':
+      return encoding19
+    case '@pear-docs-rpc/initialize-response':
+      return encoding20
+    case '@pear-docs-rpc/list-docs-request':
+      return encoding21
+    case '@pear-docs-rpc/list-docs-response':
+      return encoding22
+    case '@pear-docs-rpc/create-doc-request':
+      return encoding23
+    case '@pear-docs-rpc/create-doc-response':
+      return encoding24
+    case '@pear-docs-rpc/join-doc-request':
+      return encoding25
+    case '@pear-docs-rpc/join-doc-response':
+      return encoding26
+    case '@pear-docs-rpc/remove-doc-request':
+      return encoding27
+    case '@pear-docs-rpc/remove-doc-response':
+      return encoding28
+    case '@pear-docs-rpc/get-doc-request':
+      return encoding29
+    case '@pear-docs-rpc/get-doc-response':
+      return encoding30
+    case '@pear-docs-rpc/watch-doc-request':
+      return encoding31
+    case '@pear-docs-rpc/apply-ops-request':
+      return encoding32
+    case '@pear-docs-rpc/apply-ops-response':
+      return encoding33
+    case '@pear-docs-rpc/update-presence-request':
+      return encoding34
+    case '@pear-docs-rpc/update-presence-response':
+      return encoding35
+    case '@pear-docs-rpc/list-invites-request':
+      return encoding36
+    case '@pear-docs-rpc/list-invites-response':
+      return encoding37
+    case '@pear-docs-rpc/create-invite-request':
+      return encoding38
+    case '@pear-docs-rpc/create-invite-response':
+      return encoding39
+    case '@pear-docs-rpc/revoke-invite-request':
+      return encoding40
+    case '@pear-docs-rpc/revoke-invite-response':
+      return encoding41
+    case '@pear-docs-rpc/pair-invite-request':
+      return encoding42
+    case '@pear-docs-rpc/pair-status':
+      return encoding43
     default:
       throw new Error('Encoder not found ' + name)
   }

@@ -1,0 +1,150 @@
+{
+  "version": 1,
+  "schema": [
+    {
+      "id": 0,
+      "name": "@pear-docs/initialize",
+      "request": {
+        "name": "@pear-docs-rpc/initialize-request"
+      },
+      "response": {
+        "name": "@pear-docs-rpc/initialize-response"
+      },
+      "version": 1
+    },
+    {
+      "id": 1,
+      "name": "@pear-docs/list-docs",
+      "request": {
+        "name": "@pear-docs-rpc/list-docs-request"
+      },
+      "response": {
+        "name": "@pear-docs-rpc/list-docs-response"
+      },
+      "version": 1
+    },
+    {
+      "id": 2,
+      "name": "@pear-docs/create-doc",
+      "request": {
+        "name": "@pear-docs-rpc/create-doc-request"
+      },
+      "response": {
+        "name": "@pear-docs-rpc/create-doc-response"
+      },
+      "version": 1
+    },
+    {
+      "id": 3,
+      "name": "@pear-docs/join-doc",
+      "request": {
+        "name": "@pear-docs-rpc/join-doc-request"
+      },
+      "response": {
+        "name": "@pear-docs-rpc/join-doc-response"
+      },
+      "version": 1
+    },
+    {
+      "id": 4,
+      "name": "@pear-docs/pair-invite",
+      "request": {
+        "name": "@pear-docs-rpc/pair-invite-request"
+      },
+      "response": {
+        "name": "@pear-docs-rpc/pair-status",
+        "stream": true
+      },
+      "version": 1
+    },
+    {
+      "id": 5,
+      "name": "@pear-docs/remove-doc",
+      "request": {
+        "name": "@pear-docs-rpc/remove-doc-request"
+      },
+      "response": {
+        "name": "@pear-docs-rpc/remove-doc-response"
+      },
+      "version": 1
+    },
+    {
+      "id": 6,
+      "name": "@pear-docs/get-doc",
+      "request": {
+        "name": "@pear-docs-rpc/get-doc-request"
+      },
+      "response": {
+        "name": "@pear-docs-rpc/get-doc-response"
+      },
+      "version": 1
+    },
+    {
+      "id": 7,
+      "name": "@pear-docs/watch-doc",
+      "request": {
+        "name": "@pear-docs-rpc/watch-doc-request"
+      },
+      "response": {
+        "name": "@pear-docs-rpc/doc-update",
+        "stream": true
+      },
+      "version": 1
+    },
+    {
+      "id": 8,
+      "name": "@pear-docs/apply-ops",
+      "request": {
+        "name": "@pear-docs-rpc/apply-ops-request"
+      },
+      "response": {
+        "name": "@pear-docs-rpc/apply-ops-response"
+      },
+      "version": 1
+    },
+    {
+      "id": 9,
+      "name": "@pear-docs/update-presence",
+      "request": {
+        "name": "@pear-docs-rpc/update-presence-request"
+      },
+      "response": {
+        "name": "@pear-docs-rpc/update-presence-response"
+      },
+      "version": 1
+    },
+    {
+      "id": 10,
+      "name": "@pear-docs/list-invites",
+      "request": {
+        "name": "@pear-docs-rpc/list-invites-request"
+      },
+      "response": {
+        "name": "@pear-docs-rpc/list-invites-response"
+      },
+      "version": 1
+    },
+    {
+      "id": 11,
+      "name": "@pear-docs/create-invite",
+      "request": {
+        "name": "@pear-docs-rpc/create-invite-request"
+      },
+      "response": {
+        "name": "@pear-docs-rpc/create-invite-response"
+      },
+      "version": 1
+    },
+    {
+      "id": 12,
+      "name": "@pear-docs/revoke-invite",
+      "request": {
+        "name": "@pear-docs-rpc/revoke-invite-request"
+      },
+      "response": {
+        "name": "@pear-docs-rpc/revoke-invite-response"
+      },
+      "version": 1
+    }
+  ]
+}
