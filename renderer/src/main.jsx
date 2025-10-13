@@ -2,19 +2,8 @@ import React from 'react'
 import { createRoot } from 'react-dom/client'
 import { App } from './app'
 import updates from 'pear-updates'
-import pearPipe from 'pear-pipe'
+import { teardownRpc } from './lib/rpc'
 import './global.css'
-
-console.log('link', Pear.config.link)
-console.log('linkData', Pear.config.linkData)
-console.log('key', Pear.config.key)
-
-// const pipe = pearPipe()
-
-// pipe.on('data', (data) => {
-//   const cmd = Butter.from(data).toString()
-//   console.log(cmd)
-// })
 
 const rootElement = document.getElementById('root')
 
@@ -48,5 +37,5 @@ updates((update) => {
 //
 Pear.teardown(async () => {
   console.log('teardown')
-  //   // await teardownRpc()
+  await teardownRpc()
 })

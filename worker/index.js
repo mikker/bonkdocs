@@ -1,62 +1,61 @@
 import pearPipe from 'pear-pipe'
 import { DocWorker } from './src/doc-worker.js'
 import { createRpcServer } from './src/rpc-server.js'
-import {
-  fileURLToPath,
-  dirname,
-  join,
-  once
-} from './src/platform.js'
+import { join, currentDirectory } from './src/platform.js'
 
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = dirname(__filename)
-
-const DEFAULT_STATE_KEY = 'state/app'
+let workerInstance = null
+let rpcInstance = null
 
 export async function initializeWorker(options = {}) {
+  if (!workerInstance) {
+    const baseDir = options.baseDir || resolveBaseDir()
+    workerInstance = new DocWorker({
+      baseDir,
+      bootstrap: options.bootstrap,
+      autobase: options.autobase,
+      ensureStorage: options.ensureStorage ?? true
+    })
+  }
+
+  if (options.rpc && rpcInstance === null) {
+    rpcInstance = createRpcServer(options.rpc, workerInstance)
+  }
+
+  await workerInstance.ready()
+  return workerInstance
+}
+
+function resolveBaseDir() {
+  const envRoot =
+    typeof process !== 'undefined' ? process.env?.PEAR_APP_DATA : null
+  const pearStorage =
+    typeof Pear !== 'undefined' && Pear?.config?.storage
+      ? Pear.config.storage
+      : null
+
+  if (pearStorage) return join(pearStorage, 'pear-docs')
+  if (envRoot) return join(envRoot, 'pear-docs')
+  return join(currentDirectory, 'pear-docs-data')
+}
+
+async function bootstrapWithPear() {
+  if (typeof Pear === 'undefined') return
+
   const pipe = pearPipe()
+  await initializeWorker({})
+  const rpc = createRpcServer(pipe, workerInstance)
+  rpcInstance = rpc
 
-  const baseDir =
-    options.baseDir ||
-    join(
-      process.env.PEAR_APP_DATA || join(__dirname, '..', '.pear-docs'),
-      'contexts'
-    )
+  const cleanup = async () => {
+    try {
+      await workerInstance?.close()
+    } catch {}
+    workerInstance = null
+    rpcInstance = null
+  }
 
-  const worker = new DocWorker({
-    baseDir,
-    bootstrap: options.bootstrap,
-    autobase: options.autobase,
-    ensureStorage: options.ensureStorage ?? true
-  })
-  await worker.ready()
-
-  const rpc = createRpcServer(pipe, worker)
-  attachStatePersistence(rpc, worker, DEFAULT_STATE_KEY)
-
-  pipe.on('close', () => {
-    worker.close().catch(() => {})
-  })
-
-  const closed = once(pipe, 'close')
-
-  return { pipe, worker, rpc, closed }
+  pipe.on('close', cleanup)
+  pipe.on('error', () => {})
 }
 
-void initializeWorker()
-
-function attachStatePersistence(rpc, worker, stateKey) {
-  rpc.onUpdateState(async (request = {}) => {
-    const localDb = worker.manager?.localDb
-    if (!localDb) return { status: 'noop' }
-
-    const record = {
-      id: stateKey,
-      activeDoc: request.activeDoc || null,
-      lastSeenAt: request.lastSeenAt || Date.now()
-    }
-
-    await localDb.put(stateKey, record)
-    return { status: 'ok' }
-  })
-}
+void bootstrapWithPear()

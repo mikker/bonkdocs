@@ -16,7 +16,7 @@ export default defineConfig({
         chunkFileNames: `assets/[name].js`,
         assetFileNames: `assets/[name].[ext]`
       },
-      external: ['path', 'events']
+      external: ['path', 'events', 'child_process']
     }
   },
   resolve: {

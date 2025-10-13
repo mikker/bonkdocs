@@ -47,4 +47,6 @@ if (!rm && typeof fsPromises.rmdir === 'function') {
   }
 }
 
-export { dirname, join, fileURLToPath, once, mkdir, rm }
+const currentDirectory = typeof process !== 'undefined' ? process.cwd() : '/'
+
+export { dirname, join, fileURLToPath, once, mkdir, rm, currentDirectory }

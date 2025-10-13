@@ -67,13 +67,9 @@ test('DocWorker watch emits initial update', async (t) => {
   let stopWatcher = null
   const update = await new Promise((resolve, reject) => {
     worker
-      .watchDoc(
-        doc.key,
-        { includeSnapshot: true },
-        (payload) => {
-          resolve(payload)
-        }
-      )
+      .watchDoc(doc.key, { includeSnapshot: true }, (payload) => {
+        resolve(payload)
+      })
       .then((stop) => {
         stopWatcher = stop
       })

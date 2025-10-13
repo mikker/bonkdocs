@@ -29,13 +29,15 @@
     "bare-path": "^3.0.0",
     "bare-url": "^2.2.2",
     "bare-pipe": "^4.0.7",
+    "framed-stream": "^1.0.1",
     "hrpc": "^4.2.0",
     "pear-bridge": "^1.2.4",
     "pear-electron": "^1.7.22",
     "pear-pipe": "^1.0.5",
     "pear-run": "^1.0.5",
     "pear-updates": "^1.1.0",
-    "protomux-wakeup": "^2.6.1"
+    "protomux-wakeup": "^2.6.1",
+    "zustand": "^4.5.5"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.1.14",
