@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Separator } from '@/components/ui/separator'
 import { Toaster } from '@/components/ui/sonner'
+import { DocEditor } from '@/components/doc-editor'
 import { useDocStore } from './state/doc-store'
 
 function useDocState(selector) {
@@ -91,30 +92,36 @@ export function App() {
             </ul>
           </aside>
 
-          <section className='border border-border rounded-lg bg-card p-6 min-h-[200px] space-y-3'>
+          <section className='border border-border rounded-lg bg-card p-6 min-h-[200px] space-y-4'>
             {currentUpdate ? (
-              <div className='space-y-2'>
-                <h2 className='text-xl font-semibold text-foreground'>
-                  {currentUpdate.title || 'Untitled document'}
-                </h2>
-                <p className='text-sm text-muted-foreground'>
-                  Revision: {currentUpdate.revision}
-                </p>
-                <p className='text-sm text-muted-foreground'>
-                  Key: {currentUpdate.key}
-                </p>
-                {currentUpdate.updatedAt ? (
-                  <p className='text-xs text-muted-foreground'>
-                    Updated at{' '}
-                    {new Date(currentUpdate.updatedAt).toLocaleString()}
+              <>
+                <div className='space-y-2'>
+                  <h2 className='text-xl font-semibold text-foreground'>
+                    {currentUpdate.title || 'Untitled document'}
+                  </h2>
+                  <p className='text-sm text-muted-foreground'>
+                    Revision {currentUpdate.revision}
+                    {currentUpdate.snapshotRevision != null
+                      ? ` · Snapshot ${currentUpdate.snapshotRevision}`
+                      : null}
                   </p>
-                ) : null}
-                <Separator />
-                <p className='text-xs text-muted-foreground'>
-                  Multiplayer editing coming soon. This panel reflects the
-                  latest snapshot streamed from the Pear docs worker.
-                </p>
-              </div>
+                  <p className='text-sm text-muted-foreground'>
+                    Key: {currentUpdate.key}
+                  </p>
+                  {currentUpdate.updatedAt ? (
+                    <p className='text-xs text-muted-foreground'>
+                      Updated at{' '}
+                      {new Date(currentUpdate.updatedAt).toLocaleString()}
+                    </p>
+                  ) : null}
+                  <Separator />
+                  <p className='text-xs text-muted-foreground'>
+                    Multiplayer editing coming soon. The editor below renders
+                    the latest snapshot streamed from the Pear Docs worker.
+                  </p>
+                </div>
+                <DocEditor snapshot={currentUpdate.snapshot} className='mt-2' />
+              </>
             ) : activeDoc ? (
               <p className='text-muted-foreground'>Waiting for snapshot…</p>
             ) : (

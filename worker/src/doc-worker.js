@@ -13,6 +13,18 @@ const APP_STATE_KEY = 'state/app'
 const bufferToHex = (buf) =>
   Buffer.isBuffer(buf) ? Buffer.from(buf).toString('hex') : buf || ''
 
+const EMPTY_DOC_SNAPSHOT = Buffer.from(
+  JSON.stringify({
+    type: 'doc',
+    content: [
+      {
+        type: 'paragraph',
+        content: [{ type: 'text', text: '' }]
+      }
+    ]
+  })
+)
+
 export class DocWorker {
   constructor(options = {}) {
     this.baseDir = options.baseDir
@@ -69,6 +81,15 @@ export class DocWorker {
       isCreator: true
     }
     const docRecord = this.normalizeDocRecord(fallback, metadata)
+
+    try {
+      await context.recordSnapshot({
+        rev: metadata?.rev || 1,
+        data: Buffer.from(EMPTY_DOC_SNAPSHOT)
+      })
+    } catch (error) {
+      console.warn('[doc-worker] failed to record initial snapshot', error)
+    }
 
     return {
       doc: docRecord,
@@ -247,6 +268,24 @@ export class DocWorker {
 
     if (options.includeSnapshot === true) {
       update.snapshotRevision = revision
+    }
+
+    if (options.includeSnapshot === true) {
+      let snapshotRecord = null
+      try {
+        snapshotRecord = await context.base.view.findOne(
+          '@pear-docs/snapshots',
+          { reverse: true, limit: 1 }
+        )
+      } catch {}
+
+      if (snapshotRecord?.data) {
+        update.snapshot = snapshotRecord.data
+        update.snapshotRevision = snapshotRecord.rev ?? revision
+      } else {
+        update.snapshot = Buffer.from(EMPTY_DOC_SNAPSHOT)
+        update.snapshotRevision = revision
+      }
     }
 
     return update

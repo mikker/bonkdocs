@@ -1,6 +1,43 @@
 import { create } from 'zustand'
 import { rpc } from '../lib/rpc'
 
+type DocSnapshot = {
+  type: string
+  content?: unknown[]
+  [key: string]: unknown
+}
+
+type DocPresence = {
+  id?: string | null
+  writerKey?: string | null
+  sessionId?: string | null
+  displayName?: string | null
+  color?: string | null
+  updatedAt?: number | null
+  payload?: unknown
+}
+
+type DocCapabilities = {
+  canEdit?: boolean
+  canComment?: boolean
+  canInvite?: boolean
+  roles?: string[]
+}
+
+type RawDocUpdate = {
+  key?: string
+  revision?: number
+  baseRevision?: number
+  snapshotRevision?: number
+  updatedAt?: number
+  title?: string | null
+  snapshot?: unknown
+  ops?: unknown
+  presence?: DocPresence[] | null
+  capabilities?: DocCapabilities | null
+  [key: string]: unknown
+}
+
 type DocRecord = {
   key: string
   encryptionKey: string
@@ -16,8 +53,12 @@ type DocUpdate = {
   key: string
   revision: number
   updatedAt?: number
-  title?: string
-  [key: string]: unknown
+  title?: string | null
+  snapshotRevision?: number | null
+  snapshot: DocSnapshot
+  rawSnapshot: Uint8Array | null
+  presence?: DocPresence[] | null
+  capabilities?: DocCapabilities | null
 }
 
 type DocWatcher = {
@@ -35,6 +76,106 @@ type DocStore = {
   refresh: () => Promise<void>
   selectDoc: (key: string | null) => Promise<void>
   createDoc: (title?: string) => Promise<void>
+}
+
+const textDecoder = new TextDecoder()
+
+const EMPTY_SNAPSHOT: DocSnapshot = {
+  type: 'doc',
+  content: [
+    {
+      type: 'paragraph',
+      content: [{ type: 'text', text: '' }]
+    }
+  ]
+}
+
+function normalizeSnapshot(value: unknown): {
+  json: DocSnapshot
+  buffer: Uint8Array | null
+} {
+  if (value == null) {
+    return { json: EMPTY_SNAPSHOT, buffer: null }
+  }
+
+  if (typeof value === 'object' && value !== null) {
+    if ('type' in (value as Record<string, unknown>)) {
+      return { json: value as DocSnapshot, buffer: null }
+    }
+    if (value instanceof Uint8Array) {
+      const data = value
+      try {
+        const decoded = textDecoder.decode(data)
+        const parsed = JSON.parse(decoded)
+        if (parsed && typeof parsed === 'object') {
+          return { json: parsed as DocSnapshot, buffer: data }
+        }
+      } catch {
+        return { json: EMPTY_SNAPSHOT, buffer: data }
+      }
+      return { json: EMPTY_SNAPSHOT, buffer: data }
+    }
+  }
+
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value)
+      if (parsed && typeof parsed === 'object') {
+        return { json: parsed as DocSnapshot, buffer: null }
+      }
+    } catch {}
+  }
+
+  return { json: EMPTY_SNAPSHOT, buffer: null }
+}
+
+function normalizeDocUpdate(update: RawDocUpdate): DocUpdate {
+  const key = typeof update.key === 'string' ? update.key : ''
+  const revision =
+    typeof update.revision === 'number'
+      ? update.revision
+      : Number(update.revision || 0) || 0
+  const updatedAt =
+    typeof update.updatedAt === 'number'
+      ? update.updatedAt
+      : update.updatedAt != null
+        ? Number(update.updatedAt)
+        : undefined
+  const snapshotRevision =
+    typeof update.snapshotRevision === 'number'
+      ? update.snapshotRevision
+      : update.snapshotRevision != null
+        ? Number(update.snapshotRevision)
+        : null
+  const title =
+    typeof update.title === 'string'
+      ? update.title
+      : update.title === null
+        ? null
+        : undefined
+
+  const { json: snapshot, buffer } = normalizeSnapshot(update.snapshot)
+
+  const presence = Array.isArray(update.presence)
+    ? update.presence.map((entry) => ({ ...entry }))
+    : null
+
+  const capabilities =
+    update.capabilities && typeof update.capabilities === 'object'
+      ? { ...update.capabilities }
+      : null
+
+  return {
+    key,
+    revision,
+    updatedAt,
+    title,
+    snapshotRevision,
+    snapshot,
+    rawSnapshot: buffer,
+    presence,
+    capabilities
+  }
 }
 
 export const useDocStore = create<DocStore>((set, get) => ({
@@ -99,7 +240,8 @@ export const useDocStore = create<DocStore>((set, get) => ({
 
       set({ watcher })
 
-      stream.on('data', (update: DocUpdate) => {
+      stream.on('data', (payload: RawDocUpdate) => {
+        const update = normalizeDocUpdate(payload)
         set((state) => ({
           currentUpdate: update,
           docs: state.docs.map((doc) =>

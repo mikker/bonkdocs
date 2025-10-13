@@ -104,6 +104,43 @@
   body {
     @apply bg-background text-foreground font-system;
   }
+
+  .tiptap {
+    @apply leading-relaxed;
+  }
+
+  .tiptap p {
+    @apply mb-4;
+  }
+
+  .tiptap h1 {
+    @apply text-2xl font-semibold mb-4;
+  }
+
+  .tiptap h2 {
+    @apply text-xl font-semibold mb-3;
+  }
+
+  .tiptap h3 {
+    @apply text-lg font-semibold mb-2;
+  }
+
+  .tiptap ul,
+  .tiptap ol {
+    @apply my-4 pl-6;
+  }
+
+  .tiptap ul {
+    @apply list-disc;
+  }
+
+  .tiptap ol {
+    @apply list-decimal;
+  }
+
+  .tiptap blockquote {
+    @apply border-l-2 border-border pl-4 italic text-muted-foreground;
+  }
 }
 
 @utility debug {
