@@ -24,6 +24,10 @@
   },
   "dependencies": {
     "autobonk": "github:mikker/autobonk",
+    "bare-events": "^2.7.0",
+    "bare-fs": "^4.4.5",
+    "bare-path": "^3.0.0",
+    "bare-url": "^2.2.2",
     "bare-pipe": "^4.0.7",
     "hrpc": "^4.2.0",
     "pear-bridge": "^1.2.4",
