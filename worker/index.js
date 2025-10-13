@@ -1,3 +1,4 @@
+import FramedStream from 'framed-stream'
 import pearPipe from 'pear-pipe'
 import { DocWorker } from './src/doc-worker.js'
 import { createRpcServer } from './src/rpc-server.js'
@@ -42,9 +43,20 @@ async function bootstrapWithPear() {
   if (typeof Pear === 'undefined') return
 
   const pipe = pearPipe()
-  await initializeWorker({})
-  const rpc = createRpcServer(pipe, workerInstance)
-  rpcInstance = rpc
+  if (!pipe) return
+
+  const framed = new FramedStream(pipe)
+  const pearConfig = Pear.config || {}
+
+  await initializeWorker({
+    baseDir: pearConfig.storage
+      ? join(pearConfig.storage, 'pear-docs')
+      : resolveBaseDir(),
+    bootstrap: pearConfig.bootstrap,
+    autobase: pearConfig.autobase,
+    ensureStorage: true,
+    rpc: framed
+  })
 
   const cleanup = async () => {
     try {

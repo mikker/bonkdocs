@@ -1,5 +1,9 @@
 import { useEffect, useState } from 'react'
 import { TitleBar, TitleBarTitle } from './components/title-bar'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Separator } from '@/components/ui/separator'
+import { Toaster } from '@/components/ui/sonner'
 import { useDocStore } from './state/doc-store'
 
 function useDocState(selector) {
@@ -28,43 +32,37 @@ export function App() {
         <TitleBarTitle>Pear Docs</TitleBarTitle>
       </TitleBar>
 
-      <section className='p-4 space-y-4'>
-        <div className='flex gap-2 items-end'>
-          <label className='flex flex-col text-sm font-medium text-slate-200 gap-1'>
+      <section className='p-6 space-y-6'>
+        <div className='flex flex-wrap gap-3 items-end'>
+          <label className='flex w-72 flex-col gap-1 text-sm font-medium text-muted-foreground'>
             New document title
-            <input
-              type='text'
+            <Input
               value={newTitle}
               onChange={(event) => setNewTitle(event.target.value)}
-              className='bg-slate-950/40 border border-slate-800 rounded px-2 py-1 text-base text-slate-50'
               placeholder='Untitled document'
             />
           </label>
-          <button
-            type='button'
-            className='px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded'
-            onClick={() => {
-              void createDoc(newTitle.trim() || undefined)
-              setNewTitle('')
-            }}
-          >
-            Create Doc
-          </button>
-          <button
-            type='button'
-            className='px-3 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded'
-            onClick={() => void refresh()}
-          >
-            Refresh
-          </button>
+          <div className='flex gap-2'>
+            <Button
+              onClick={() => {
+                void createDoc(newTitle.trim() || undefined)
+                setNewTitle('')
+              }}
+            >
+              Create Doc
+            </Button>
+            <Button variant='secondary' onClick={() => void refresh()}>
+              Refresh
+            </Button>
+          </div>
         </div>
 
         {loading ? <p>Loading documents…</p> : null}
         {error ? <p className='text-red-400'>{error}</p> : null}
 
         <div className='grid grid-cols-[220px_1fr] gap-6'>
-          <aside className='border border-slate-800 rounded p-3 space-y-2 bg-slate-950/50 max-h-[70vh] overflow-auto'>
-            <h2 className='text-sm font-semibold text-slate-300 uppercase tracking-wide'>
+          <aside className='border border-border rounded-lg bg-card p-3 space-y-3 max-h-[70vh] overflow-auto'>
+            <h2 className='text-xs font-semibold text-muted-foreground uppercase tracking-widest'>
               Documents
             </h2>
             {docs.length === 0 ? (
@@ -75,57 +73,59 @@ export function App() {
                 const selected = doc.key === activeDoc
                 return (
                   <li key={doc.key}>
-                    <button
-                      type='button'
-                      className={`w-full text-left rounded px-2 py-1 text-sm ${
-                        selected
-                          ? 'bg-emerald-600 text-white'
-                          : 'bg-slate-900 text-slate-200'
-                      }`}
+                    <Button
+                      variant={selected ? 'primary' : 'ghost'}
+                      className='w-full justify-start text-left'
                       onClick={() => void selectDoc(doc.key)}
                     >
-                      <span className='block font-medium'>
+                      <span className='block text-sm font-medium'>
                         {doc.title || 'Untitled document'}
                       </span>
-                      <span className='block text-xs opacity-70 truncate'>
+                      <span className='block text-xs opacity-70 truncate font-normal'>
                         {doc.key}
                       </span>
-                    </button>
+                    </Button>
                   </li>
                 )
               })}
             </ul>
           </aside>
 
-          <section className='border border-slate-800 rounded p-4 bg-slate-950/50 min-h-[200px]'>
+          <section className='border border-border rounded-lg bg-card p-6 min-h-[200px] space-y-3'>
             {currentUpdate ? (
               <div className='space-y-2'>
-                <h2 className='text-xl font-semibold text-slate-100'>
+                <h2 className='text-xl font-semibold text-foreground'>
                   {currentUpdate.title || 'Untitled document'}
                 </h2>
-                <p className='text-sm text-slate-300'>
+                <p className='text-sm text-muted-foreground'>
                   Revision: {currentUpdate.revision}
                 </p>
-                <p className='text-sm text-slate-400'>
+                <p className='text-sm text-muted-foreground'>
                   Key: {currentUpdate.key}
                 </p>
                 {currentUpdate.updatedAt ? (
-                  <p className='text-xs text-slate-500'>
+                  <p className='text-xs text-muted-foreground'>
                     Updated at{' '}
                     {new Date(currentUpdate.updatedAt).toLocaleString()}
                   </p>
                 ) : null}
+                <Separator />
+                <p className='text-xs text-muted-foreground'>
+                  Multiplayer editing coming soon. This panel reflects the
+                  latest snapshot streamed from the Pear docs worker.
+                </p>
               </div>
             ) : activeDoc ? (
-              <p className='text-slate-400'>Waiting for snapshot…</p>
+              <p className='text-muted-foreground'>Waiting for snapshot…</p>
             ) : (
-              <p className='text-slate-400'>
+              <p className='text-muted-foreground'>
                 Select a document to view details.
               </p>
             )}
           </section>
         </div>
       </section>
+      <Toaster position='top-right' richColors closeButton />
     </main>
   )
 }
