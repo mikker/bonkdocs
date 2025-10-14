@@ -28,6 +28,7 @@ import {
   TooltipContent,
   TooltipTrigger
 } from './components/ui/tooltip'
+import { Badge } from '@/components/ui/badge'
 
 function useDocState<T>(
   selector: (state: ReturnType<typeof useDocStore.getState>) => T
@@ -82,8 +83,11 @@ export function App() {
 function DocsTitleBar() {
   const activeDoc = useDocState((state) => state.activeDoc)
   const docs = useDocState((state) => state.docs)
+  const capabilities = useDocState((state) => state.currentUpdate?.capabilities)
   const fullDoc = docs.find((doc) => doc.key === activeDoc)
   const { open } = useSidebar()
+  const isReadOnly =
+    Boolean(activeDoc) && capabilities?.canEdit === false && !!fullDoc
 
   return (
     <TitleBar
@@ -91,10 +95,17 @@ function DocsTitleBar() {
       className='border-b w-full flex gap-2 items-center h-(--header-height) data-[sidebar-open=true]:pl-3 pl-(--window-ctrl-width)'
     >
       <SidebarTrigger className='' />
-      <TitleBarTitle className='flex-1'>
-        {fullDoc?.title || (
+      <TitleBarTitle className='flex flex-1 flex-wrap items-center gap-2'>
+        {fullDoc?.title ? (
+          <span>{fullDoc.title}</span>
+        ) : (
           <span className='text-muted-foreground'>Pear Docs</span>
         )}
+        {isReadOnly ? (
+          <Badge className='px-2 py-0.5 text-[0.65rem] uppercase tracking-wide'>
+            Read-only
+          </Badge>
+        ) : null}
       </TitleBarTitle>
       <DocInvitesDialog />
     </TitleBar>

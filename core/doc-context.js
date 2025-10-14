@@ -12,6 +12,16 @@ function uniqueRoles(roles = []) {
   return Array.from(new Set(roles))
 }
 
+function permissionsEqual(current = [], expected = []) {
+  if (!Array.isArray(current) || !Array.isArray(expected)) return false
+  if (current.length !== expected.length) return false
+  const sortedCurrent = [...current].sort()
+  const sortedExpected = [...expected].sort()
+  return sortedCurrent.every((permission, index) => {
+    return permission === sortedExpected[index]
+  })
+}
+
 async function getLatestEntry(view, collection) {
   return await view.findOne(collection, { reverse: true, limit: 1 })
 }
@@ -157,15 +167,23 @@ export class DocContext extends Context {
       const definition = await this.base.view.get('@autobonk/role-def', {
         name: roleName
       })
-      if (definition || !this.writable) continue
 
-      try {
-        await this.defineRole(roleName, permissions)
-      } catch (error) {
-        if (error && error.name === 'PermissionError') {
-          continue
+      if (!this.writable) {
+        continue
+      }
+
+      if (
+        !definition ||
+        !permissionsEqual(definition?.permissions, permissions)
+      ) {
+        try {
+          await this.defineRole(roleName, permissions)
+        } catch (error) {
+          if (error && error.name === 'PermissionError') {
+            continue
+          }
+          throw error
         }
-        throw error
       }
     }
 

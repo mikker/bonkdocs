@@ -716,6 +716,7 @@ export const useDocStore = create<DocStore>((set, get) => ({
       stream.on('data', (payload: RawDocUpdate) => {
         let nextUpdate: DocUpdate | null = null
         let nextPending: PendingOp[] = []
+        let shouldLoadInvites = false
         set((state) => {
           const update = normalizeDocUpdate(payload, state.currentUpdate)
           nextUpdate = update
@@ -724,6 +725,9 @@ export const useDocStore = create<DocStore>((set, get) => ({
             (op) => op.rev > update.revision
           )
           nextPending = remaining
+          shouldLoadInvites =
+            update.capabilities?.canInvite === true &&
+            state.invites[update.key] === undefined
           return {
             currentUpdate: update,
             docs: state.docs.map((doc) =>
@@ -742,6 +746,12 @@ export const useDocStore = create<DocStore>((set, get) => ({
             }
           }
         })
+
+        if (shouldLoadInvites && nextUpdate) {
+          void get()
+            .loadInvites(nextUpdate.key, { includeRevoked: false })
+            .catch(() => {})
+        }
 
         if (nextUpdate) {
           persistDocStateEntry(nextUpdate.key, nextUpdate, nextPending)

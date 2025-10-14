@@ -15,6 +15,11 @@ import { Badge } from '@/components/ui/badge'
 import { useDocStore } from '@/state/doc-store'
 import { toast } from 'sonner'
 import { Copy, FileUser, RefreshCw, Trash2 } from 'lucide-react'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger
+} from '@/components/ui/tooltip'
 
 const READ_ROLE = 'doc-viewer'
 const WRITE_ROLE = 'doc-editor'
@@ -64,9 +69,14 @@ export function DocInvitesDialog() {
     return invitesMap[activeDoc]
   }, [invitesMap, activeDoc])
 
-  const inviteCount = Array.isArray(invites) ? invites.length : 0
-  const badgeValue = invitesLoading && open ? '…' : inviteCount.toString()
   const canManageInvites = capabilities?.canInvite === true
+  const invitesReady = Array.isArray(invites)
+  const inviteCount = invitesReady ? invites.length : 0
+  const badgeValue = canManageInvites
+    ? invitesReady
+      ? inviteCount.toString()
+      : '…'
+    : '–'
 
   useEffect(() => {
     if (!open) {
@@ -75,11 +85,20 @@ export function DocInvitesDialog() {
     }
     if (!activeDoc) return
     if (invitesError) return
+    if (!canManageInvites) return
 
     if (invites === undefined && !invitesLoading) {
       void loadInvites(activeDoc).catch(() => {})
     }
-  }, [open, activeDoc, invites, invitesLoading, invitesError, loadInvites])
+  }, [
+    open,
+    activeDoc,
+    invites,
+    invitesLoading,
+    invitesError,
+    loadInvites,
+    canManageInvites
+  ])
 
   const handleRefresh = async () => {
     if (!activeDoc) return
@@ -181,26 +200,41 @@ export function DocInvitesDialog() {
     }
   }
 
-  const statusMessage = invitesLoading
-    ? 'Loading invites…'
-    : inviteCount === 0
-      ? 'No invites yet. Create one to share this document.'
-      : `${inviteCount} active ${inviteCount === 1 ? 'invite' : 'invites'}.`
+  const statusMessage = !canManageInvites
+    ? 'You do not have permission to manage invites for this document.'
+    : invitesLoading
+      ? 'Loading invites…'
+      : inviteCount === 0
+        ? 'No invites yet. Create one to share this document.'
+        : `${inviteCount} active ${inviteCount === 1 ? 'invite' : 'invites'}.`
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button
-          size='sm'
-          variant='outline'
-          disabled={!activeDoc}
-          className='gap-2'
-        >
-          <FileUser />
-          <span>Share</span>
-          <Badge className='min-w-[1.75rem] justify-center'>{badgeValue}</Badge>
-        </Button>
-      </DialogTrigger>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <DialogTrigger asChild>
+            <span className='inline-flex'>
+              <Button
+                size='sm'
+                variant='outline'
+                disabled={!activeDoc || !canManageInvites}
+                className='gap-2'
+              >
+                <FileUser />
+                <span>Share</span>
+                <Badge className='min-w-[1.75rem] justify-center'>
+                  {badgeValue}
+                </Badge>
+              </Button>
+            </span>
+          </DialogTrigger>
+        </TooltipTrigger>
+        {!canManageInvites ? (
+          <TooltipContent>
+            Only document creators can manage invites.
+          </TooltipContent>
+        ) : null}
+      </Tooltip>
       <DialogContent className='max-w-lg'>
         <DialogHeader>
           <DialogTitle>Document invites</DialogTitle>
@@ -220,7 +254,7 @@ export function DocInvitesDialog() {
               onClick={() => {
                 void handleRefresh()
               }}
-              disabled={refreshing || !activeDoc}
+              disabled={refreshing || !activeDoc || !canManageInvites}
             >
               <RefreshCw className='mr-2 h-4 w-4' />
               {refreshing ? 'Refreshing…' : 'Refresh'}
@@ -230,56 +264,54 @@ export function DocInvitesDialog() {
             <p className='text-sm text-destructive'>{invitesError}</p>
           ) : null}
 
-          <form
-            className='space-y-3 rounded-md border border-border/60 bg-background/90 p-3'
-            onSubmit={handleCreate}
-          >
-            <div className='space-y-1'>
-              <h4 className='text-sm font-medium'>Create invite</h4>
-              <p className='text-xs text-muted-foreground'>
-                Select permissions to include.
-              </p>
-            </div>
-            <div className='space-y-2'>
-              <div className='flex items-center gap-2'>
-                <Checkbox id='doc-invite-read' checked readOnly disabled />
-                <Label htmlFor='doc-invite-read'>Read access</Label>
+          {canManageInvites ? (
+            <form
+              className='space-y-3 rounded-md border border-border/60 bg-background/90 p-3'
+              onSubmit={handleCreate}
+            >
+              <div className='space-y-1'>
+                <h4 className='text-sm font-medium'>Create invite</h4>
+                <p className='text-xs text-muted-foreground'>
+                  Select permissions to include.
+                </p>
               </div>
-              <div className='flex items-center gap-2'>
-                <Checkbox
-                  id='doc-invite-write'
-                  checked={allowWrite}
-                  onCheckedChange={(value) => setAllowWrite(value === true)}
-                  disabled={!canManageInvites || creating}
-                />
-                <Label htmlFor='doc-invite-write'>Write access</Label>
+              <div className='space-y-2'>
+                <div className='flex items-center gap-2'>
+                  <Checkbox id='doc-invite-read' checked readOnly disabled />
+                  <Label htmlFor='doc-invite-read'>Read access</Label>
+                </div>
+                <div className='flex items-center gap-2'>
+                  <Checkbox
+                    id='doc-invite-write'
+                    checked={allowWrite}
+                    onCheckedChange={(value) => setAllowWrite(value === true)}
+                    disabled={creating}
+                  />
+                  <Label htmlFor='doc-invite-write'>Write access</Label>
+                </div>
               </div>
-            </div>
-            {!canManageInvites ? (
-              <p className='text-xs text-muted-foreground'>
-                You do not have permission to modify invites for this document.
-              </p>
-            ) : null}
-            <DialogFooter>
-              <Button
-                type='submit'
-                size='sm'
-                disabled={creating || !canManageInvites || !activeDoc}
-              >
-                {creating ? 'Creating…' : 'Create invite'}
-              </Button>
-            </DialogFooter>
-          </form>
+              <DialogFooter>
+                <Button
+                  type='submit'
+                  size='sm'
+                  disabled={creating || !activeDoc}
+                >
+                  {creating ? 'Creating…' : 'Create invite'}
+                </Button>
+              </DialogFooter>
+            </form>
+          ) : null}
 
           <div className='space-y-2'>
-            {Array.isArray(invites) &&
+            {canManageInvites &&
+            Array.isArray(invites) &&
             invites.length === 0 &&
             !invitesLoading ? (
               <div className='rounded-md border border-border/60 bg-muted/10 p-3 text-sm text-muted-foreground'>
                 There are no active invites.
               </div>
             ) : null}
-            {Array.isArray(invites)
+            {canManageInvites && Array.isArray(invites)
               ? invites.map((invite) => {
                   const labels =
                     invite.roles.length > 0 ? invite.roles : [READ_ROLE]
@@ -335,6 +367,11 @@ export function DocInvitesDialog() {
                   )
                 })
               : null}
+            {!canManageInvites ? (
+              <div className='rounded-md border border-border/60 bg-muted/10 p-3 text-sm text-muted-foreground'>
+                Invite management is unavailable with your current permissions.
+              </div>
+            ) : null}
           </div>
         </div>
       </DialogContent>
