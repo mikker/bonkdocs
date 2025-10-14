@@ -3,6 +3,8 @@ import { TitleBar, TitleBarTitle } from './components/title-bar'
 import { Button } from '@/components/ui/button'
 import { Toaster } from '@/components/ui/sonner'
 import { DocEditor } from '@/components/doc-editor'
+import { DocInvitesDialog } from '@/components/doc-invites-dialog'
+import { DocJoinDialog } from '@/components/doc-join-dialog'
 import { useDocStore } from './state/doc-store'
 import {
   Sidebar,
@@ -21,6 +23,11 @@ import {
   useSidebar
 } from './components/ui/sidebar'
 import { FilePlus2 } from 'lucide-react'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger
+} from './components/ui/tooltip'
 
 function useDocState<T>(
   selector: (state: ReturnType<typeof useDocStore.getState>) => T
@@ -76,13 +83,12 @@ function DocsTitleBar() {
   const activeDoc = useDocState((state) => state.activeDoc)
   const docs = useDocState((state) => state.docs)
   const fullDoc = docs.find((doc) => doc.key === activeDoc)
-  const createDoc = useDocState((state) => state.createDoc)
   const { open } = useSidebar()
 
   return (
     <TitleBar
       data-sidebar-open={open}
-      className='border-b w-full flex gap-2 items-center h-(--header-height) data-[sidebar-open=false]:pl-(--window-ctrl-width)'
+      className='border-b w-full flex gap-2 items-center h-(--header-height) data-[sidebar-open=true]:pl-3 pl-(--window-ctrl-width)'
     >
       <SidebarTrigger className='' />
       <TitleBarTitle className='flex-1'>
@@ -90,14 +96,7 @@ function DocsTitleBar() {
           <span className='text-muted-foreground'>Pear Docs</span>
         )}
       </TitleBarTitle>
-      <Button
-        size='sm'
-        variant='secondary'
-        onClick={() => void createDoc('Untitled')}
-      >
-        <FilePlus2 />
-        New doc
-      </Button>
+      <DocInvitesDialog />
     </TitleBar>
   )
 }
@@ -106,10 +105,25 @@ function DocsSidebar({ ...props }) {
   const activeDoc = useDocState((state) => state.activeDoc)
   const docs = useDocState((state) => state.docs)
   const selectDoc = useDocState((state) => state.selectDoc)
+  const createDoc = useDocState((state) => state.createDoc)
 
   return (
     <Sidebar {...props}>
-      <SidebarHeader className='border-b h-(--header-height) flex items-center'></SidebarHeader>
+      <SidebarHeader className='flex-row border-b h-(--header-height) flex items-center justify-end'>
+        <DocJoinDialog />
+        <Tooltip>
+          <TooltipTrigger>
+            <Button
+              size='icon-sm'
+              variant='outline'
+              onClick={() => void createDoc('Untitled')}
+            >
+              <FilePlus2 />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>New doc</TooltipContent>
+        </Tooltip>
+      </SidebarHeader>
 
       <SidebarContent>
         <SidebarGroup>

@@ -29,10 +29,7 @@ export async function initializeWorker(options = {}) {
 function resolveBaseDir() {
   const envRoot =
     typeof process !== 'undefined' ? process.env?.PEAR_APP_DATA : null
-  const pearStorage =
-    typeof Pear !== 'undefined' && Pear?.config?.storage
-      ? Pear.config.storage
-      : null
+  const pearStorage = Pear?.config?.storage ?? null
 
   if (pearStorage) return join(pearStorage, 'pear-docs')
   if (envRoot) return join(envRoot, 'pear-docs')
@@ -40,8 +37,6 @@ function resolveBaseDir() {
 }
 
 async function bootstrapWithPear() {
-  if (typeof Pear === 'undefined') return
-
   const pipe = pearPipe()
   if (!pipe) return
 

@@ -326,3 +326,34 @@ test('DocWorker watchDoc streams operations after sinceRevision', async (t) => {
   t.is(decoded[1].type, 'delta')
   t.is(decoded[1].steps.length > 0, true)
 })
+
+test('DocWorker invite lifecycle', async (t) => {
+  const { dir, cleanup } = await createTempDir('doc-worker-invite')
+  t.teardown(cleanup)
+
+  const worker = new DocWorker({ baseDir: dir })
+  t.teardown(async () => {
+    await worker.close()
+  })
+
+  await worker.ready()
+
+  const { doc } = await worker.createDoc({ title: 'Invite Doc' })
+  const key = doc.key
+
+  const initialInvites = await worker.listInvites(key)
+  t.is(initialInvites.length, 0, 'no invites initially')
+
+  const created = await worker.createInvite(key, ['doc-viewer'])
+  t.ok(created.invite, 'invite code returned')
+  t.ok(created.inviteId, 'invite id returned')
+
+  const afterCreate = await worker.listInvites(key)
+  t.is(afterCreate.length, 1, 'invite listed after creation')
+  t.ok(afterCreate[0].roles.includes('doc-viewer'), 'invite includes read role')
+
+  await worker.revokeInvite(key, afterCreate[0].id)
+
+  const afterRevoke = await worker.listInvites(key)
+  t.is(afterRevoke.length, 0, 'invite list empty after revoke')
+})

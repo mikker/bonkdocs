@@ -1,4 +1,5 @@
 import { DocManager } from '../../core/doc-manager.js'
+import z32 from 'z32'
 import {
   DEFAULT_TITLE,
   PERMISSIONS,
@@ -17,6 +18,27 @@ const APP_STATE_KEY = 'state/app'
 
 const bufferToHex = (buf) =>
   Buffer.isBuffer(buf) ? Buffer.from(buf).toString('hex') : buf || ''
+
+const hexToBuffer = (hex) => {
+  if (typeof hex !== 'string' || hex.length === 0) return Buffer.alloc(0)
+  const normalized = hex.length % 2 === 0 ? hex : `0${hex}`
+  try {
+    return Buffer.from(normalized, 'hex')
+  } catch {
+    return Buffer.alloc(0)
+  }
+}
+
+function buffersEqual(a, b) {
+  if (!a || !b) return false
+  const bufA = Buffer.from(a)
+  const bufB = Buffer.from(b)
+  if (bufA.length !== bufB.length) return false
+  for (let i = 0; i < bufA.length; i++) {
+    if (bufA[i] !== bufB[i]) return false
+  }
+  return true
+}
 
 const EMPTY_DOC_NODE = Object.freeze({
   type: 'doc',
@@ -485,16 +507,252 @@ export class DocWorker {
     return { status: 'ok' }
   }
 
-  async listInvites() {
-    throw new Error('Invites are not implemented')
+  async pairInvite(options = {}, emit, signal) {
+    await this.ready()
+
+    if (!options.invite) {
+      throw new Error('Invite is required to pair document')
+    }
+
+    const manager = this.manager
+    const schema = manager.schema
+    const bootstrap = manager.bootstrap
+    const autobase = manager.autobase
+    const namespace = `temp-pair-${Date.now()}-${Math.floor(Math.random() * 1e6)}`
+    const tempStore = manager.corestore.namespace(namespace)
+    const pairer = manager.ContextClass.pair(tempStore, options.invite, {
+      schema,
+      bootstrap,
+      autobase
+    })
+
+    let aborted = false
+
+    const safeEmit = async (status) => {
+      if (aborted) return
+      await emit(status)
+    }
+
+    const handleAbort = () => {
+      if (aborted) return
+      aborted = true
+      void safeEmit({ state: 'cancelled', message: 'Pairing cancelled' })
+      void pairer.close().catch(() => {})
+    }
+
+    if (signal) {
+      if (signal.aborted) {
+        handleAbort()
+        return
+      }
+      signal.addEventListener('abort', handleAbort, { once: true })
+    }
+
+    await safeEmit({
+      state: 'pairing',
+      message: 'Resolving invite',
+      progress: 10
+    })
+
+    let candidate = null
+    let announced = false
+
+    const onAnnounce = async () => {
+      if (announced || aborted) return
+      announced = true
+      await safeEmit({
+        state: 'pairing',
+        message: 'Announcing invite to peers',
+        progress: 40
+      })
+    }
+
+    try {
+      if (typeof pairer.ready === 'function') {
+        await pairer.ready()
+      }
+
+      candidate = pairer?.candidate ?? null
+      if (candidate?.on) {
+        candidate.on('announce', onAnnounce)
+      }
+
+      await safeEmit({
+        state: 'pairing',
+        message: 'Waiting for document host',
+        progress: 25
+      })
+
+      const provisional = await pairer.resolve()
+      if (aborted) {
+        try {
+          await provisional.close()
+        } catch {}
+        return
+      }
+
+      await safeEmit({
+        state: 'pairing',
+        message: 'Invite accepted, syncing document',
+        progress: 70
+      })
+
+      await provisional.ready()
+
+      const key = provisional.key
+      const encryptionKey = provisional.encryptionKey
+      const keyHex = bufferToHex(key)
+      const namespaceFinal = `ctx-${keyHex.slice(0, 16)}`
+      const now = Date.now()
+
+      await provisional.close()
+
+      const finalStore = manager.corestore.namespace(namespaceFinal)
+      const context = new manager.ContextClass(finalStore, {
+        schema,
+        key,
+        encryptionKey,
+        bootstrap,
+        autobase
+      })
+
+      await context.ready()
+
+      const record = {
+        key: keyHex,
+        encryptionKey: bufferToHex(encryptionKey),
+        createdAt: now,
+        joinedAt: now,
+        isCreator: false,
+        namespace: namespaceFinal
+      }
+
+      if (manager.localDb) {
+        await manager.localDb.put(`contexts/${keyHex}`, record)
+      }
+
+      manager.contexts.set(keyHex, context)
+
+      const metadata = await context.getMetadata()
+      const doc = this.normalizeDocRecord(record, metadata)
+
+      await safeEmit({
+        state: 'joined',
+        message: 'Joined document',
+        progress: 100,
+        doc,
+        writerKey: bufferToHex(context.writerKey)
+      })
+    } catch (error) {
+      if (!aborted) {
+        await safeEmit({
+          state: 'error',
+          message:
+            error instanceof Error ? error.message : 'Failed to join document'
+        })
+        throw error
+      }
+    } finally {
+      if (candidate?.off) {
+        candidate.off('announce', onAnnounce)
+      }
+      if (signal) {
+        signal.removeEventListener('abort', handleAbort)
+      }
+      await pairer.close().catch(() => {})
+    }
   }
 
-  async createInvite() {
-    throw new Error('Invites are not implemented')
+  async listInvites(keyHex, includeRevoked = false) {
+    await this.ready()
+
+    const context = await this.manager.getDoc(keyHex)
+    if (!context) {
+      throw new Error('Doc not found')
+    }
+
+    try {
+      const invites = await context.listInvites({ includeRevoked })
+      return invites
+        .map((invite) => this.normalizeInvite(invite))
+        .filter(Boolean)
+    } catch (error) {
+      console.warn('[doc-worker] failed to list invites', {
+        key: keyHex,
+        message: error instanceof Error ? error.message : String(error)
+      })
+      return []
+    }
   }
 
-  async revokeInvite() {
-    throw new Error('Invites are not implemented')
+  async createInvite(keyHex, roles = [], expiresAt) {
+    await this.ready()
+
+    const context = await this.manager.getDoc(keyHex)
+    if (!context) {
+      throw new Error('Doc not found')
+    }
+
+    const normalizedRoles = Array.isArray(roles)
+      ? Array.from(
+          new Set(
+            roles
+              .filter((role) => typeof role === 'string' && role.length > 0)
+              .map((role) => role.trim())
+          )
+        )
+      : []
+
+    const inviteString = await context.createInvite({
+      roles: normalizedRoles,
+      expires:
+        typeof expiresAt === 'number' && Number.isFinite(expiresAt)
+          ? expiresAt
+          : undefined
+    })
+
+    let inviteId = ''
+    try {
+      const decoded = z32.decode(inviteString)
+      const invites = await context.listInvites({ includeRevoked: true })
+      const match = invites.find((entry) => buffersEqual(entry.invite, decoded))
+      inviteId = match ? bufferToHex(match.id) : bufferToHex(decoded)
+    } catch (error) {
+      console.warn('[doc-worker] failed to resolve invite id', {
+        key: keyHex,
+        message: error instanceof Error ? error.message : String(error)
+      })
+    }
+
+    return {
+      invite: inviteString,
+      inviteId
+    }
+  }
+
+  async revokeInvite(keyHex, inviteIdHex) {
+    await this.ready()
+
+    const context = await this.manager.getDoc(keyHex)
+    if (!context) {
+      throw new Error('Doc not found')
+    }
+
+    const idBuffer = hexToBuffer(inviteIdHex)
+    if (idBuffer.length === 0) {
+      throw new Error('Invite id is required to revoke invite')
+    }
+
+    try {
+      return await context.revokeInvite(idBuffer)
+    } catch (error) {
+      console.warn('[doc-worker] failed to revoke invite', {
+        key: keyHex,
+        inviteId: inviteIdHex,
+        message: error instanceof Error ? error.message : String(error)
+      })
+      throw error
+    }
   }
 
   async readAppState() {
@@ -651,6 +909,56 @@ export class DocWorker {
       normalized.push(ROLE_VIEWER)
     }
     return Array.from(new Set(normalized))
+  }
+
+  normalizeInvite(invite = {}) {
+    if (!invite || typeof invite !== 'object') {
+      return {
+        id: '',
+        invite: '',
+        roles: []
+      }
+    }
+
+    let inviteString = ''
+    try {
+      inviteString = invite.invite ? z32.encode(invite.invite) : ''
+    } catch {
+      inviteString = ''
+    }
+
+    const roles = Array.isArray(invite.roles)
+      ? invite.roles
+          .map((role) =>
+            typeof role === 'string'
+              ? role
+              : role && typeof role.toString === 'function'
+                ? role.toString()
+                : null
+          )
+          .filter((role) => typeof role === 'string' && role.length > 0)
+      : []
+
+    return {
+      id: bufferToHex(invite.id),
+      invite: inviteString,
+      roles,
+      createdBy: invite.createdBy ? bufferToHex(invite.createdBy) : undefined,
+      createdAt:
+        typeof invite.createdAt === 'number' &&
+        Number.isFinite(invite.createdAt)
+          ? invite.createdAt
+          : undefined,
+      revokedAt:
+        typeof invite.revokedAt === 'number' &&
+        Number.isFinite(invite.revokedAt)
+          ? invite.revokedAt
+          : undefined,
+      expiresAt:
+        typeof invite.expires === 'number' && Number.isFinite(invite.expires)
+          ? invite.expires
+          : undefined
+    }
   }
 
   _getWatcherSet(keyHex) {

@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { rpc } from '../lib/rpc'
+import { getRpc } from '../lib/rpc.ts'
 import {
   fingerprintText,
   createDeltaPayload,
@@ -12,8 +12,8 @@ import {
   clearDocState,
   loadLastDocKey,
   saveLastDocKey
-} from './doc-persistence'
-import { mergeDocsWithCachedMetadata } from './doc-cache'
+} from './doc-persistence.js'
+import { mergeDocsWithCachedMetadata } from './doc-cache.js'
 
 type DocSnapshot = {
   type: string
@@ -36,6 +36,16 @@ type DocCapabilities = {
   canComment?: boolean
   canInvite?: boolean
   roles?: string[]
+}
+
+type DocInvite = {
+  id: string
+  invite: string
+  roles: string[]
+  createdBy?: string
+  createdAt?: number
+  revokedAt?: number
+  expiresAt?: number
 }
 
 type RawDocUpdate = {
@@ -96,6 +106,18 @@ type PendingOp = {
   delta: DeltaPayload
 }
 
+export type DocPairStatus = {
+  state: string
+  message?: string | null
+  progress?: number | null
+  doc?: DocRecord | null
+}
+
+type JoinDocOptions = {
+  onStatus?: (status: DocPairStatus) => void
+  signal?: AbortSignal
+}
+
 type DocStore = {
   docs: DocRecord[]
   activeDoc: string | null
@@ -106,15 +128,33 @@ type DocStore = {
   clientId: string
   sessionId: string
   pendingOps: Record<string, PendingOp[]>
+  invites: Record<string, DocInvite[]>
+  invitesLoading: boolean
+  invitesError: string | null
   initialize: () => Promise<void>
   refresh: () => Promise<void>
   selectDoc: (key: string | null) => Promise<void>
   createDoc: (title?: string) => Promise<void>
+  joinDoc: (invite: string, options?: JoinDocOptions) => Promise<void>
   applySnapshot: (key: string, snapshot: DocSnapshot) => Promise<void>
+  loadInvites: (
+    key: string,
+    options?: { includeRevoked?: boolean }
+  ) => Promise<DocInvite[]>
+  refreshInvites: (options?: {
+    includeRevoked?: boolean
+  }) => Promise<DocInvite[] | null>
+  createDocInvite: (options?: {
+    roles?: string[]
+    expiresAt?: number
+  }) => Promise<{ invite: string; inviteId: string }>
+  revokeDocInvite: (options: { inviteId: string }) => Promise<void>
 }
 
 const textDecoder = new TextDecoder()
 const textEncoder = new TextEncoder()
+
+const DOC_VIEWER_ROLE = 'doc-viewer'
 
 const EMPTY_SNAPSHOT: DocSnapshot = {
   type: 'doc',
@@ -461,6 +501,64 @@ function normalizeDocUpdate(
   }
 }
 
+function normalizePairStatus(value: unknown): DocPairStatus {
+  if (!isPlainObject(value)) {
+    return { state: 'unknown', message: null, progress: null, doc: null }
+  }
+
+  const state = typeof value.state === 'string' ? value.state : 'unknown'
+  const message =
+    typeof value.message === 'string' && value.message.length > 0
+      ? value.message
+      : null
+  const progress =
+    typeof value.progress === 'number' && Number.isFinite(value.progress)
+      ? value.progress
+      : null
+
+  let doc: DocRecord | null = null
+  const candidate = value.doc
+  if (isPlainObject(candidate) && typeof candidate.key === 'string') {
+    doc = {
+      key: candidate.key,
+      encryptionKey:
+        typeof candidate.encryptionKey === 'string'
+          ? candidate.encryptionKey
+          : '',
+      createdAt:
+        typeof candidate.createdAt === 'number'
+          ? candidate.createdAt
+          : Date.now(),
+      joinedAt:
+        typeof candidate.joinedAt === 'number'
+          ? candidate.joinedAt
+          : candidate.createdAt && Number.isFinite(candidate.createdAt)
+            ? Number(candidate.createdAt)
+            : null,
+      isCreator: candidate.isCreator === true,
+      title:
+        typeof candidate.title === 'string' && candidate.title.length > 0
+          ? candidate.title
+          : null,
+      lastRevision:
+        typeof candidate.lastRevision === 'number'
+          ? candidate.lastRevision
+          : null,
+      lastOpenedAt:
+        typeof candidate.lastOpenedAt === 'number'
+          ? candidate.lastOpenedAt
+          : null
+    }
+  }
+
+  return {
+    state,
+    message,
+    progress,
+    doc
+  }
+}
+
 export const useDocStore = create<DocStore>((set, get) => ({
   docs: [],
   activeDoc: null,
@@ -471,12 +569,16 @@ export const useDocStore = create<DocStore>((set, get) => ({
   clientId: DEFAULT_CLIENT_ID,
   sessionId: DEFAULT_SESSION_ID,
   pendingOps: {},
+  invites: {},
+  invitesLoading: false,
+  invitesError: null,
   initialize: async () => {
     if (get().loading) return
 
     set({ loading: true, error: null })
 
     try {
+      const rpc = getRpc()
       const response = await rpc.initialize({})
       const docs = mergeDocsWithCachedMetadata(response?.docs ?? [])
       let activeDoc = response?.activeDoc ?? null
@@ -502,6 +604,7 @@ export const useDocStore = create<DocStore>((set, get) => ({
   },
   refresh: async () => {
     try {
+      const rpc = getRpc()
       const response = await rpc.listDocs({})
       const docs = mergeDocsWithCachedMetadata(response?.docs ?? [])
       set({ docs })
@@ -518,7 +621,12 @@ export const useDocStore = create<DocStore>((set, get) => ({
       }
     }
 
-    set({ activeDoc: key, currentUpdate: null, watcher: null })
+    set({
+      activeDoc: key,
+      currentUpdate: null,
+      watcher: null,
+      invitesError: null
+    })
 
     saveLastDocKey(key ?? null)
 
@@ -590,6 +698,7 @@ export const useDocStore = create<DocStore>((set, get) => ({
     }
 
     try {
+      const rpc = getRpc()
       const stream = rpc.watchDoc({
         key,
         includeSnapshot: cached ? false : true,
@@ -652,6 +761,7 @@ export const useDocStore = create<DocStore>((set, get) => ({
   },
   createDoc: async (title) => {
     try {
+      const rpc = getRpc()
       const response = await rpc.createDoc({ title: title || null })
       const doc = response?.doc
       if (doc) {
@@ -666,6 +776,109 @@ export const useDocStore = create<DocStore>((set, get) => ({
     } catch (error) {
       set({ error: error instanceof Error ? error.message : String(error) })
     }
+  },
+  joinDoc: async (invite, options) => {
+    const trimmed = typeof invite === 'string' ? invite.trim() : ''
+    if (!trimmed) {
+      throw new Error('Invite code is required')
+    }
+
+    const onStatus = options?.onStatus
+    const signal = options?.signal
+    const rpc = getRpc()
+    const stream = rpc.pairInvite({ invite: trimmed })
+
+    return await new Promise<void>((resolve, reject) => {
+      let resolved = false
+      const cleanup = () => {
+        if (signal) {
+          signal.removeEventListener('abort', handleAbort)
+        }
+        if (typeof stream.off === 'function') {
+          stream.off('data', handleStatus)
+          stream.off('error', handleError)
+          stream.off('close', handleClose)
+        }
+        if (!stream.destroyed) {
+          try {
+            stream.destroy()
+          } catch {}
+        }
+      }
+
+      const handleAbort = () => {
+        cleanup()
+        reject(new Error('Join cancelled'))
+      }
+
+      if (signal) {
+        if (signal.aborted) {
+          handleAbort()
+          return
+        }
+        signal.addEventListener('abort', handleAbort, { once: true })
+      }
+
+      const handleStatus = (payload: unknown) => {
+        const status = normalizePairStatus(payload)
+        if (onStatus) {
+          onStatus(status)
+        }
+
+        if (status.state === 'joined') {
+          const doc = status.doc
+          if (!doc) {
+            cleanup()
+            reject(new Error('Join response missing document'))
+            return
+          }
+
+          set((state) => ({
+            docs: [
+              doc,
+              ...state.docs.filter((existing) => existing.key !== doc.key)
+            ],
+            error: null
+          }))
+
+          Promise.resolve()
+            .then(() => get().selectDoc(doc.key))
+            .then(() => {
+              resolved = true
+              cleanup()
+              resolve()
+            })
+            .catch((error) => {
+              cleanup()
+              reject(error)
+            })
+        } else if (status.state === 'error') {
+          const message =
+            status.message && status.message.length > 0
+              ? status.message
+              : 'Failed to join document'
+          set({ error: message })
+          cleanup()
+          reject(new Error(message))
+        }
+      }
+
+      const handleError = (error: Error) => {
+        if (resolved) return
+        cleanup()
+        reject(error)
+      }
+
+      const handleClose = () => {
+        if (resolved) return
+        cleanup()
+        reject(new Error('Join cancelled'))
+      }
+
+      stream.on('data', handleStatus)
+      stream.on('error', handleError)
+      stream.on('close', handleClose)
+    })
   },
   applySnapshot: async (key, snapshot) => {
     const state = get()
@@ -734,6 +947,7 @@ export const useDocStore = create<DocStore>((set, get) => ({
     )
 
     try {
+      const rpc = getRpc()
       const result = await rpc.applyOps({
         key,
         ops: [
@@ -802,5 +1016,126 @@ export const useDocStore = create<DocStore>((set, get) => ({
       clearDocState(key)
       void get().selectDoc(key)
     }
+  },
+  loadInvites: async (key, options) => {
+    if (!key) return []
+
+    set({ invitesLoading: true, invitesError: null })
+
+    try {
+      const rpc = getRpc()
+      const response = await rpc.listInvites({
+        key,
+        includeRevoked: options?.includeRevoked === true
+      })
+      const invites = Array.isArray(response?.invites)
+        ? response.invites.map((entry: Record<string, unknown>) => {
+            const rawRoles = Array.isArray(entry.roles) ? entry.roles : []
+            const roles = rawRoles
+              .map((role) =>
+                typeof role === 'string'
+                  ? role
+                  : role && typeof role.toString === 'function'
+                    ? role.toString()
+                    : null
+              )
+              .filter(
+                (role): role is string =>
+                  typeof role === 'string' && role.length > 0
+              )
+
+            return {
+              id: typeof entry.id === 'string' ? entry.id : '',
+              invite: typeof entry.invite === 'string' ? entry.invite : '',
+              roles,
+              createdBy:
+                typeof entry.createdBy === 'string' &&
+                entry.createdBy.length > 0
+                  ? entry.createdBy
+                  : undefined,
+              createdAt:
+                typeof entry.createdAt === 'number' &&
+                Number.isFinite(entry.createdAt)
+                  ? entry.createdAt
+                  : undefined,
+              revokedAt:
+                typeof entry.revokedAt === 'number' &&
+                Number.isFinite(entry.revokedAt)
+                  ? entry.revokedAt
+                  : undefined,
+              expiresAt:
+                typeof entry.expiresAt === 'number' &&
+                Number.isFinite(entry.expiresAt)
+                  ? entry.expiresAt
+                  : undefined
+            }
+          })
+        : []
+
+      set((state) => ({
+        invites: {
+          ...state.invites,
+          [key]: invites
+        },
+        invitesLoading: false,
+        invitesError: null
+      }))
+
+      return invites
+    } catch (error) {
+      set({
+        invitesLoading: false,
+        invitesError: error instanceof Error ? error.message : String(error)
+      })
+      throw error
+    }
+  },
+  refreshInvites: async (options) => {
+    const key = get().activeDoc
+    if (!key) return null
+    return await get().loadInvites(key, options)
+  },
+  createDocInvite: async (options) => {
+    const key = get().activeDoc
+    if (!key) {
+      throw new Error('Select a document before creating invites')
+    }
+
+    const rawRoles = Array.isArray(options?.roles) ? options.roles : []
+    const normalizedRoles = Array.from(
+      new Set(
+        [DOC_VIEWER_ROLE]
+          .concat(
+            rawRoles
+              .filter((role) => typeof role === 'string' && role.length > 0)
+              .map((role) => role.trim())
+          )
+          .filter((role) => role.length > 0)
+      )
+    )
+
+    const rpc = getRpc()
+    const response = await rpc.createInvite({
+      key,
+      roles: normalizedRoles,
+      expiresAt: options?.expiresAt
+    })
+
+    await get().loadInvites(key, { includeRevoked: false })
+
+    return response
+  },
+  revokeDocInvite: async ({ inviteId }) => {
+    const key = get().activeDoc
+    if (!key) {
+      throw new Error('Select a document before revoking invites')
+    }
+    if (!inviteId) {
+      throw new Error('Invite id is required to revoke an invite')
+    }
+
+    const rpc = getRpc()
+    await rpc.revokeInvite({ key, inviteId })
+    await get().loadInvites(key, { includeRevoked: false })
   }
 }))

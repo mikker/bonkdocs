@@ -1,5 +1,64 @@
 import HRPC from '../../spec/hrpc/index.js'
 
+const scheduleMicrotask =
+  typeof queueMicrotask === 'function'
+    ? queueMicrotask
+    : (fn) =>
+        Promise.resolve()
+          .then(fn)
+          .catch(() => {})
+
+function createLocalAbortController() {
+  const listeners = new Set()
+
+  const signal = {
+    aborted: false,
+    addEventListener(type, listener, options = {}) {
+      if (type !== 'abort' || typeof listener !== 'function') return
+      const entry = { listener, once: options.once === true }
+      listeners.add(entry)
+      if (signal.aborted) {
+        scheduleMicrotask(() =>
+          listener.call(signal, { type: 'abort', target: signal })
+        )
+      }
+    },
+    removeEventListener(type, listener) {
+      if (type !== 'abort' || typeof listener !== 'function') return
+      for (const entry of listeners) {
+        if (entry.listener === listener) {
+          listeners.delete(entry)
+          break
+        }
+      }
+    }
+  }
+
+  return {
+    signal,
+    abort() {
+      if (signal.aborted) return
+      signal.aborted = true
+      for (const entry of [...listeners]) {
+        try {
+          entry.listener.call(signal, { type: 'abort', target: signal })
+        } catch {}
+        if (entry.once) {
+          listeners.delete(entry)
+        }
+      }
+      listeners.clear()
+    }
+  }
+}
+
+function createAbortController() {
+  if (typeof globalThis.AbortController === 'function') {
+    return new globalThis.AbortController()
+  }
+  return createLocalAbortController()
+}
+
 export function createRpcServer(stream, worker) {
   const rpc = new HRPC(stream)
 
@@ -37,7 +96,47 @@ export function createRpcServer(stream, worker) {
   })
 
   rpc.onPairInvite((stream) => {
-    stream.destroy(new Error('Invites are not implemented'))
+    const request = stream.data || {}
+    if (!request.invite) {
+      stream.destroy(new Error('Invite is required to pair document'))
+      return
+    }
+
+    const controller = createAbortController()
+    let finished = false
+
+    const cancel = () => {
+      if (finished) return
+      finished = true
+      controller.abort()
+    }
+
+    stream.on('close', cancel)
+    stream.on('error', cancel)
+
+    const emitStatus = async (status) => {
+      if (finished || stream.destroyed) return
+      stream.write(status)
+    }
+
+    worker
+      .pairInvite(request, emitStatus, controller.signal)
+      .then(() => {
+        if (!finished && !stream.destroyed) {
+          finished = true
+          stream.end()
+        }
+      })
+      .catch((error) => {
+        if (!finished) {
+          finished = true
+          stream.destroy(error)
+        }
+      })
+      .finally(() => {
+        stream.off('close', cancel)
+        stream.off('error', cancel)
+      })
   })
 
   rpc.onRemoveDoc(async (request = {}) => {
@@ -107,17 +206,38 @@ export function createRpcServer(stream, worker) {
     return await worker.updatePresence(request.key, request)
   })
 
-  rpc.onListInvites(async () => {
-    console.log('[worker] list-invites request')
-    throw new Error('Invites are not implemented')
+  rpc.onListInvites(async (request = {}) => {
+    console.log('[worker] list-invites request', request?.key)
+    if (!request.key) throw new Error('Doc key is required to list invites')
+    const invites = await worker.listInvites(
+      request.key,
+      request.includeRevoked === true
+    )
+    return { invites }
   })
 
-  rpc.onCreateInvite(async () => {
-    throw new Error('Invites are not implemented')
+  rpc.onCreateInvite(async (request = {}) => {
+    console.log('[worker] create-invite request', request?.key)
+    if (!request.key) throw new Error('Doc key is required to create invite')
+    return await worker.createInvite(
+      request.key,
+      Array.isArray(request.roles) ? request.roles : [],
+      request.expiresAt
+    )
   })
 
-  rpc.onRevokeInvite(async () => {
-    throw new Error('Invites are not implemented')
+  rpc.onRevokeInvite(async (request = {}) => {
+    console.log(
+      '[worker] revoke-invite request',
+      request?.key,
+      request?.inviteId
+    )
+    if (!request.key) throw new Error('Doc key is required to revoke invite')
+    if (!request.inviteId) {
+      throw new Error('Invite id is required to revoke invite')
+    }
+    const revoked = await worker.revokeInvite(request.key, request.inviteId)
+    return { revoked: revoked === undefined ? true : !!revoked }
   })
 
   return rpc
