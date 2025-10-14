@@ -1,5 +1,11 @@
 import { create } from 'zustand'
 import { rpc } from '../lib/rpc'
+import {
+  fingerprintText,
+  createDeltaPayload,
+  decodeDeltaPayload,
+  applyDeltaSteps
+} from '../../../lib/snapshot-delta.js'
 
 type DocSnapshot = {
   type: string
@@ -56,6 +62,7 @@ type DocUpdate = {
   title?: string | null
   snapshotRevision?: number | null
   snapshot: DocSnapshot
+  snapshotText: string
   rawSnapshot: Uint8Array | null
   snapshotHash: string
   presence?: DocPresence[] | null
@@ -168,87 +175,177 @@ function randomId(length = 32) {
 const DEFAULT_CLIENT_ID = randomId(32)
 const DEFAULT_SESSION_ID = randomId(32)
 
-function encodeReplaceOperation(doc: DocSnapshot): Uint8Array {
-  const payload = { type: 'replace', doc }
-  return textEncoder.encode(JSON.stringify(payload))
+function snapshotToText(doc: DocSnapshot): string {
+  return JSON.stringify(doc)
+}
+
+function snapshotFingerprint(doc: DocSnapshot): {
+  text: string
+  hash: string
+} {
+  const text = snapshotToText(doc)
+  return { text, hash: fingerprintText(text) }
 }
 
 function normalizeSnapshot(value: unknown): {
   json: DocSnapshot
   buffer: Uint8Array | null
+  text: string
+  hash: string
 } {
-  if (value == null) {
-    return { json: EMPTY_SNAPSHOT, buffer: null }
-  }
+  let json: DocSnapshot = EMPTY_SNAPSHOT
+  let buffer: Uint8Array | null = null
 
-  if (typeof value === 'object' && value !== null) {
-    if (value instanceof Uint8Array) {
-      const data = value
-      try {
-        const decoded = textDecoder.decode(data)
-        const parsed = JSON.parse(decoded)
-        if (parsed && typeof parsed === 'object') {
-          return { json: sanitizeDocSnapshot(parsed), buffer: data }
-        }
-      } catch {
-        return { json: EMPTY_SNAPSHOT, buffer: data }
+  if (value instanceof Uint8Array) {
+    buffer = value
+    try {
+      const decoded = textDecoder.decode(value)
+      const parsed = JSON.parse(decoded)
+      if (parsed && typeof parsed === 'object') {
+        json = sanitizeDocSnapshot(parsed)
       }
-      return { json: EMPTY_SNAPSHOT, buffer: data }
-    }
-
-    if (isPlainObject(value) && typeof value.type === 'string') {
-      return { json: sanitizeDocSnapshot(value), buffer: null }
-    }
-  }
-
-  if (typeof value === 'string') {
+    } catch {}
+  } else if (typeof value === 'string') {
     try {
       const parsed = JSON.parse(value)
       if (parsed && typeof parsed === 'object') {
-        return { json: sanitizeDocSnapshot(parsed), buffer: null }
+        json = sanitizeDocSnapshot(parsed)
       }
     } catch {}
+  } else if (typeof value === 'object' && value !== null) {
+    if (isPlainObject(value) && typeof value.type === 'string') {
+      json = sanitizeDocSnapshot(value)
+    }
   }
 
-  return { json: EMPTY_SNAPSHOT, buffer: null }
+  const { text, hash } = snapshotFingerprint(json)
+  if (!buffer) {
+    buffer = textEncoder.encode(text)
+  }
+
+  return { json, buffer, text, hash }
 }
 
-function normalizeDocUpdate(update: RawDocUpdate): DocUpdate {
-  const key = typeof update.key === 'string' ? update.key : ''
-  const revision =
+function normalizeDocUpdate(
+  update: RawDocUpdate,
+  previous?: DocUpdate | null
+): DocUpdate {
+  const key = typeof update.key === 'string' ? update.key : previous?.key || ''
+  const sameDoc = Boolean(previous && previous.key === key)
+  const incomingRevision =
     typeof update.revision === 'number'
       ? update.revision
       : Number(update.revision || 0) || 0
-  const updatedAt =
+
+  let revision = incomingRevision
+  let updatedAt =
     typeof update.updatedAt === 'number'
       ? update.updatedAt
       : update.updatedAt != null
         ? Number(update.updatedAt)
-        : undefined
-  const snapshotRevision =
-    typeof update.snapshotRevision === 'number'
-      ? update.snapshotRevision
-      : update.snapshotRevision != null
-        ? Number(update.snapshotRevision)
-        : null
+        : sameDoc
+          ? previous?.updatedAt
+          : undefined
   const title =
     typeof update.title === 'string'
       ? update.title
       : update.title === null
         ? null
-        : undefined
+        : sameDoc
+          ? previous?.title
+          : undefined
 
-  const { json: snapshot, buffer } = normalizeSnapshot(update.snapshot)
-  const snapshotHash = JSON.stringify(snapshot)
+  let snapshotRevision: number | null =
+    typeof update.snapshotRevision === 'number'
+      ? update.snapshotRevision
+      : update.snapshotRevision != null
+        ? Number(update.snapshotRevision)
+        : sameDoc && previous?.snapshotRevision != null
+          ? previous.snapshotRevision
+          : null
+
+  let snapshot: DocSnapshot
+  let snapshotText: string
+  let snapshotHash: string
+  let rawSnapshot: Uint8Array | null
+
+  if (sameDoc && previous) {
+    snapshot = previous.snapshot
+    snapshotText = previous.snapshotText
+    snapshotHash = previous.snapshotHash
+    rawSnapshot = previous.rawSnapshot
+  } else {
+    snapshot = EMPTY_SNAPSHOT
+    const fingerprint = snapshotFingerprint(snapshot)
+    snapshotText = fingerprint.text
+    snapshotHash = fingerprint.hash
+    rawSnapshot = textEncoder.encode(snapshotText)
+  }
 
   const presence = Array.isArray(update.presence)
     ? update.presence.map((entry) => ({ ...entry }))
-    : null
+    : sameDoc && previous?.presence
+      ? previous.presence
+      : null
 
   const capabilities =
     update.capabilities && typeof update.capabilities === 'object'
       ? { ...update.capabilities }
-      : null
+      : sameDoc && previous?.capabilities
+        ? previous.capabilities
+        : null
+
+  if (update.snapshot !== undefined && update.snapshot !== null) {
+    const normalized = normalizeSnapshot(update.snapshot)
+    snapshot = normalized.json
+    snapshotText = normalized.text
+    snapshotHash = normalized.hash
+    rawSnapshot = normalized.buffer
+    snapshotRevision =
+      typeof update.snapshotRevision === 'number'
+        ? update.snapshotRevision
+        : incomingRevision
+  }
+
+  const ops = Array.isArray(update.ops) ? update.ops : []
+  if (ops.length > 0) {
+    for (const entry of ops) {
+      if (!entry || typeof entry !== 'object') continue
+      const op = entry as Record<string, unknown>
+      const payload = decodeDeltaPayload(op.data as unknown)
+      if (!payload) continue
+      if (payload.baseHash && payload.baseHash !== snapshotHash) {
+        break
+      }
+
+      const nextText = applyDeltaSteps(snapshotText, payload.steps)
+      let parsed: unknown = null
+      try {
+        parsed = JSON.parse(nextText)
+      } catch {
+        break
+      }
+
+      const sanitized = sanitizeDocSnapshot(parsed)
+      const fingerprint = snapshotFingerprint(sanitized)
+      snapshot = sanitized
+      snapshotText = fingerprint.text
+      snapshotHash = fingerprint.hash
+      rawSnapshot = textEncoder.encode(snapshotText)
+
+      const opRev = typeof op.rev === 'number' ? op.rev : null
+      if (opRev && opRev > revision) {
+        revision = opRev
+      }
+      if (opRev && !snapshotRevision) {
+        snapshotRevision = opRev
+      }
+      const opTimestamp = typeof op.timestamp === 'number' ? op.timestamp : null
+      if (opTimestamp && (!updatedAt || opTimestamp > updatedAt)) {
+        updatedAt = opTimestamp
+      }
+    }
+  }
 
   return {
     key,
@@ -257,7 +354,8 @@ function normalizeDocUpdate(update: RawDocUpdate): DocUpdate {
     title,
     snapshotRevision,
     snapshot,
-    rawSnapshot: buffer,
+    snapshotText,
+    rawSnapshot,
     snapshotHash,
     presence,
     capabilities
@@ -329,20 +427,22 @@ export const useDocStore = create<DocStore>((set, get) => ({
       set({ watcher })
 
       stream.on('data', (payload: RawDocUpdate) => {
-        const update = normalizeDocUpdate(payload)
-        set((state) => ({
-          currentUpdate: update,
-          docs: state.docs.map((doc) =>
-            doc.key === update.key
-              ? {
-                  ...doc,
-                  title: update.title ?? doc.title,
-                  lastRevision: update.revision,
-                  lastOpenedAt: update.updatedAt ?? Date.now()
-                }
-              : doc
-          )
-        }))
+        set((state) => {
+          const update = normalizeDocUpdate(payload, state.currentUpdate)
+          return {
+            currentUpdate: update,
+            docs: state.docs.map((doc) =>
+              doc.key === update.key
+                ? {
+                    ...doc,
+                    title: update.title ?? doc.title,
+                    lastRevision: update.revision,
+                    lastOpenedAt: update.updatedAt ?? Date.now()
+                  }
+                : doc
+            )
+          }
+        })
       })
 
       stream.on('error', (err: Error) => {
@@ -379,15 +479,20 @@ export const useDocStore = create<DocStore>((set, get) => ({
     if (!current || current.key !== key) return
 
     const sanitized = sanitizeDocSnapshot(snapshot)
-    const snapshotHash = JSON.stringify(sanitized)
+    const fingerprint = snapshotFingerprint(sanitized)
 
-    if (snapshotHash === current.snapshotHash) {
+    if (fingerprint.hash === current.snapshotHash) {
       return
     }
+    const delta = createDeltaPayload(current.snapshotText, fingerprint.text)
+    if (!delta) {
+      return
+    }
+
+    const encoded = textEncoder.encode(JSON.stringify(delta))
     const baseRevision = current.revision
     const nextRevision = baseRevision + 1
     const timestamp = Date.now()
-    const encoded = encodeReplaceOperation(sanitized)
 
     set((prev) => {
       if (!prev.currentUpdate || prev.currentUpdate.key !== key) return prev
@@ -396,8 +501,9 @@ export const useDocStore = create<DocStore>((set, get) => ({
         currentUpdate: {
           ...prev.currentUpdate,
           snapshot: sanitized,
-          rawSnapshot: encoded,
-          snapshotHash,
+          snapshotText: fingerprint.text,
+          rawSnapshot: textEncoder.encode(fingerprint.text),
+          snapshotHash: fingerprint.hash,
           revision: nextRevision,
           snapshotRevision: nextRevision,
           updatedAt: timestamp

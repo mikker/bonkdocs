@@ -2,6 +2,7 @@ import test from 'brittle'
 import { DocManager } from '../core/doc-manager.js'
 import { DocWorker } from '../worker/src/doc-worker.js'
 import { join, mkdir, rm } from '../worker/src/platform.js'
+import { createDeltaPayload } from '../lib/snapshot-delta.js'
 
 async function createTempDir(prefix) {
   const root = join(process.cwd(), 'test-tmp')
@@ -134,4 +135,74 @@ test('DocWorker watch emits initial update', async (t) => {
   t.is(nextUpdate.revision, initialUpdate.revision + 1)
 
   if (stopWatcher) await stopWatcher()
+})
+
+test('DocWorker applies delta operations and persists snapshot', async (t) => {
+  const { dir, cleanup } = await createTempDir('doc-worker-delta')
+  t.teardown(cleanup)
+
+  const worker = new DocWorker({ baseDir: dir })
+  t.teardown(async () => {
+    await worker.close()
+  })
+
+  await worker.ready()
+
+  const { doc } = await worker.createDoc({ title: 'Delta Doc' })
+  const prevDoc = {
+    type: 'doc',
+    content: [{ type: 'paragraph' }]
+  }
+  const nextDoc = {
+    type: 'doc',
+    content: [
+      {
+        type: 'paragraph',
+        content: [{ type: 'text', text: 'Updated via delta' }]
+      }
+    ]
+  }
+
+  const prevText = JSON.stringify(prevDoc)
+  const nextText = JSON.stringify(nextDoc)
+  const delta = createDeltaPayload(prevText, nextText)
+  t.ok(delta, 'delta payload created')
+  if (!delta) return
+
+  const timestamp = Date.now()
+  const applyRes = await worker.applyOperations({
+    key: doc.key,
+    ops: [
+      {
+        rev: 1,
+        baseRev: 0,
+        clientId: 'c'.repeat(64),
+        sessionId: 'd'.repeat(64),
+        timestamp,
+        data: Buffer.from(JSON.stringify(delta))
+      }
+    ],
+    clientTime: timestamp
+  })
+
+  t.ok(applyRes.accepted)
+  t.is(applyRes.revision, 1)
+
+  const context = await worker.manager.getDoc(doc.key)
+  t.ok(context, 'context resolved')
+
+  const snapshotRecord = await context.base.view.findOne(
+    '@pear-docs/snapshots',
+    { reverse: true, limit: 1 }
+  )
+
+  t.ok(snapshotRecord?.data, 'snapshot data stored')
+  if (!snapshotRecord?.data) return
+
+  const parsed = JSON.parse(snapshotRecord.data.toString())
+  t.is(
+    parsed.content?.[0]?.content?.[0]?.text,
+    'Updated via delta',
+    'snapshot reflects delta content'
+  )
 })

@@ -7,6 +7,11 @@ import {
   ROLE_VIEWER
 } from '../../core/constants.js'
 import { mkdir } from './platform.js'
+import {
+  decodeDeltaPayload,
+  applyDeltaSteps,
+  fingerprintText
+} from '../../lib/snapshot-delta.js'
 
 const APP_STATE_KEY = 'state/app'
 
@@ -19,6 +24,7 @@ const EMPTY_DOC_NODE = Object.freeze({
 })
 
 const EMPTY_DOC_SNAPSHOT = Buffer.from(JSON.stringify(EMPTY_DOC_NODE))
+const EMPTY_DOC_TEXT = JSON.stringify(EMPTY_DOC_NODE)
 
 const TEXT_DECODER =
   typeof TextDecoder === 'function' ? new TextDecoder() : null
@@ -256,7 +262,12 @@ export class DocWorker {
 
     const watcherEntry = {
       closed: false,
-      unsubscribe: null
+      unsubscribe: null,
+      sinceRevision:
+        typeof options.sinceRevision === 'number' && options.sinceRevision >= 0
+          ? options.sinceRevision
+          : 0,
+      includeSnapshot: options.includeSnapshot === true
     }
 
     const set = this._getWatcherSet(keyHex)
@@ -265,8 +276,11 @@ export class DocWorker {
     const sendUpdate = async () => {
       if (watcherEntry.closed) return
       const update = await this.buildDocUpdate(context, {
-        includeSnapshot: options.includeSnapshot === true
+        includeSnapshot: watcherEntry.includeSnapshot,
+        sinceRevision: watcherEntry.sinceRevision
       })
+      watcherEntry.includeSnapshot = false
+      watcherEntry.sinceRevision = update.revision
       await onUpdate(update)
     }
 
@@ -305,6 +319,50 @@ export class DocWorker {
 
     let currentRevision = await context.getLatestRevision()
     const accepted = []
+    let latestDocJSON = null
+    let latestDocText = null
+    let latestDocHash = null
+
+    const ensureLatestSnapshot = async () => {
+      if (latestDocText !== null) return
+      let snapshotRecord = null
+      try {
+        snapshotRecord = await context.base.view.findOne(
+          '@pear-docs/snapshots',
+          { reverse: true, limit: 1 }
+        )
+      } catch {}
+
+      if (snapshotRecord?.data) {
+        try {
+          const str = snapshotRecord.data.toString()
+          const parsed = JSON.parse(str)
+          const sanitized = sanitizeDocSnapshot(parsed)
+          latestDocJSON = sanitized
+          latestDocText = JSON.stringify(sanitized)
+        } catch {
+          latestDocJSON = EMPTY_DOC_NODE
+          latestDocText = EMPTY_DOC_TEXT
+        }
+      } else {
+        latestDocJSON = EMPTY_DOC_NODE
+        latestDocText = EMPTY_DOC_TEXT
+      }
+
+      latestDocHash = fingerprintText(latestDocText)
+    }
+
+    const persistSnapshot = async (doc, rev, timestamp) => {
+      latestDocJSON = doc
+      latestDocText = JSON.stringify(doc)
+      latestDocHash = fingerprintText(latestDocText)
+      const snapshotBuffer = Buffer.from(latestDocText)
+      await context.recordSnapshot({
+        rev,
+        createdAt: timestamp,
+        data: snapshotBuffer
+      })
+    }
 
     for (const rawOp of ops) {
       if (!rawOp || typeof rawOp !== 'object') continue
@@ -357,12 +415,46 @@ export class DocWorker {
 
       if (payload && payload.type === 'replace' && payload.doc) {
         const sanitized = sanitizeDocSnapshot(payload.doc)
-        const snapshotBuffer = Buffer.from(JSON.stringify(sanitized))
-        await context.recordSnapshot({
-          rev: nextRevision,
-          createdAt: timestamp,
-          data: snapshotBuffer
-        })
+        await persistSnapshot(sanitized, nextRevision, timestamp)
+      } else if (payload && payload.type === 'delta') {
+        const delta = decodeDeltaPayload(payload)
+        if (!delta) {
+          return {
+            accepted: accepted.length > 0,
+            applied: accepted.length,
+            revision: currentRevision,
+            reason: 'INVALID_DELTA'
+          }
+        }
+
+        await ensureLatestSnapshot()
+
+        if (delta.baseHash && delta.baseHash !== latestDocHash) {
+          return {
+            accepted: accepted.length > 0,
+            applied: accepted.length,
+            revision: currentRevision,
+            reason: 'SNAPSHOT_MISMATCH',
+            expected: latestDocHash,
+            received: delta.baseHash
+          }
+        }
+
+        const nextText = applyDeltaSteps(latestDocText, delta.steps)
+        let parsed = null
+        try {
+          parsed = JSON.parse(nextText)
+        } catch {
+          return {
+            accepted: accepted.length > 0,
+            applied: accepted.length,
+            revision: currentRevision,
+            reason: 'DELTA_APPLY_FAILED'
+          }
+        }
+
+        const sanitized = sanitizeDocSnapshot(parsed)
+        await persistSnapshot(sanitized, nextRevision, timestamp)
       }
 
       currentRevision = nextRevision
@@ -421,14 +513,17 @@ export class DocWorker {
     const revision = await context.getLatestRevision()
     const presence = await this._listPresence(context)
     const roles = await this._listWriterRoles(context)
+    const sinceRevision =
+      typeof options.sinceRevision === 'number' && options.sinceRevision >= 0
+        ? options.sinceRevision
+        : revision
 
     const update = {
       key: bufferToHex(context.key),
       revision,
-      baseRevision: revision,
+      baseRevision: sinceRevision,
       updatedAt: metadata?.updatedAt || metadata?.createdAt || Date.now(),
       title: metadata?.title || DEFAULT_TITLE,
-      ops: [],
       presence,
       capabilities: {
         canEdit: await context.hasPermission(
@@ -466,6 +561,36 @@ export class DocWorker {
       } else {
         update.snapshot = Buffer.from(EMPTY_DOC_SNAPSHOT)
         update.snapshotRevision = revision
+      }
+    }
+
+    if (revision > sinceRevision) {
+      const opsCursor = context.base.view.find('@pear-docs/operations', {
+        gt: { rev: sinceRevision },
+        lte: { rev: revision }
+      })
+      const records = await opsCursor.toArray()
+      if (records.length > 0) {
+        update.ops = records.map((record) => {
+          const op = {
+            rev: record.rev,
+            baseRev: record.baseRev,
+            clientId: bufferToHex(record.clientId),
+            sessionId: record.sessionId ? bufferToHex(record.sessionId) : null,
+            timestamp: record.timestamp,
+            data: record.data
+          }
+          return op
+        })
+
+        const latestTimestamp = records.reduce((acc, record) => {
+          return record.timestamp && record.timestamp > acc
+            ? record.timestamp
+            : acc
+        }, update.updatedAt || 0)
+        if (!update.updatedAt || latestTimestamp > update.updatedAt) {
+          update.updatedAt = latestTimestamp
+        }
       }
     }
 
