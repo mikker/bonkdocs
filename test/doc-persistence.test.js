@@ -2,7 +2,9 @@ import test from 'brittle'
 import {
   loadDocState,
   saveDocState,
-  clearDocState
+  clearDocState,
+  loadLastDocKey,
+  saveLastDocKey
 } from '../renderer/src/state/doc-persistence.js'
 
 test('doc persistence stores and clears state', (t) => {
@@ -48,4 +50,16 @@ test('doc persistence ignores invalid entries', (t) => {
 
   t.is(loadDocState('persist-invalid'), null)
   clearDocState('persist-invalid')
+})
+
+test('last doc key storage is persisted and cleared', (t) => {
+  const key = 'last-doc-test'
+  saveLastDocKey(null)
+  t.is(loadLastDocKey(), null)
+
+  saveLastDocKey(key)
+  t.is(loadLastDocKey(), key)
+
+  saveLastDocKey(null)
+  t.is(loadLastDocKey(), null)
 })

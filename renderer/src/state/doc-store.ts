@@ -13,6 +13,7 @@ import {
   loadLastDocKey,
   saveLastDocKey
 } from './doc-persistence'
+import { mergeDocsWithCachedMetadata } from './doc-cache'
 
 type DocSnapshot = {
   type: string
@@ -257,38 +258,6 @@ function normalizePendingEntries(entries: unknown): PendingOp[] {
     normalized.push({ rev, baseRev, timestamp, delta: payload })
   }
   return normalized
-}
-
-function mergeDocsWithCachedMetadata(docs: DocRecord[]): DocRecord[] {
-  return docs.map((doc) => {
-    if (!doc?.key) return doc
-    const cached = loadDocState(doc.key)
-    if (!cached) return doc
-
-    const next: DocRecord = { ...doc }
-
-    if (cached.title && cached.title.trim().length > 0) {
-      next.title = cached.title
-    }
-
-    if (
-      typeof cached.revision === 'number' &&
-      Number.isFinite(cached.revision) &&
-      (next.lastRevision == null || cached.revision > next.lastRevision)
-    ) {
-      next.lastRevision = cached.revision
-    }
-
-    if (
-      typeof cached.updatedAt === 'number' &&
-      Number.isFinite(cached.updatedAt) &&
-      (next.lastOpenedAt == null || cached.updatedAt > next.lastOpenedAt)
-    ) {
-      next.lastOpenedAt = cached.updatedAt
-    }
-
-    return next
-  })
 }
 
 function persistDocStateEntry(
