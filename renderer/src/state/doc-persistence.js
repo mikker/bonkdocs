@@ -59,7 +59,9 @@ export function loadDocState(key) {
   const snapshotHash =
     typeof entry.snapshotHash === 'string' ? entry.snapshotHash : null
   const pending = Array.isArray(entry.pending) ? entry.pending : []
-  return { revision, snapshotText, snapshotHash, pending }
+  const title = typeof entry.title === 'string' ? entry.title : null
+  const updatedAt = Number.isFinite(entry.updatedAt) ? entry.updatedAt : null
+  return { revision, snapshotText, snapshotHash, pending, title, updatedAt }
 }
 
 export function saveDocState(key, entry) {

@@ -13,7 +13,9 @@ test('doc persistence stores and clears state', (t) => {
     revision: 5,
     snapshotText: JSON.stringify({ type: 'doc', content: [] }),
     snapshotHash: 'hash-123',
-    pending: [{ rev: 6 }]
+    pending: [{ rev: 6 }],
+    title: 'Persisted Title',
+    updatedAt: 123456
   }
 
   saveDocState('persist-test', entry)
@@ -27,6 +29,8 @@ test('doc persistence stores and clears state', (t) => {
   t.is(loaded.snapshotHash, entry.snapshotHash)
   t.is(Array.isArray(loaded.pending), true)
   t.is(loaded.pending.length, 1)
+  t.is(loaded.title, entry.title)
+  t.is(loaded.updatedAt, entry.updatedAt)
 
   clearDocState('persist-test')
   t.is(loadDocState('persist-test'), null)

@@ -259,6 +259,38 @@ function normalizePendingEntries(entries: unknown): PendingOp[] {
   return normalized
 }
 
+function mergeDocsWithCachedMetadata(docs: DocRecord[]): DocRecord[] {
+  return docs.map((doc) => {
+    if (!doc?.key) return doc
+    const cached = loadDocState(doc.key)
+    if (!cached) return doc
+
+    const next: DocRecord = { ...doc }
+
+    if (cached.title && cached.title.trim().length > 0) {
+      next.title = cached.title
+    }
+
+    if (
+      typeof cached.revision === 'number' &&
+      Number.isFinite(cached.revision) &&
+      (next.lastRevision == null || cached.revision > next.lastRevision)
+    ) {
+      next.lastRevision = cached.revision
+    }
+
+    if (
+      typeof cached.updatedAt === 'number' &&
+      Number.isFinite(cached.updatedAt) &&
+      (next.lastOpenedAt == null || cached.updatedAt > next.lastOpenedAt)
+    ) {
+      next.lastOpenedAt = cached.updatedAt
+    }
+
+    return next
+  })
+}
+
 function persistDocStateEntry(
   key: string,
   update: DocUpdate | null,
@@ -273,7 +305,15 @@ function persistDocStateEntry(
     revision: update.revision,
     snapshotText: update.snapshotText,
     snapshotHash: update.snapshotHash,
-    pending
+    pending,
+    title:
+      typeof update.title === 'string' && update.title.length > 0
+        ? update.title
+        : null,
+    updatedAt:
+      typeof update.updatedAt === 'number' && Number.isFinite(update.updatedAt)
+        ? update.updatedAt
+        : Date.now()
   })
 }
 
@@ -469,7 +509,7 @@ export const useDocStore = create<DocStore>((set, get) => ({
 
     try {
       const response = await rpc.initialize({})
-      const docs = response?.docs ?? []
+      const docs = mergeDocsWithCachedMetadata(response?.docs ?? [])
       let activeDoc = response?.activeDoc ?? null
 
       if (!activeDoc) {
@@ -494,7 +534,7 @@ export const useDocStore = create<DocStore>((set, get) => ({
   refresh: async () => {
     try {
       const response = await rpc.listDocs({})
-      const docs = response?.docs ?? []
+      const docs = mergeDocsWithCachedMetadata(response?.docs ?? [])
       set({ docs })
     } catch (error) {
       set({ error: error instanceof Error ? error.message : String(error) })
@@ -523,6 +563,15 @@ export const useDocStore = create<DocStore>((set, get) => ({
       const fingerprint = snapshotFingerprint(cachedSnapshot)
       sinceRevision = Number.isFinite(cached.revision) ? cached.revision : 0
       const pending = normalizePendingEntries(cached.pending)
+      const cachedTitle =
+        typeof cached.title === 'string' && cached.title.length > 0
+          ? cached.title
+          : null
+      const cachedUpdatedAt =
+        typeof cached.updatedAt === 'number' &&
+        Number.isFinite(cached.updatedAt)
+          ? cached.updatedAt
+          : Date.now()
 
       set((state) => {
         const existingDoc = state.docs.find((doc) => doc.key === key)
@@ -530,8 +579,9 @@ export const useDocStore = create<DocStore>((set, get) => ({
           doc.key === key
             ? {
                 ...doc,
+                title: cachedTitle ?? doc.title,
                 lastRevision: sinceRevision,
-                lastOpenedAt: Date.now()
+                lastOpenedAt: cachedUpdatedAt
               }
             : doc
         )
@@ -541,8 +591,12 @@ export const useDocStore = create<DocStore>((set, get) => ({
           currentUpdate: {
             key,
             revision: sinceRevision,
-            updatedAt: Date.now(),
-            title: existingDoc?.title ?? state.currentUpdate?.title,
+            updatedAt: cachedUpdatedAt,
+            title:
+              cachedTitle ??
+              existingDoc?.title ??
+              state.currentUpdate?.title ??
+              null,
             snapshotRevision: sinceRevision,
             snapshot: cachedSnapshot,
             snapshotText: fingerprint.text,
