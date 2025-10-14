@@ -53,7 +53,6 @@ export function App() {
           {currentUpdate ? (
             <>
               <DocEditor
-                className='overflow-auto'
                 snapshot={currentUpdate.snapshot}
                 readOnly={!currentUpdate.capabilities?.canEdit}
                 onSnapshotChange={(nextSnapshot) =>

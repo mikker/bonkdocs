@@ -15,6 +15,11 @@
       "@/*": ["renderer/src/*"]
     }
   },
-  "include": ["renderer/**/*.ts", "renderer/**/*.tsx", "types/**/*.ts", "types/**/*.d.ts"],
+  "include": [
+    "renderer/**/*.ts",
+    "renderer/**/*.tsx",
+    "types/**/*.ts",
+    "types/**/*.d.ts"
+  ],
   "exclude": ["spec/**/*"]
 }

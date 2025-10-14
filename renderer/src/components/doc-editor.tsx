@@ -30,7 +30,7 @@ export function DocEditor({
     autofocus: true,
     editorProps: {
       attributes: {
-        class: 'm-5 focus:outline-none'
+        class: 'p-5 focus:outline-none'
       }
     },
     onUpdate: ({ editor }) => {
@@ -69,11 +69,12 @@ export function DocEditor({
   }, [editor, snapshot, readOnly])
 
   return (
-    <div className={cn('overflow-auto', className)}>
-      <EditorContent
-        editor={editor}
-        className={cn('tiptap', readOnly && 'pointer-events-none')}
-      />
-    </div>
+    <EditorContent
+      editor={editor}
+      className={cn(
+        'tiptap h-full *:h-full overflow-hidden [&>[class*=ProseMirror]]:overflow-auto',
+        readOnly && 'pointer-events-none'
+      )}
+    />
   )
 }
