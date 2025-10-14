@@ -8,19 +8,31 @@ const EMPTY_DOCUMENT = {
   content: [{ type: 'paragraph' }]
 }
 
+interface DocEditorProps {
+  snapshot?: any
+  className?: string
+  readOnly?: boolean
+  onSnapshotChange?: (snapshot: any) => void
+}
+
 export function DocEditor({
   snapshot,
   className,
   readOnly = true,
   onSnapshotChange
-}) {
+}: DocEditorProps) {
   const applyRef = useRef(false)
 
   const editor = useEditor({
     extensions: [StarterKit],
     content: snapshot ?? EMPTY_DOCUMENT,
     editable: !readOnly,
-    autofocus: false,
+    autofocus: true,
+    editorProps: {
+      attributes: {
+        class: 'm-5 focus:outline-none'
+      }
+    },
     onUpdate: ({ editor }) => {
       if (applyRef.current) {
         applyRef.current = false
@@ -42,33 +54,25 @@ export function DocEditor({
     try {
       const current = editor.getJSON()
       if (JSON.stringify(current) !== JSON.stringify(nextContent)) {
-        editor.commands.setContent(nextContent, false, {
-          preserveWhitespace: false
+        editor.commands.setContent(nextContent, {
+          emitUpdate: false
         })
       } else {
         applyRef.current = false
       }
     } catch {
-      editor.commands.setContent(nextContent, false, {
-        preserveWhitespace: false
+      editor.commands.setContent(nextContent, {
+        emitUpdate: false
       })
     }
     editor.setEditable(!readOnly)
   }, [editor, snapshot, readOnly])
 
   return (
-    <div
-      className={cn(
-        'bg-card text-card-foreground border border-border rounded-lg p-4 min-h-[300px] overflow-auto shadow-sm',
-        className
-      )}
-    >
+    <div className={cn('overflow-auto', className)}>
       <EditorContent
         editor={editor}
-        className={cn(
-          'tiptap text-base leading-relaxed',
-          readOnly && 'pointer-events-none'
-        )}
+        className={cn('tiptap', readOnly && 'pointer-events-none')}
       />
     </div>
   )

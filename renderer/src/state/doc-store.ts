@@ -490,7 +490,10 @@ export const useDocStore = create<DocStore>((set, get) => ({
   selectDoc: async (key) => {
     const currentWatcher = get().watcher
     if (currentWatcher?.stop) {
-      await currentWatcher.stop().catch(() => {})
+      const stopPromise = currentWatcher.stop()
+      if (stopPromise) {
+        await stopPromise.catch(() => {})
+      }
     }
 
     set({ activeDoc: key, currentUpdate: null, watcher: null })
