@@ -1,5 +1,8 @@
+// @ts-ignore
 import FramedStream from 'framed-stream'
+// @ts-ignore
 import HRPC from '../../../spec/hrpc/index.js'
+// @ts-ignore
 import run from 'pear-run'
 
 const workerLink = `${Pear.config?.applink ?? ''}/worker/index.js`
