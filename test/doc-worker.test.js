@@ -206,3 +206,123 @@ test('DocWorker applies delta operations and persists snapshot', async (t) => {
     'snapshot reflects delta content'
   )
 })
+
+test('DocWorker watchDoc streams operations after sinceRevision', async (t) => {
+  const { dir, cleanup } = await createTempDir('doc-worker-stream')
+  t.teardown(cleanup)
+
+  const worker = new DocWorker({ baseDir: dir })
+  t.teardown(async () => {
+    await worker.close()
+  })
+
+  await worker.ready()
+
+  const { doc } = await worker.createDoc({ title: 'Stream Doc' })
+
+  const baseDoc = {
+    type: 'doc',
+    content: [{ type: 'paragraph' }]
+  }
+  const firstDoc = {
+    type: 'doc',
+    content: [
+      {
+        type: 'paragraph',
+        content: [{ type: 'text', text: 'Step one' }]
+      }
+    ]
+  }
+  const secondDoc = {
+    type: 'doc',
+    content: [
+      {
+        type: 'paragraph',
+        content: [{ type: 'text', text: 'Step one' }]
+      },
+      {
+        type: 'paragraph',
+        content: [{ type: 'text', text: 'Step two' }]
+      }
+    ]
+  }
+
+  const deltaOne = createDeltaPayload(
+    JSON.stringify(baseDoc),
+    JSON.stringify(firstDoc)
+  )
+  const deltaTwo = createDeltaPayload(
+    JSON.stringify(firstDoc),
+    JSON.stringify(secondDoc)
+  )
+
+  t.ok(deltaOne && deltaTwo, 'delta payloads created')
+  if (!deltaOne || !deltaTwo) {
+    t.fail('deltas missing')
+    return
+  }
+
+  const now = Date.now()
+  await worker.applyOperations({
+    key: doc.key,
+    ops: [
+      {
+        rev: 1,
+        baseRev: 0,
+        clientId: 'e'.repeat(64),
+        sessionId: 'f'.repeat(64),
+        timestamp: now,
+        data: Buffer.from(JSON.stringify(deltaOne))
+      }
+    ],
+    clientTime: now
+  })
+
+  await worker.applyOperations({
+    key: doc.key,
+    ops: [
+      {
+        rev: 2,
+        baseRev: 1,
+        clientId: 'g'.repeat(64),
+        sessionId: 'h'.repeat(64),
+        timestamp: now + 1,
+        data: Buffer.from(JSON.stringify(deltaTwo))
+      }
+    ],
+    clientTime: now + 1
+  })
+
+  const updates = []
+  let stopWatcher = null
+  const received = new Promise((resolve, reject) => {
+    worker
+      .watchDoc(
+        doc.key,
+        { sinceRevision: 0, includeSnapshot: false },
+        async (payload) => {
+          updates.push(payload)
+          resolve(null)
+        }
+      )
+      .then((stop) => {
+        stopWatcher = stop
+      })
+      .catch(reject)
+  })
+
+  await received
+
+  if (stopWatcher) await stopWatcher()
+
+  t.is(updates.length, 1, 'received one update')
+  const update = updates[0]
+  t.ok(Array.isArray(update.ops), 'ops array present')
+  t.is(update.ops.length, 2, 'two operations streamed')
+  const decoded = update.ops.map((op) =>
+    JSON.parse(Buffer.from(op.data).toString())
+  )
+  t.is(decoded[0].type, 'delta')
+  t.is(decoded[1].type, 'delta')
+  t.is(decoded[1].steps.length > 0, true)
+})

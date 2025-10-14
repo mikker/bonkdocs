@@ -6,6 +6,7 @@ import {
   decodeDeltaPayload,
   applyDeltaSteps
 } from '../../../lib/snapshot-delta.js'
+import { loadDocState, saveDocState, clearDocState } from './doc-persistence'
 
 type DocSnapshot = {
   type: string
@@ -73,6 +74,21 @@ type DocWatcher = {
   stop: (() => Promise<void> | void) | null
 }
 
+type DeltaPayload = {
+  type: 'delta'
+  version: number
+  baseHash: string
+  nextHash: string
+  steps: Array<Record<string, unknown>>
+}
+
+type PendingOp = {
+  rev: number
+  baseRev: number
+  timestamp: number
+  delta: DeltaPayload
+}
+
 type DocStore = {
   docs: DocRecord[]
   activeDoc: string | null
@@ -82,6 +98,7 @@ type DocStore = {
   watcher: DocWatcher | null
   clientId: string
   sessionId: string
+  pendingOps: Record<string, PendingOp[]>
   initialize: () => Promise<void>
   refresh: () => Promise<void>
   selectDoc: (key: string | null) => Promise<void>
@@ -185,6 +202,73 @@ function snapshotFingerprint(doc: DocSnapshot): {
 } {
   const text = snapshotToText(doc)
   return { text, hash: fingerprintText(text) }
+}
+
+function parseSnapshotText(text: string): DocSnapshot {
+  try {
+    const parsed = JSON.parse(text)
+    return sanitizeDocSnapshot(parsed)
+  } catch {
+    return EMPTY_SNAPSHOT
+  }
+}
+
+function normalizePendingEntries(entries: unknown): PendingOp[] {
+  if (!Array.isArray(entries)) return []
+  const normalized: PendingOp[] = []
+  for (const entry of entries) {
+    if (!entry || typeof entry !== 'object') continue
+    const rev = Number.isFinite(entry.rev) ? Number(entry.rev) : null
+    const baseRev = Number.isFinite(entry.baseRev)
+      ? Number(entry.baseRev)
+      : null
+    const timestamp = Number.isFinite(entry.timestamp)
+      ? Number(entry.timestamp)
+      : Date.now()
+    const delta = entry.delta
+    if (
+      rev === null ||
+      baseRev === null ||
+      !delta ||
+      typeof delta !== 'object' ||
+      delta.type !== 'delta'
+    ) {
+      continue
+    }
+    const payload: DeltaPayload = {
+      type: 'delta',
+      version:
+        Number.isFinite(delta.version) && Number(delta.version) > 0
+          ? Number(delta.version)
+          : 1,
+      baseHash: typeof delta.baseHash === 'string' ? delta.baseHash : '',
+      nextHash: typeof delta.nextHash === 'string' ? delta.nextHash : '',
+      steps: Array.isArray(delta.steps) ? [...delta.steps] : []
+    }
+    if (!payload.baseHash || !payload.nextHash || payload.steps.length === 0) {
+      continue
+    }
+    normalized.push({ rev, baseRev, timestamp, delta: payload })
+  }
+  return normalized
+}
+
+function persistDocStateEntry(
+  key: string,
+  update: DocUpdate | null,
+  pending: PendingOp[]
+) {
+  if (!key) return
+  if (!update) {
+    clearDocState(key)
+    return
+  }
+  saveDocState(key, {
+    revision: update.revision,
+    snapshotText: update.snapshotText,
+    snapshotHash: update.snapshotHash,
+    pending
+  })
 }
 
 function normalizeSnapshot(value: unknown): {
@@ -371,6 +455,7 @@ export const useDocStore = create<DocStore>((set, get) => ({
   watcher: null,
   clientId: DEFAULT_CLIENT_ID,
   sessionId: DEFAULT_SESSION_ID,
+  pendingOps: {},
   initialize: async () => {
     if (get().loading) return
 
@@ -412,10 +497,62 @@ export const useDocStore = create<DocStore>((set, get) => ({
 
     if (!key) return
 
+    const cached = loadDocState(key)
+    let sinceRevision = 0
+
+    if (cached) {
+      const cachedSnapshot = parseSnapshotText(cached.snapshotText)
+      const fingerprint = snapshotFingerprint(cachedSnapshot)
+      sinceRevision = Number.isFinite(cached.revision) ? cached.revision : 0
+      const pending = normalizePendingEntries(cached.pending)
+
+      set((state) => {
+        const existingDoc = state.docs.find((doc) => doc.key === key)
+        const updatedDocs = state.docs.map((doc) =>
+          doc.key === key
+            ? {
+                ...doc,
+                lastRevision: sinceRevision,
+                lastOpenedAt: Date.now()
+              }
+            : doc
+        )
+
+        return {
+          docs: existingDoc ? updatedDocs : state.docs,
+          currentUpdate: {
+            key,
+            revision: sinceRevision,
+            updatedAt: Date.now(),
+            title: existingDoc?.title ?? state.currentUpdate?.title,
+            snapshotRevision: sinceRevision,
+            snapshot: cachedSnapshot,
+            snapshotText: fingerprint.text,
+            rawSnapshot: textEncoder.encode(fingerprint.text),
+            snapshotHash: fingerprint.hash,
+            presence: state.currentUpdate?.presence ?? null,
+            capabilities: state.currentUpdate?.capabilities ?? null
+          },
+          pendingOps: {
+            ...state.pendingOps,
+            [key]: pending
+          }
+        }
+      })
+    } else {
+      set((state) => ({
+        pendingOps: {
+          ...state.pendingOps,
+          [key]: []
+        }
+      }))
+    }
+
     try {
       const stream = rpc.watchDoc({
         key,
-        includeSnapshot: true
+        includeSnapshot: cached ? false : true,
+        sinceRevision: sinceRevision > 0 ? sinceRevision : undefined
       })
 
       const watcher: DocWatcher = {
@@ -427,8 +564,16 @@ export const useDocStore = create<DocStore>((set, get) => ({
       set({ watcher })
 
       stream.on('data', (payload: RawDocUpdate) => {
+        let nextUpdate: DocUpdate | null = null
+        let nextPending: PendingOp[] = []
         set((state) => {
           const update = normalizeDocUpdate(payload, state.currentUpdate)
+          nextUpdate = update
+          const existingPending = state.pendingOps[update.key] ?? []
+          const remaining = existingPending.filter(
+            (op) => op.rev > update.revision
+          )
+          nextPending = remaining
           return {
             currentUpdate: update,
             docs: state.docs.map((doc) =>
@@ -440,9 +585,17 @@ export const useDocStore = create<DocStore>((set, get) => ({
                     lastOpenedAt: update.updatedAt ?? Date.now()
                   }
                 : doc
-            )
+            ),
+            pendingOps: {
+              ...state.pendingOps,
+              [update.key]: remaining
+            }
           }
         })
+
+        if (nextUpdate) {
+          persistDocStateEntry(nextUpdate.key, nextUpdate, nextPending)
+        }
       })
 
       stream.on('error', (err: Error) => {
@@ -493,9 +646,17 @@ export const useDocStore = create<DocStore>((set, get) => ({
     const baseRevision = current.revision
     const nextRevision = baseRevision + 1
     const timestamp = Date.now()
+    const pendingEntry: PendingOp = {
+      rev: nextRevision,
+      baseRev: baseRevision,
+      timestamp,
+      delta
+    }
 
     set((prev) => {
       if (!prev.currentUpdate || prev.currentUpdate.key !== key) return prev
+      const pendingForDoc = prev.pendingOps[key] ?? []
+      const nextPending = [...pendingForDoc, pendingEntry]
       return {
         ...prev,
         currentUpdate: {
@@ -516,12 +677,23 @@ export const useDocStore = create<DocStore>((set, get) => ({
                 lastOpenedAt: timestamp
               }
             : doc
-        )
+        ),
+        pendingOps: {
+          ...prev.pendingOps,
+          [key]: nextPending
+        }
       }
     })
 
+    const optimisticState = get()
+    persistDocStateEntry(
+      key,
+      optimisticState.currentUpdate,
+      optimisticState.pendingOps[key] ?? []
+    )
+
     try {
-      await rpc.applyOps({
+      const result = await rpc.applyOps({
         key,
         ops: [
           {
@@ -535,8 +707,59 @@ export const useDocStore = create<DocStore>((set, get) => ({
         ],
         clientTime: timestamp
       })
+      if (!result?.accepted) {
+        const reason =
+          (result && 'reason' in result && result.reason) || 'REJECTED'
+        set((prev) => {
+          const existing = prev.pendingOps[key] ?? []
+          const filtered = existing.filter((op) => op.rev !== nextRevision)
+          return {
+            ...prev,
+            error: typeof reason === 'string' ? reason : 'applyOps failed',
+            pendingOps: {
+              ...prev.pendingOps,
+              [key]: filtered
+            }
+          }
+        })
+        clearDocState(key)
+        void get().selectDoc(key)
+        return
+      }
+
+      set((prev) => {
+        const existing = prev.pendingOps[key] ?? []
+        const filtered = existing.filter((op) => op.rev !== nextRevision)
+        return {
+          ...prev,
+          pendingOps: {
+            ...prev.pendingOps,
+            [key]: filtered
+          }
+        }
+      })
+
+      const nextState = get()
+      persistDocStateEntry(
+        key,
+        nextState.currentUpdate,
+        nextState.pendingOps[key] ?? []
+      )
     } catch (error) {
       set({ error: error instanceof Error ? error.message : String(error) })
+      set((prev) => {
+        const existing = prev.pendingOps[key] ?? []
+        const filtered = existing.filter((op) => op.rev !== pendingEntry.rev)
+        return {
+          ...prev,
+          pendingOps: {
+            ...prev.pendingOps,
+            [key]: filtered
+          }
+        }
+      })
+      clearDocState(key)
+      void get().selectDoc(key)
     }
   }
 }))
