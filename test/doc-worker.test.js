@@ -65,10 +65,25 @@ test('DocWorker watch emits initial update', async (t) => {
   t.is(docs.length, 1)
 
   let stopWatcher = null
-  const update = await new Promise((resolve, reject) => {
+  const updates = []
+  let nextResolve = null
+
+  const waitForNextUpdate = () =>
+    new Promise((resolve) => {
+      nextResolve = resolve
+    })
+
+  await new Promise((resolve, reject) => {
     worker
       .watchDoc(doc.key, { includeSnapshot: true }, (payload) => {
-        resolve(payload)
+        updates.push(payload)
+        if (updates.length === 1) {
+          resolve()
+        }
+        if (nextResolve) {
+          nextResolve(payload)
+          nextResolve = null
+        }
       })
       .then((stop) => {
         stopWatcher = stop
@@ -76,12 +91,47 @@ test('DocWorker watch emits initial update', async (t) => {
       .catch(reject)
   })
 
-  t.is(update.key, doc.key)
-  t.ok(Array.isArray(update.presence), 'presence array present')
-  t.is(typeof update.capabilities.canEdit, 'boolean')
+  const initialUpdate = updates[0]
+  t.is(initialUpdate.key, doc.key)
+  t.ok(Array.isArray(initialUpdate.presence), 'presence array present')
+  t.is(typeof initialUpdate.capabilities.canEdit, 'boolean')
 
-  const applyRes = await worker.applyOperations({ key: doc.key })
-  t.is(applyRes.accepted, false)
+  const pendingUpdate = waitForNextUpdate()
+
+  const payload = {
+    type: 'replace',
+    doc: {
+      type: 'doc',
+      content: [
+        {
+          type: 'paragraph',
+          content: [{ type: 'text', text: 'Hello from applyOps' }]
+        }
+      ]
+    }
+  }
+
+  const applyRes = await worker.applyOperations({
+    key: doc.key,
+    ops: [
+      {
+        rev: initialUpdate.revision + 1,
+        baseRev: initialUpdate.revision,
+        clientId: 'a'.repeat(64),
+        sessionId: 'b'.repeat(64),
+        timestamp: Date.now(),
+        data: Buffer.from(JSON.stringify(payload))
+      }
+    ],
+    clientTime: Date.now()
+  })
+
+  t.ok(applyRes.accepted)
+  t.is(applyRes.applied, 1)
+  t.is(applyRes.revision, initialUpdate.revision + 1)
+
+  const nextUpdate = await pendingUpdate
+  t.is(nextUpdate.revision, initialUpdate.revision + 1)
 
   if (stopWatcher) await stopWatcher()
 })

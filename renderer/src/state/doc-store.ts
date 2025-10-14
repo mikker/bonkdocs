@@ -57,6 +57,7 @@ type DocUpdate = {
   snapshotRevision?: number | null
   snapshot: DocSnapshot
   rawSnapshot: Uint8Array | null
+  snapshotHash: string
   presence?: DocPresence[] | null
   capabilities?: DocCapabilities | null
 }
@@ -72,22 +73,104 @@ type DocStore = {
   loading: boolean
   error: string | null
   watcher: DocWatcher | null
+  clientId: string
+  sessionId: string
   initialize: () => Promise<void>
   refresh: () => Promise<void>
   selectDoc: (key: string | null) => Promise<void>
   createDoc: (title?: string) => Promise<void>
+  applySnapshot: (key: string, snapshot: DocSnapshot) => Promise<void>
 }
 
 const textDecoder = new TextDecoder()
+const textEncoder = new TextEncoder()
 
 const EMPTY_SNAPSHOT: DocSnapshot = {
   type: 'doc',
-  content: [
-    {
-      type: 'paragraph',
-      content: [{ type: 'text', text: '' }]
+  content: [{ type: 'paragraph' }]
+}
+
+function isPlainObject(
+  value: unknown
+): value is Record<string | number | symbol, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function sanitizeDocSnapshot(value: unknown): DocSnapshot {
+  if (!isPlainObject(value)) {
+    return EMPTY_SNAPSHOT
+  }
+
+  const type = typeof value.type === 'string' ? value.type : null
+  if (type !== 'doc') {
+    return EMPTY_SNAPSHOT
+  }
+
+  const content = Array.isArray(value.content) ? value.content : []
+  const cleaned = content
+    .map((node) => sanitizeNode(node))
+    .filter((node): node is Record<string, unknown> => node !== null)
+
+  if (cleaned.length === 0) {
+    cleaned.push({ type: 'paragraph' })
+  }
+
+  return { type: 'doc', content: cleaned }
+}
+
+function sanitizeNode(node: unknown): Record<string, unknown> | null {
+  if (!isPlainObject(node)) return null
+
+  const type = typeof node.type === 'string' ? node.type : null
+  if (!type) return null
+
+  if (type === 'text') {
+    const text = typeof node.text === 'string' ? node.text : ''
+    if (!text) return null
+    return { ...node, type, text }
+  }
+
+  const next: Record<string, unknown> = { ...node, type }
+
+  if (Array.isArray(node.content)) {
+    const children = node.content
+      .map((child) => sanitizeNode(child))
+      .filter((child): child is Record<string, unknown> => child !== null)
+    if (children.length > 0) {
+      next.content = children
+    } else {
+      delete next.content
     }
-  ]
+  } else if (node.content !== undefined) {
+    delete next.content
+  }
+
+  return next
+}
+
+function randomId(length = 32) {
+  if (length <= 0) return ''
+  if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+    const array = new Uint8Array(length)
+    crypto.getRandomValues(array)
+    return Array.from(array, (byte) => byte.toString(16).padStart(2, '0')).join(
+      ''
+    )
+  }
+  const chunks = []
+  for (let i = 0; i < length; i++) {
+    const value = Math.floor(Math.random() * 256)
+    chunks.push(value.toString(16).padStart(2, '0'))
+  }
+  return chunks.join('')
+}
+
+const DEFAULT_CLIENT_ID = randomId(32)
+const DEFAULT_SESSION_ID = randomId(32)
+
+function encodeReplaceOperation(doc: DocSnapshot): Uint8Array {
+  const payload = { type: 'replace', doc }
+  return textEncoder.encode(JSON.stringify(payload))
 }
 
 function normalizeSnapshot(value: unknown): {
@@ -99,21 +182,22 @@ function normalizeSnapshot(value: unknown): {
   }
 
   if (typeof value === 'object' && value !== null) {
-    if ('type' in (value as Record<string, unknown>)) {
-      return { json: value as DocSnapshot, buffer: null }
-    }
     if (value instanceof Uint8Array) {
       const data = value
       try {
         const decoded = textDecoder.decode(data)
         const parsed = JSON.parse(decoded)
         if (parsed && typeof parsed === 'object') {
-          return { json: parsed as DocSnapshot, buffer: data }
+          return { json: sanitizeDocSnapshot(parsed), buffer: data }
         }
       } catch {
         return { json: EMPTY_SNAPSHOT, buffer: data }
       }
       return { json: EMPTY_SNAPSHOT, buffer: data }
+    }
+
+    if (isPlainObject(value) && typeof value.type === 'string') {
+      return { json: sanitizeDocSnapshot(value), buffer: null }
     }
   }
 
@@ -121,7 +205,7 @@ function normalizeSnapshot(value: unknown): {
     try {
       const parsed = JSON.parse(value)
       if (parsed && typeof parsed === 'object') {
-        return { json: parsed as DocSnapshot, buffer: null }
+        return { json: sanitizeDocSnapshot(parsed), buffer: null }
       }
     } catch {}
   }
@@ -155,6 +239,7 @@ function normalizeDocUpdate(update: RawDocUpdate): DocUpdate {
         : undefined
 
   const { json: snapshot, buffer } = normalizeSnapshot(update.snapshot)
+  const snapshotHash = JSON.stringify(snapshot)
 
   const presence = Array.isArray(update.presence)
     ? update.presence.map((entry) => ({ ...entry }))
@@ -173,6 +258,7 @@ function normalizeDocUpdate(update: RawDocUpdate): DocUpdate {
     snapshotRevision,
     snapshot,
     rawSnapshot: buffer,
+    snapshotHash,
     presence,
     capabilities
   }
@@ -185,6 +271,8 @@ export const useDocStore = create<DocStore>((set, get) => ({
   loading: false,
   error: null,
   watcher: null,
+  clientId: DEFAULT_CLIENT_ID,
+  sessionId: DEFAULT_SESSION_ID,
   initialize: async () => {
     if (get().loading) return
 
@@ -281,6 +369,66 @@ export const useDocStore = create<DocStore>((set, get) => ({
         }))
         await get().selectDoc(doc.key)
       }
+    } catch (error) {
+      set({ error: error instanceof Error ? error.message : String(error) })
+    }
+  },
+  applySnapshot: async (key, snapshot) => {
+    const state = get()
+    const current = state.currentUpdate
+    if (!current || current.key !== key) return
+
+    const sanitized = sanitizeDocSnapshot(snapshot)
+    const snapshotHash = JSON.stringify(sanitized)
+
+    if (snapshotHash === current.snapshotHash) {
+      return
+    }
+    const baseRevision = current.revision
+    const nextRevision = baseRevision + 1
+    const timestamp = Date.now()
+    const encoded = encodeReplaceOperation(sanitized)
+
+    set((prev) => {
+      if (!prev.currentUpdate || prev.currentUpdate.key !== key) return prev
+      return {
+        ...prev,
+        currentUpdate: {
+          ...prev.currentUpdate,
+          snapshot: sanitized,
+          rawSnapshot: encoded,
+          snapshotHash,
+          revision: nextRevision,
+          snapshotRevision: nextRevision,
+          updatedAt: timestamp
+        },
+        docs: prev.docs.map((doc) =>
+          doc.key === key
+            ? {
+                ...doc,
+                lastRevision: nextRevision,
+                lastOpenedAt: timestamp
+              }
+            : doc
+        )
+      }
+    })
+
+    try {
+      await rpc.applyOps({
+        key,
+        ops: [
+          {
+            rev: nextRevision,
+            baseRev: baseRevision,
+            clientId: state.clientId,
+            sessionId: state.sessionId,
+            timestamp,
+            data: encoded
+          }
+        ],
+        clientTime: timestamp
+      })
     } catch (error) {
       set({ error: error instanceof Error ? error.message : String(error) })
     }

@@ -13,17 +13,118 @@ const APP_STATE_KEY = 'state/app'
 const bufferToHex = (buf) =>
   Buffer.isBuffer(buf) ? Buffer.from(buf).toString('hex') : buf || ''
 
-const EMPTY_DOC_SNAPSHOT = Buffer.from(
-  JSON.stringify({
-    type: 'doc',
-    content: [
-      {
-        type: 'paragraph',
-        content: [{ type: 'text', text: '' }]
+const EMPTY_DOC_NODE = Object.freeze({
+  type: 'doc',
+  content: [{ type: 'paragraph' }]
+})
+
+const EMPTY_DOC_SNAPSHOT = Buffer.from(JSON.stringify(EMPTY_DOC_NODE))
+
+const TEXT_DECODER =
+  typeof TextDecoder === 'function' ? new TextDecoder() : null
+
+function randomBytes(size) {
+  if (size <= 0) return Buffer.alloc(0)
+  if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+    const array = new Uint8Array(size)
+    crypto.getRandomValues(array)
+    return Buffer.from(array)
+  }
+  const buf = Buffer.alloc(size)
+  for (let i = 0; i < size; i++) {
+    buf[i] = Math.floor(Math.random() * 256)
+  }
+  return buf
+}
+
+function bytesFromId(id) {
+  if (!id) return randomBytes(32)
+  if (Buffer.isBuffer(id)) {
+    if (id.length === 32) return id
+    if (id.length > 32) return id.subarray(0, 32)
+    const out = Buffer.alloc(32)
+    id.copy(out)
+    return out
+  }
+  if (typeof id === 'string') {
+    const normalized = id.trim()
+    try {
+      if (/^[0-9a-fA-F]{64}$/.test(normalized)) {
+        return Buffer.from(normalized, 'hex')
       }
-    ]
-  })
-)
+      if (/^[0-9a-fA-F]{32}$/.test(normalized)) {
+        return Buffer.from(normalized.repeat(2), 'hex')
+      }
+    } catch {}
+    try {
+      const decoded = Buffer.from(normalized, 'base64')
+      if (decoded.length === 32) return decoded
+      if (decoded.length > 32) return decoded.subarray(0, 32)
+      const out = Buffer.alloc(32)
+      decoded.copy(out)
+      return out
+    } catch {}
+  }
+  return randomBytes(32)
+}
+
+function sanitizeDocNode(node) {
+  if (!node || typeof node !== 'object') return null
+  const type = typeof node.type === 'string' ? node.type : null
+  if (!type) return null
+
+  if (type === 'text') {
+    const text = typeof node.text === 'string' ? node.text : ''
+    if (!text) return null
+    const clean = { ...node, type, text }
+    return clean
+  }
+
+  const clean = { ...node, type }
+
+  if (Array.isArray(node.content)) {
+    const children = node.content
+      .map((child) => sanitizeDocNode(child))
+      .filter((child) => child !== null)
+    if (children.length > 0) clean.content = children
+    else delete clean.content
+  } else if (node.content !== undefined) {
+    delete clean.content
+  }
+
+  return clean
+}
+
+function sanitizeDocSnapshot(doc) {
+  if (!doc || typeof doc !== 'object') return EMPTY_DOC_NODE
+  const type = typeof doc.type === 'string' ? doc.type : null
+  if (type !== 'doc') return EMPTY_DOC_NODE
+
+  const content = Array.isArray(doc.content) ? doc.content : []
+  const cleaned = content
+    .map((node) => sanitizeDocNode(node))
+    .filter((node) => node !== null)
+
+  if (cleaned.length === 0) cleaned.push({ type: 'paragraph' })
+
+  return { type: 'doc', content: cleaned }
+}
+
+function decodeOperationPayload(data) {
+  if (!data || data.length === 0) return null
+  try {
+    const str = Buffer.isBuffer(data)
+      ? data.toString()
+      : TEXT_DECODER
+        ? TEXT_DECODER.decode(data)
+        : Buffer.from(data).toString()
+    const parsed = JSON.parse(str)
+    if (!parsed || typeof parsed !== 'object') return null
+    return parsed
+  } catch {
+    return null
+  }
+}
 
 export class DocWorker {
   constructor(options = {}) {
@@ -169,13 +270,16 @@ export class DocWorker {
       await onUpdate(update)
     }
 
-    await sendUpdate()
+    const queueUpdate = () =>
+      Promise.resolve()
+        .then(sendUpdate)
+        .catch((error) => {
+          console.warn('[doc-worker] failed to emit doc update', error)
+        })
 
-    watcherEntry.unsubscribe = context.subscribe(() => {
-      void sendUpdate().catch((error) => {
-        console.warn('[doc-worker] failed to emit doc update', error)
-      })
-    })
+    queueUpdate()
+
+    watcherEntry.unsubscribe = context.subscribe(queueUpdate)
 
     return async () => {
       if (watcherEntry.closed) return
@@ -189,9 +293,86 @@ export class DocWorker {
 
   async applyOperations(request = {}) {
     if (!request.key) throw new Error('Doc key is required')
+    const ops = Array.isArray(request.ops) ? request.ops : []
+    if (ops.length === 0) {
+      return { accepted: false, applied: 0, revision: null, reason: 'NO_OPS' }
+    }
+
+    await this.ready()
+
+    const context = await this.manager.getDoc(request.key)
+    if (!context) throw new Error('Doc not found')
+
+    let currentRevision = await context.getLatestRevision()
+    const accepted = []
+
+    for (const rawOp of ops) {
+      if (!rawOp || typeof rawOp !== 'object') continue
+
+      const payload = decodeOperationPayload(rawOp.data)
+      if (!payload) continue
+
+      const baseRev =
+        typeof rawOp.baseRev === 'number' && rawOp.baseRev >= 0
+          ? rawOp.baseRev
+          : currentRevision
+
+      if (baseRev !== currentRevision) {
+        return {
+          accepted: accepted.length > 0,
+          applied: accepted.length,
+          revision: currentRevision,
+          reason: 'REVISION_MISMATCH',
+          expected: currentRevision,
+          received: baseRev
+        }
+      }
+
+      const nextRevision =
+        typeof rawOp.rev === 'number' && rawOp.rev > currentRevision
+          ? rawOp.rev
+          : currentRevision + 1
+
+      const clientId = bytesFromId(rawOp.clientId)
+      const sessionId = rawOp.sessionId
+        ? bytesFromId(rawOp.sessionId)
+        : clientId
+      const timestamp =
+        typeof rawOp.timestamp === 'number' && rawOp.timestamp > 0
+          ? rawOp.timestamp
+          : Date.now()
+
+      const opBuffer = Buffer.isBuffer(rawOp.data)
+        ? rawOp.data
+        : Buffer.from(rawOp.data)
+
+      await context.appendOperation({
+        rev: nextRevision,
+        baseRev,
+        clientId,
+        sessionId,
+        timestamp,
+        data: opBuffer
+      })
+
+      if (payload && payload.type === 'replace' && payload.doc) {
+        const sanitized = sanitizeDocSnapshot(payload.doc)
+        const snapshotBuffer = Buffer.from(JSON.stringify(sanitized))
+        await context.recordSnapshot({
+          rev: nextRevision,
+          createdAt: timestamp,
+          data: snapshotBuffer
+        })
+      }
+
+      currentRevision = nextRevision
+      accepted.push({ rev: nextRevision })
+    }
+
     return {
-      accepted: false,
-      error: 'applyOps not implemented'
+      accepted: accepted.length > 0,
+      applied: accepted.length,
+      revision: currentRevision
     }
   }
 

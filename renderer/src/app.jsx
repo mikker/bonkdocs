@@ -21,6 +21,7 @@ export function App() {
   const selectDoc = useDocState((state) => state.selectDoc)
   const createDoc = useDocState((state) => state.createDoc)
   const refresh = useDocState((state) => state.refresh)
+  const applySnapshot = useDocState((state) => state.applySnapshot)
   const [newTitle, setNewTitle] = useState('')
 
   useEffect(() => {
@@ -116,11 +117,19 @@ export function App() {
                   ) : null}
                   <Separator />
                   <p className='text-xs text-muted-foreground'>
-                    Multiplayer editing coming soon. The editor below renders
-                    the latest snapshot streamed from the Pear Docs worker.
+                    Changes sync automatically through the Pear Docs worker. If
+                    peers are editing simultaneously, newer revisions will
+                    stream in here.
                   </p>
                 </div>
-                <DocEditor snapshot={currentUpdate.snapshot} className='mt-2' />
+                <DocEditor
+                  snapshot={currentUpdate.snapshot}
+                  readOnly={!currentUpdate.capabilities?.canEdit}
+                  onSnapshotChange={(nextSnapshot) =>
+                    applySnapshot(currentUpdate.key, nextSnapshot)
+                  }
+                  className='mt-2'
+                />
               </>
             ) : activeDoc ? (
               <p className='text-muted-foreground'>Waiting for snapshot…</p>
