@@ -6,7 +6,13 @@ import {
   decodeDeltaPayload,
   applyDeltaSteps
 } from '../../../lib/snapshot-delta.js'
-import { loadDocState, saveDocState, clearDocState } from './doc-persistence'
+import {
+  loadDocState,
+  saveDocState,
+  clearDocState,
+  loadLastDocKey,
+  saveLastDocKey
+} from './doc-persistence'
 
 type DocSnapshot = {
   type: string
@@ -464,7 +470,14 @@ export const useDocStore = create<DocStore>((set, get) => ({
     try {
       const response = await rpc.initialize({})
       const docs = response?.docs ?? []
-      const activeDoc = response?.activeDoc ?? null
+      let activeDoc = response?.activeDoc ?? null
+
+      if (!activeDoc) {
+        const storedActive = loadLastDocKey()
+        if (storedActive && docs.some((doc) => doc.key === storedActive)) {
+          activeDoc = storedActive
+        }
+      }
 
       set({ docs, activeDoc, loading: false })
 
@@ -497,6 +510,8 @@ export const useDocStore = create<DocStore>((set, get) => ({
     }
 
     set({ activeDoc: key, currentUpdate: null, watcher: null })
+
+    saveLastDocKey(key ?? null)
 
     if (!key) return
 

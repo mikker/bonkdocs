@@ -1,4 +1,5 @@
 const STORAGE_KEY = 'pear-docs/doc-state'
+const META_KEY = '__meta__'
 const memoryStore = {}
 
 function isBrowserStorageAvailable() {
@@ -40,6 +41,12 @@ function writeAll(data) {
   } catch {}
 }
 
+function readMeta(all) {
+  const entry = all?.[META_KEY]
+  if (!entry || typeof entry !== 'object') return null
+  return entry
+}
+
 export function loadDocState(key) {
   if (!key) return null
   const all = readAll()
@@ -68,4 +75,32 @@ export function clearDocState(key) {
     delete all[key]
     writeAll(all)
   }
+}
+
+export function loadLastDocKey() {
+  const all = readAll()
+  const meta = readMeta(all)
+  if (!meta || typeof meta.lastDoc !== 'string') return null
+  return meta.lastDoc
+}
+
+export function saveLastDocKey(key) {
+  const all = { ...readAll() }
+  if (!key) {
+    if (all[META_KEY]) {
+      const nextMeta = { ...all[META_KEY] }
+      delete nextMeta.lastDoc
+      if (Object.keys(nextMeta).length === 0) {
+        delete all[META_KEY]
+      } else {
+        all[META_KEY] = nextMeta
+      }
+      writeAll(all)
+    }
+    return
+  }
+  const existingMeta = readMeta(all)
+  const nextMeta = { ...existingMeta, lastDoc: key }
+  all[META_KEY] = nextMeta
+  writeAll(all)
 }
