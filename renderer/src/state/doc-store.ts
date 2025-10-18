@@ -154,6 +154,35 @@ type DocStore = {
 const textDecoder = new TextDecoder()
 const textEncoder = new TextEncoder()
 
+const applyQueuePromises = new Map<string, Promise<void>>()
+const applyQueueTokens = new Map<string, number>()
+
+function enqueueApplyTask(
+  key: string,
+  task: () => Promise<void>
+): Promise<void> {
+  const token = applyQueueTokens.get(key) ?? 0
+  const previous = applyQueuePromises.get(key) ?? Promise.resolve()
+  const next = previous.catch(() => {}).then(async () => {
+    if ((applyQueueTokens.get(key) ?? 0) !== token) return
+    await task()
+  })
+  const tracked = next.finally(() => {
+    if (applyQueuePromises.get(key) === tracked) {
+      applyQueuePromises.delete(key)
+    }
+  })
+  applyQueuePromises.set(key, tracked)
+  return tracked
+}
+
+function clearApplyQueue(key: string | null | undefined) {
+  if (!key) return
+  const current = applyQueueTokens.get(key) ?? 0
+  applyQueueTokens.set(key, current + 1)
+  applyQueuePromises.delete(key)
+}
+
 const DOC_VIEWER_ROLE = 'doc-viewer'
 
 const EMPTY_SNAPSHOT: DocSnapshot = {
@@ -956,31 +985,69 @@ export const useDocStore = create<DocStore>((set, get) => ({
       optimisticState.pendingOps[key] ?? []
     )
 
-    try {
-      const rpc = getRpc()
-      const result = await rpc.applyOps({
-        key,
-        ops: [
-          {
-            rev: nextRevision,
-            baseRev: baseRevision,
-            clientId: state.clientId,
-            sessionId: state.sessionId,
-            timestamp,
-            data: encoded
-          }
-        ],
-        clientTime: timestamp
-      })
-      if (!result?.accepted) {
-        const reason =
-          (result && 'reason' in result && result.reason) || 'REJECTED'
+    const send = async () => {
+      try {
+        const rpc = getRpc()
+        const result = await rpc.applyOps({
+          key,
+          ops: [
+            {
+              rev: nextRevision,
+              baseRev: baseRevision,
+              clientId: state.clientId,
+              sessionId: state.sessionId,
+              timestamp,
+              data: encoded
+            }
+          ],
+          clientTime: timestamp
+        })
+        if (!result?.accepted) {
+          const reason =
+            (result && 'reason' in result && result.reason) || 'REJECTED'
+          set((prev) => {
+            const existing = prev.pendingOps[key] ?? []
+            const filtered = existing.filter((op) => op.rev !== nextRevision)
+            return {
+              ...prev,
+              error: typeof reason === 'string' ? reason : 'applyOps failed',
+              pendingOps: {
+                ...prev.pendingOps,
+                [key]: filtered
+              }
+            }
+          })
+          clearDocState(key)
+          clearApplyQueue(key)
+          void get().selectDoc(key)
+          return
+        }
+
         set((prev) => {
           const existing = prev.pendingOps[key] ?? []
           const filtered = existing.filter((op) => op.rev !== nextRevision)
           return {
             ...prev,
-            error: typeof reason === 'string' ? reason : 'applyOps failed',
+            pendingOps: {
+              ...prev.pendingOps,
+              [key]: filtered
+            }
+          }
+        })
+
+        const nextState = get()
+        persistDocStateEntry(
+          key,
+          nextState.currentUpdate,
+          nextState.pendingOps[key] ?? []
+        )
+      } catch (error) {
+        set({ error: error instanceof Error ? error.message : String(error) })
+        set((prev) => {
+          const existing = prev.pendingOps[key] ?? []
+          const filtered = existing.filter((op) => op.rev !== pendingEntry.rev)
+          return {
+            ...prev,
             pendingOps: {
               ...prev.pendingOps,
               [key]: filtered
@@ -988,44 +1055,12 @@ export const useDocStore = create<DocStore>((set, get) => ({
           }
         })
         clearDocState(key)
+        clearApplyQueue(key)
         void get().selectDoc(key)
-        return
       }
-
-      set((prev) => {
-        const existing = prev.pendingOps[key] ?? []
-        const filtered = existing.filter((op) => op.rev !== nextRevision)
-        return {
-          ...prev,
-          pendingOps: {
-            ...prev.pendingOps,
-            [key]: filtered
-          }
-        }
-      })
-
-      const nextState = get()
-      persistDocStateEntry(
-        key,
-        nextState.currentUpdate,
-        nextState.pendingOps[key] ?? []
-      )
-    } catch (error) {
-      set({ error: error instanceof Error ? error.message : String(error) })
-      set((prev) => {
-        const existing = prev.pendingOps[key] ?? []
-        const filtered = existing.filter((op) => op.rev !== pendingEntry.rev)
-        return {
-          ...prev,
-          pendingOps: {
-            ...prev.pendingOps,
-            [key]: filtered
-          }
-        }
-      })
-      clearDocState(key)
-      void get().selectDoc(key)
     }
+
+    return await enqueueApplyTask(key, send)
   },
   loadInvites: async (key, options) => {
     if (!key) return []

@@ -296,6 +296,103 @@ test('doc store reselects doc after applyOps mismatch', async (t) => {
   resetStoreState()
 })
 
+test('doc store queues applyOps requests per document', async (t) => {
+  const doc = {
+    key: 'doc-queue',
+    title: 'Queued Doc',
+    lastRevision: 1,
+    lastOpenedAt: Date.now()
+  }
+
+  const mock = createRpcMock({
+    docs: [doc],
+    activeDoc: doc.key
+  })
+
+  let callCount = 0
+  let releaseFirst
+  const firstGate = new Promise((resolve) => {
+    releaseFirst = resolve
+  })
+
+  mock.setApplyOpsHandler(async (request = {}) => {
+    callCount++
+    if (callCount === 1) {
+      await firstGate
+    }
+    return {
+      accepted: true,
+      revision: request?.ops?.[0]?.rev ?? 0
+    }
+  })
+
+  setRpcClient(mock.rpc)
+  t.teardown(() => {
+    setRpcClient(null)
+  })
+  resetStoreState()
+
+  await useDocStore.getState().initialize()
+  mock.emitUpdate(doc.key, {
+    key: doc.key,
+    revision: 1,
+    snapshotRevision: 1,
+    snapshot: {
+      type: 'doc',
+      content: [
+        {
+          type: 'paragraph',
+          content: [{ type: 'text', text: '' }]
+        }
+      ]
+    },
+    updatedAt: Date.now()
+  })
+
+  const firstApply = useDocStore.getState().applySnapshot(doc.key, {
+    type: 'doc',
+    content: [
+      {
+        type: 'paragraph',
+        content: [{ type: 'text', text: 'one' }]
+      }
+    ]
+  })
+
+  const secondApply = useDocStore.getState().applySnapshot(doc.key, {
+    type: 'doc',
+    content: [
+      {
+        type: 'paragraph',
+        content: [{ type: 'text', text: 'two' }]
+      }
+    ]
+  })
+
+  await flushMicrotasks()
+  t.is(
+    mock.getApplyOpsCalls().length,
+    1,
+    'second applyOps waits for first request to resolve'
+  )
+
+  if (releaseFirst) {
+    releaseFirst()
+  }
+  await flushMicrotasks()
+
+  await firstApply
+  await secondApply
+
+  const calls = mock.getApplyOpsCalls()
+  t.is(calls.length, 2, 'both applyOps calls eventually execute')
+  t.is(calls[0].ops[0].baseRev, 1, 'first call uses starting revision')
+  t.is(calls[1].ops[0].baseRev, 2, 'second call chains from first revision')
+
+  mock.destroyAll()
+  resetStoreState()
+})
+
 test('doc store drops pending ops once revision is confirmed', async (t) => {
   const doc = {
     key: 'doc-pending',
