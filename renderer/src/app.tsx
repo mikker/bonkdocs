@@ -5,6 +5,7 @@ import { Toaster } from '@/components/ui/sonner'
 import { DocEditor } from '@/components/doc-editor'
 import { DocInvitesDialog } from '@/components/doc-invites-dialog'
 import { DocJoinDialog } from '@/components/doc-join-dialog'
+import { EditorEmptyState } from '@/components/editor-empty-state'
 import { useDocStore } from './state/doc-store'
 import {
   Sidebar,
@@ -71,7 +72,7 @@ export function App() {
           ) : activeDoc ? (
             <StatusMessage>Waiting for snapshot…</StatusMessage>
           ) : (
-            <StatusMessage>Select a document to view details.</StatusMessage>
+            <EditorEmptyState />
           )}
         </SidebarInset>
       </SidebarProvider>
@@ -153,6 +154,11 @@ function DocsSidebar({ ...props }) {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
+              {docs.length === 0 && (
+                <SidebarMenuItem className='text-muted-foreground italic'>
+                  <SidebarMenuButton disabled>No docs yet</SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
