@@ -204,7 +204,7 @@
     },
     {
       "name": "metadata",
-      "namespace": "pear-docs",
+      "namespace": "bonk-docs",
       "compact": false,
       "flagsPosition": 1,
       "fields": [
@@ -254,7 +254,7 @@
     },
     {
       "name": "operation",
-      "namespace": "pear-docs",
+      "namespace": "bonk-docs",
       "compact": false,
       "flagsPosition": 3,
       "fields": [
@@ -298,7 +298,7 @@
     },
     {
       "name": "snapshot",
-      "namespace": "pear-docs",
+      "namespace": "bonk-docs",
       "compact": false,
       "flagsPosition": 2,
       "fields": [
@@ -336,7 +336,7 @@
     },
     {
       "name": "presence",
-      "namespace": "pear-docs",
+      "namespace": "bonk-docs",
       "compact": false,
       "flagsPosition": 3,
       "fields": [
@@ -386,7 +386,7 @@
     },
     {
       "name": "presence-remove",
-      "namespace": "pear-docs",
+      "namespace": "bonk-docs",
       "compact": false,
       "flagsPosition": -1,
       "fields": [
@@ -520,7 +520,7 @@
     },
     {
       "name": "doc-capabilities",
-      "namespace": "pear-docs-rpc",
+      "namespace": "bonk-docs-rpc",
       "compact": false,
       "flagsPosition": 0,
       "fields": [
@@ -553,7 +553,7 @@
     },
     {
       "name": "doc-presence",
-      "namespace": "pear-docs-rpc",
+      "namespace": "bonk-docs-rpc",
       "compact": false,
       "flagsPosition": 3,
       "fields": [
@@ -603,7 +603,7 @@
     },
     {
       "name": "doc-operation",
-      "namespace": "pear-docs-rpc",
+      "namespace": "bonk-docs-rpc",
       "compact": false,
       "flagsPosition": 0,
       "fields": [
@@ -647,7 +647,7 @@
     },
     {
       "name": "doc-update",
-      "namespace": "pear-docs-rpc",
+      "namespace": "bonk-docs-rpc",
       "compact": false,
       "flagsPosition": 2,
       "fields": [
@@ -697,27 +697,27 @@
           "name": "ops",
           "required": false,
           "array": true,
-          "type": "@pear-docs-rpc/doc-operation",
+          "type": "@bonk-docs-rpc/doc-operation",
           "version": 1
         },
         {
           "name": "presence",
           "required": false,
           "array": true,
-          "type": "@pear-docs-rpc/doc-presence",
+          "type": "@bonk-docs-rpc/doc-presence",
           "version": 1
         },
         {
           "name": "capabilities",
           "required": false,
-          "type": "@pear-docs-rpc/doc-capabilities",
+          "type": "@bonk-docs-rpc/doc-capabilities",
           "version": 1
         }
       ]
     },
     {
       "name": "doc-invite",
-      "namespace": "pear-docs-rpc",
+      "namespace": "bonk-docs-rpc",
       "compact": false,
       "flagsPosition": 2,
       "fields": [
@@ -768,7 +768,7 @@
     },
     {
       "name": "initialize-request",
-      "namespace": "pear-docs-rpc",
+      "namespace": "bonk-docs-rpc",
       "compact": false,
       "flagsPosition": 0,
       "fields": [
@@ -782,7 +782,7 @@
     },
     {
       "name": "initialize-response",
-      "namespace": "pear-docs-rpc",
+      "namespace": "bonk-docs-rpc",
       "compact": false,
       "flagsPosition": 1,
       "fields": [
@@ -803,7 +803,7 @@
     },
     {
       "name": "list-docs-request",
-      "namespace": "pear-docs-rpc",
+      "namespace": "bonk-docs-rpc",
       "compact": false,
       "flagsPosition": 0,
       "fields": [
@@ -817,7 +817,7 @@
     },
     {
       "name": "list-docs-response",
-      "namespace": "pear-docs-rpc",
+      "namespace": "bonk-docs-rpc",
       "compact": false,
       "flagsPosition": -1,
       "fields": [
@@ -832,7 +832,7 @@
     },
     {
       "name": "create-doc-request",
-      "namespace": "pear-docs-rpc",
+      "namespace": "bonk-docs-rpc",
       "compact": false,
       "flagsPosition": 0,
       "fields": [
@@ -852,7 +852,7 @@
     },
     {
       "name": "create-doc-response",
-      "namespace": "pear-docs-rpc",
+      "namespace": "bonk-docs-rpc",
       "compact": false,
       "flagsPosition": 2,
       "fields": [
@@ -878,7 +878,7 @@
     },
     {
       "name": "join-doc-request",
-      "namespace": "pear-docs-rpc",
+      "namespace": "bonk-docs-rpc",
       "compact": false,
       "flagsPosition": 1,
       "fields": [
@@ -898,7 +898,7 @@
     },
     {
       "name": "join-doc-response",
-      "namespace": "pear-docs-rpc",
+      "namespace": "bonk-docs-rpc",
       "compact": false,
       "flagsPosition": -1,
       "fields": [
@@ -918,7 +918,7 @@
     },
     {
       "name": "remove-doc-request",
-      "namespace": "pear-docs-rpc",
+      "namespace": "bonk-docs-rpc",
       "compact": false,
       "flagsPosition": -1,
       "fields": [
@@ -932,7 +932,7 @@
     },
     {
       "name": "remove-doc-response",
-      "namespace": "pear-docs-rpc",
+      "namespace": "bonk-docs-rpc",
       "compact": false,
       "flagsPosition": 0,
       "fields": [
@@ -946,7 +946,7 @@
     },
     {
       "name": "get-doc-request",
-      "namespace": "pear-docs-rpc",
+      "namespace": "bonk-docs-rpc",
       "compact": false,
       "flagsPosition": -1,
       "fields": [
@@ -960,7 +960,7 @@
     },
     {
       "name": "get-doc-response",
-      "namespace": "pear-docs-rpc",
+      "namespace": "bonk-docs-rpc",
       "compact": false,
       "flagsPosition": 0,
       "fields": [
@@ -974,7 +974,7 @@
     },
     {
       "name": "watch-doc-request",
-      "namespace": "pear-docs-rpc",
+      "namespace": "bonk-docs-rpc",
       "compact": false,
       "flagsPosition": 1,
       "fields": [
@@ -1000,7 +1000,7 @@
     },
     {
       "name": "apply-ops-request",
-      "namespace": "pear-docs-rpc",
+      "namespace": "bonk-docs-rpc",
       "compact": false,
       "flagsPosition": 2,
       "fields": [
@@ -1014,7 +1014,7 @@
           "name": "ops",
           "required": true,
           "array": true,
-          "type": "@pear-docs-rpc/doc-operation",
+          "type": "@bonk-docs-rpc/doc-operation",
           "version": 1
         },
         {
@@ -1027,7 +1027,7 @@
     },
     {
       "name": "apply-ops-response",
-      "namespace": "pear-docs-rpc",
+      "namespace": "bonk-docs-rpc",
       "compact": false,
       "flagsPosition": 0,
       "fields": [
@@ -1053,7 +1053,7 @@
     },
     {
       "name": "update-presence-request",
-      "namespace": "pear-docs-rpc",
+      "namespace": "bonk-docs-rpc",
       "compact": false,
       "flagsPosition": 2,
       "fields": [
@@ -1097,7 +1097,7 @@
     },
     {
       "name": "update-presence-response",
-      "namespace": "pear-docs-rpc",
+      "namespace": "bonk-docs-rpc",
       "compact": false,
       "flagsPosition": 0,
       "fields": [
@@ -1111,7 +1111,7 @@
     },
     {
       "name": "list-invites-request",
-      "namespace": "pear-docs-rpc",
+      "namespace": "bonk-docs-rpc",
       "compact": false,
       "flagsPosition": 1,
       "fields": [
@@ -1131,7 +1131,7 @@
     },
     {
       "name": "list-invites-response",
-      "namespace": "pear-docs-rpc",
+      "namespace": "bonk-docs-rpc",
       "compact": false,
       "flagsPosition": -1,
       "fields": [
@@ -1139,14 +1139,14 @@
           "name": "invites",
           "required": true,
           "array": true,
-          "type": "@pear-docs-rpc/doc-invite",
+          "type": "@bonk-docs-rpc/doc-invite",
           "version": 1
         }
       ]
     },
     {
       "name": "create-invite-request",
-      "namespace": "pear-docs-rpc",
+      "namespace": "bonk-docs-rpc",
       "compact": false,
       "flagsPosition": 1,
       "fields": [
@@ -1173,7 +1173,7 @@
     },
     {
       "name": "create-invite-response",
-      "namespace": "pear-docs-rpc",
+      "namespace": "bonk-docs-rpc",
       "compact": false,
       "flagsPosition": -1,
       "fields": [
@@ -1193,7 +1193,7 @@
     },
     {
       "name": "revoke-invite-request",
-      "namespace": "pear-docs-rpc",
+      "namespace": "bonk-docs-rpc",
       "compact": false,
       "flagsPosition": -1,
       "fields": [
@@ -1213,7 +1213,7 @@
     },
     {
       "name": "revoke-invite-response",
-      "namespace": "pear-docs-rpc",
+      "namespace": "bonk-docs-rpc",
       "compact": false,
       "flagsPosition": 0,
       "fields": [
@@ -1227,7 +1227,7 @@
     },
     {
       "name": "pair-invite-request",
-      "namespace": "pear-docs-rpc",
+      "namespace": "bonk-docs-rpc",
       "compact": false,
       "flagsPosition": 1,
       "fields": [
@@ -1247,7 +1247,7 @@
     },
     {
       "name": "pair-status",
-      "namespace": "pear-docs-rpc",
+      "namespace": "bonk-docs-rpc",
       "compact": false,
       "flagsPosition": 1,
       "fields": [

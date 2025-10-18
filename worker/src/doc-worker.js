@@ -350,7 +350,7 @@ export class DocWorker {
       let snapshotRecord = null
       try {
         snapshotRecord = await context.base.view.findOne(
-          '@pear-docs/snapshots',
+          '@bonk-docs/snapshots',
           { reverse: true, limit: 1 }
         )
       } catch {}
@@ -808,7 +808,7 @@ export class DocWorker {
       let snapshotRecord = null
       try {
         snapshotRecord = await context.base.view.findOne(
-          '@pear-docs/snapshots',
+          '@bonk-docs/snapshots',
           { reverse: true, limit: 1 }
         )
       } catch {}
@@ -823,7 +823,7 @@ export class DocWorker {
     }
 
     if (revision > sinceRevision) {
-      const opsCursor = context.base.view.find('@pear-docs/operations', {
+      const opsCursor = context.base.view.find('@bonk-docs/operations', {
         gt: { rev: sinceRevision },
         lte: { rev: revision }
       })
@@ -873,7 +873,7 @@ export class DocWorker {
   }
 
   async _listPresence(context) {
-    const cursor = context.base.view.find('@pear-docs/presence', {})
+    const cursor = context.base.view.find('@bonk-docs/presence', {})
     const records = await cursor.toArray()
 
     return records.map((entry) => ({

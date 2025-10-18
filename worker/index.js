@@ -31,9 +31,9 @@ function resolveBaseDir() {
     typeof process !== 'undefined' ? process.env?.PEAR_APP_DATA : null
   const pearStorage = Pear?.config?.storage ?? null
 
-  if (pearStorage) return join(pearStorage, 'pear-docs')
-  if (envRoot) return join(envRoot, 'pear-docs')
-  return join(currentDirectory, 'pear-docs-data')
+  if (pearStorage) return join(pearStorage, 'bonk-docs')
+  if (envRoot) return join(envRoot, 'bonk-docs')
+  return join(currentDirectory, 'bonk-docs-data')
 }
 
 async function bootstrapWithPear() {
@@ -45,7 +45,7 @@ async function bootstrapWithPear() {
 
   await initializeWorker({
     baseDir: pearConfig.storage
-      ? join(pearConfig.storage, 'pear-docs')
+      ? join(pearConfig.storage, 'bonk-docs')
       : resolveBaseDir(),
     bootstrap: pearConfig.bootstrap,
     autobase: pearConfig.autobase,

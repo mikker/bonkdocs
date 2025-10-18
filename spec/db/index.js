@@ -279,7 +279,7 @@ const collection4 = {
   indexes: []
 }
 
-// '@pear-docs/metadata' collection key
+// '@bonk-docs/metadata' collection key
 const collection5_key = new IndexEncoder([
   IndexEncoder.STRING
 ], { prefix: 5 })
@@ -289,10 +289,10 @@ function collection5_indexify (record) {
   return a === undefined ? [] : [a]
 }
 
-// '@pear-docs/metadata' value encoding
-const collection5_enc = getEncoding('@pear-docs/metadata/hyperdb#5')
+// '@bonk-docs/metadata' value encoding
+const collection5_enc = getEncoding('@bonk-docs/metadata/hyperdb#5')
 
-// '@pear-docs/metadata' reconstruction function
+// '@bonk-docs/metadata' reconstruction function
 function collection5_reconstruct (version, keyBuf, valueBuf) {
   const key = collection5_key.decode(keyBuf)
   setVersion(version)
@@ -300,7 +300,7 @@ function collection5_reconstruct (version, keyBuf, valueBuf) {
   record.id = key[0]
   return record
 }
-// '@pear-docs/metadata' key reconstruction function
+// '@bonk-docs/metadata' key reconstruction function
 function collection5_reconstruct_key (keyBuf) {
   const key = collection5_key.decode(keyBuf)
   return {
@@ -308,9 +308,9 @@ function collection5_reconstruct_key (keyBuf) {
   }
 }
 
-// '@pear-docs/metadata'
+// '@bonk-docs/metadata'
 const collection5 = {
-  name: '@pear-docs/metadata',
+  name: '@bonk-docs/metadata',
   id: 5,
   encodeKey (record) {
     const key = [record.id]
@@ -334,7 +334,7 @@ const collection5 = {
   indexes: []
 }
 
-// '@pear-docs/operations' collection key
+// '@bonk-docs/operations' collection key
 const collection6_key = new IndexEncoder([
   IndexEncoder.UINT
 ], { prefix: 6 })
@@ -344,10 +344,10 @@ function collection6_indexify (record) {
   return a === undefined ? [] : [a]
 }
 
-// '@pear-docs/operations' value encoding
-const collection6_enc = getEncoding('@pear-docs/operation/hyperdb#6')
+// '@bonk-docs/operations' value encoding
+const collection6_enc = getEncoding('@bonk-docs/operation/hyperdb#6')
 
-// '@pear-docs/operations' reconstruction function
+// '@bonk-docs/operations' reconstruction function
 function collection6_reconstruct (version, keyBuf, valueBuf) {
   const key = collection6_key.decode(keyBuf)
   setVersion(version)
@@ -355,7 +355,7 @@ function collection6_reconstruct (version, keyBuf, valueBuf) {
   record.rev = key[0]
   return record
 }
-// '@pear-docs/operations' key reconstruction function
+// '@bonk-docs/operations' key reconstruction function
 function collection6_reconstruct_key (keyBuf) {
   const key = collection6_key.decode(keyBuf)
   return {
@@ -363,9 +363,9 @@ function collection6_reconstruct_key (keyBuf) {
   }
 }
 
-// '@pear-docs/operations'
+// '@bonk-docs/operations'
 const collection6 = {
-  name: '@pear-docs/operations',
+  name: '@bonk-docs/operations',
   id: 6,
   encodeKey (record) {
     const key = [record.rev]
@@ -389,7 +389,7 @@ const collection6 = {
   indexes: []
 }
 
-// '@pear-docs/snapshots' collection key
+// '@bonk-docs/snapshots' collection key
 const collection7_key = new IndexEncoder([
   IndexEncoder.UINT
 ], { prefix: 7 })
@@ -399,10 +399,10 @@ function collection7_indexify (record) {
   return a === undefined ? [] : [a]
 }
 
-// '@pear-docs/snapshots' value encoding
-const collection7_enc = getEncoding('@pear-docs/snapshot/hyperdb#7')
+// '@bonk-docs/snapshots' value encoding
+const collection7_enc = getEncoding('@bonk-docs/snapshot/hyperdb#7')
 
-// '@pear-docs/snapshots' reconstruction function
+// '@bonk-docs/snapshots' reconstruction function
 function collection7_reconstruct (version, keyBuf, valueBuf) {
   const key = collection7_key.decode(keyBuf)
   setVersion(version)
@@ -410,7 +410,7 @@ function collection7_reconstruct (version, keyBuf, valueBuf) {
   record.rev = key[0]
   return record
 }
-// '@pear-docs/snapshots' key reconstruction function
+// '@bonk-docs/snapshots' key reconstruction function
 function collection7_reconstruct_key (keyBuf) {
   const key = collection7_key.decode(keyBuf)
   return {
@@ -418,9 +418,9 @@ function collection7_reconstruct_key (keyBuf) {
   }
 }
 
-// '@pear-docs/snapshots'
+// '@bonk-docs/snapshots'
 const collection7 = {
-  name: '@pear-docs/snapshots',
+  name: '@bonk-docs/snapshots',
   id: 7,
   encodeKey (record) {
     const key = [record.rev]
@@ -444,7 +444,7 @@ const collection7 = {
   indexes: []
 }
 
-// '@pear-docs/presence' collection key
+// '@bonk-docs/presence' collection key
 const collection8_key = new IndexEncoder([
   IndexEncoder.STRING
 ], { prefix: 8 })
@@ -454,10 +454,10 @@ function collection8_indexify (record) {
   return a === undefined ? [] : [a]
 }
 
-// '@pear-docs/presence' value encoding
-const collection8_enc = getEncoding('@pear-docs/presence/hyperdb#8')
+// '@bonk-docs/presence' value encoding
+const collection8_enc = getEncoding('@bonk-docs/presence/hyperdb#8')
 
-// '@pear-docs/presence' reconstruction function
+// '@bonk-docs/presence' reconstruction function
 function collection8_reconstruct (version, keyBuf, valueBuf) {
   const key = collection8_key.decode(keyBuf)
   setVersion(version)
@@ -465,7 +465,7 @@ function collection8_reconstruct (version, keyBuf, valueBuf) {
   record.id = key[0]
   return record
 }
-// '@pear-docs/presence' key reconstruction function
+// '@bonk-docs/presence' key reconstruction function
 function collection8_reconstruct_key (keyBuf) {
   const key = collection8_key.decode(keyBuf)
   return {
@@ -473,9 +473,9 @@ function collection8_reconstruct_key (keyBuf) {
   }
 }
 
-// '@pear-docs/presence'
+// '@bonk-docs/presence'
 const collection8 = {
-  name: '@pear-docs/presence',
+  name: '@bonk-docs/presence',
   id: 8,
   encodeKey (record) {
     const key = [record.id]
@@ -691,10 +691,10 @@ function resolveCollection (name) {
     case '@autobonk/context-init': return collection2
     case '@autobonk/role-def': return collection3
     case '@autobonk/acl-entry': return collection4
-    case '@pear-docs/metadata': return collection5
-    case '@pear-docs/operations': return collection6
-    case '@pear-docs/snapshots': return collection7
-    case '@pear-docs/presence': return collection8
+    case '@bonk-docs/metadata': return collection5
+    case '@bonk-docs/operations': return collection6
+    case '@bonk-docs/snapshots': return collection7
+    case '@bonk-docs/presence': return collection8
     case '@local/docs': return collection9
     case '@local/state': return collection10
     case '@local/profile': return collection11

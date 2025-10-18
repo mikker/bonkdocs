@@ -37,7 +37,7 @@
 
 ## Data & Sync Model
 
-- Autobonk schema namespaces: `@pear-docs/oplog`, `@pear-docs/snapshots`, `@pear-docs/presence`, `@pear-docs/comments`, `@pear-docs/metadata`, `@pear-docs/assets` (reserved for Phase 3).
+- Autobonk schema namespaces: `@bonk-docs/oplog`, `@bonk-docs/snapshots`, `@bonk-docs/presence`, `@bonk-docs/comments`, `@bonk-docs/metadata`, `@bonk-docs/assets` (reserved for Phase 3).
 - Worker applies OT ops deterministically using shared transformers; rejects or re-orders conflicting ops before committing to the Autobase log.
 - Periodic snapshots captured after N ops or idle windows accelerate late joins; renderer loads snapshot, replays tail ops, and merges local pending edits.
 - Presence heartbeats stored in Autobonk view allow watchers to broadcast live cursors; renderer degrades gracefully when peers fall offline.

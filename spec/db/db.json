@@ -69,11 +69,11 @@
     },
     {
       "name": "metadata",
-      "namespace": "pear-docs",
+      "namespace": "bonk-docs",
       "id": 5,
       "type": 1,
       "indexes": [],
-      "schema": "@pear-docs/metadata",
+      "schema": "@bonk-docs/metadata",
       "derived": false,
       "key": [
         "id"
@@ -82,11 +82,11 @@
     },
     {
       "name": "operations",
-      "namespace": "pear-docs",
+      "namespace": "bonk-docs",
       "id": 6,
       "type": 1,
       "indexes": [],
-      "schema": "@pear-docs/operation",
+      "schema": "@bonk-docs/operation",
       "derived": false,
       "key": [
         "rev"
@@ -95,11 +95,11 @@
     },
     {
       "name": "snapshots",
-      "namespace": "pear-docs",
+      "namespace": "bonk-docs",
       "id": 7,
       "type": 1,
       "indexes": [],
-      "schema": "@pear-docs/snapshot",
+      "schema": "@bonk-docs/snapshot",
       "derived": false,
       "key": [
         "rev"
@@ -108,11 +108,11 @@
     },
     {
       "name": "presence",
-      "namespace": "pear-docs",
+      "namespace": "bonk-docs",
       "id": 8,
       "type": 1,
       "indexes": [],
-      "schema": "@pear-docs/presence",
+      "schema": "@bonk-docs/presence",
       "derived": false,
       "key": [
         "id"

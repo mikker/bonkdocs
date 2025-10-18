@@ -15,7 +15,7 @@ const hrpcDir = specRoot + '/hrpc'
 const schema = Hyperschema.from(schemaDir)
 extendSchema(schema)
 
-const docs = schema.namespace('pear-docs')
+const docs = schema.namespace('bonk-docs')
 
 docs.register({
   name: 'metadata',
@@ -117,7 +117,7 @@ local.register({
   ]
 })
 
-const rpc = schema.namespace('pear-docs-rpc')
+const rpc = schema.namespace('bonk-docs-rpc')
 
 rpc.register({
   name: 'doc-capabilities',
@@ -170,19 +170,19 @@ rpc.register({
     { name: 'snapshot', type: 'buffer', required: false },
     {
       name: 'ops',
-      type: '@pear-docs-rpc/doc-operation',
+      type: '@bonk-docs-rpc/doc-operation',
       array: true,
       required: false
     },
     {
       name: 'presence',
-      type: '@pear-docs-rpc/doc-presence',
+      type: '@bonk-docs-rpc/doc-presence',
       array: true,
       required: false
     },
     {
       name: 'capabilities',
-      type: '@pear-docs-rpc/doc-capabilities',
+      type: '@bonk-docs-rpc/doc-capabilities',
       required: false
     }
   ]
@@ -307,7 +307,7 @@ rpc.register({
     { name: 'key', type: 'string', required: true },
     {
       name: 'ops',
-      type: '@pear-docs-rpc/doc-operation',
+      type: '@bonk-docs-rpc/doc-operation',
       array: true,
       required: true
     },
@@ -359,7 +359,7 @@ rpc.register({
   fields: [
     {
       name: 'invites',
-      type: '@pear-docs-rpc/doc-invite',
+      type: '@bonk-docs-rpc/doc-invite',
       array: true,
       required: true
     }
@@ -427,26 +427,26 @@ Hyperschema.toDisk(schema)
 const dbBuilder = HyperdbBuilder.from(schemaDir, dbDir)
 extendDb(dbBuilder)
 
-const docsDb = dbBuilder.namespace('pear-docs')
+const docsDb = dbBuilder.namespace('bonk-docs')
 
 docsDb.collections.register({
   name: 'metadata',
-  schema: '@pear-docs/metadata',
+  schema: '@bonk-docs/metadata',
   key: ['id']
 })
 docsDb.collections.register({
   name: 'operations',
-  schema: '@pear-docs/operation',
+  schema: '@bonk-docs/operation',
   key: ['rev']
 })
 docsDb.collections.register({
   name: 'snapshots',
-  schema: '@pear-docs/snapshot',
+  schema: '@bonk-docs/snapshot',
   key: ['rev']
 })
 docsDb.collections.register({
   name: 'presence',
-  schema: '@pear-docs/presence',
+  schema: '@bonk-docs/presence',
   key: ['id']
 })
 
@@ -474,27 +474,27 @@ HyperdbBuilder.toDisk(dbBuilder)
 const dispatch = Hyperdispatch.from(schemaDir, dispatchDir)
 extendDispatch(dispatch)
 
-const docDispatch = dispatch.namespace('pear-docs')
+const docDispatch = dispatch.namespace('bonk-docs')
 
 docDispatch.register({
   name: 'metadata-upsert',
-  requestType: '@pear-docs/metadata'
+  requestType: '@bonk-docs/metadata'
 })
 docDispatch.register({
   name: 'operation-append',
-  requestType: '@pear-docs/operation'
+  requestType: '@bonk-docs/operation'
 })
 docDispatch.register({
   name: 'snapshot-save',
-  requestType: '@pear-docs/snapshot'
+  requestType: '@bonk-docs/snapshot'
 })
 docDispatch.register({
   name: 'presence-upsert',
-  requestType: '@pear-docs/presence'
+  requestType: '@bonk-docs/presence'
 })
 docDispatch.register({
   name: 'presence-remove',
-  requestType: '@pear-docs/presence-remove'
+  requestType: '@bonk-docs/presence-remove'
 })
 
 const localDispatch = dispatch.namespace('local')
@@ -511,86 +511,86 @@ Hyperdispatch.toDisk(dispatch)
 // --- HRPC ----------------------------------------------------------------
 const hrpc = HRPCBuilder.from(schemaDir, hrpcDir)
 
-const workerRpc = hrpc.namespace('pear-docs')
+const workerRpc = hrpc.namespace('bonk-docs')
 
 workerRpc.register({
   name: 'initialize',
-  request: { name: '@pear-docs-rpc/initialize-request' },
-  response: { name: '@pear-docs-rpc/initialize-response' }
+  request: { name: '@bonk-docs-rpc/initialize-request' },
+  response: { name: '@bonk-docs-rpc/initialize-response' }
 })
 
 workerRpc.register({
   name: 'list-docs',
-  request: { name: '@pear-docs-rpc/list-docs-request' },
-  response: { name: '@pear-docs-rpc/list-docs-response' }
+  request: { name: '@bonk-docs-rpc/list-docs-request' },
+  response: { name: '@bonk-docs-rpc/list-docs-response' }
 })
 
 workerRpc.register({
   name: 'create-doc',
-  request: { name: '@pear-docs-rpc/create-doc-request' },
-  response: { name: '@pear-docs-rpc/create-doc-response' }
+  request: { name: '@bonk-docs-rpc/create-doc-request' },
+  response: { name: '@bonk-docs-rpc/create-doc-response' }
 })
 
 workerRpc.register({
   name: 'join-doc',
-  request: { name: '@pear-docs-rpc/join-doc-request' },
-  response: { name: '@pear-docs-rpc/join-doc-response' }
+  request: { name: '@bonk-docs-rpc/join-doc-request' },
+  response: { name: '@bonk-docs-rpc/join-doc-response' }
 })
 
 workerRpc.register({
   name: 'pair-invite',
-  request: { name: '@pear-docs-rpc/pair-invite-request' },
-  response: { name: '@pear-docs-rpc/pair-status', stream: true }
+  request: { name: '@bonk-docs-rpc/pair-invite-request' },
+  response: { name: '@bonk-docs-rpc/pair-status', stream: true }
 })
 
 workerRpc.register({
   name: 'remove-doc',
-  request: { name: '@pear-docs-rpc/remove-doc-request' },
-  response: { name: '@pear-docs-rpc/remove-doc-response' }
+  request: { name: '@bonk-docs-rpc/remove-doc-request' },
+  response: { name: '@bonk-docs-rpc/remove-doc-response' }
 })
 
 workerRpc.register({
   name: 'get-doc',
-  request: { name: '@pear-docs-rpc/get-doc-request' },
-  response: { name: '@pear-docs-rpc/get-doc-response' }
+  request: { name: '@bonk-docs-rpc/get-doc-request' },
+  response: { name: '@bonk-docs-rpc/get-doc-response' }
 })
 
 workerRpc.register({
   name: 'watch-doc',
-  request: { name: '@pear-docs-rpc/watch-doc-request' },
-  response: { name: '@pear-docs-rpc/doc-update', stream: true }
+  request: { name: '@bonk-docs-rpc/watch-doc-request' },
+  response: { name: '@bonk-docs-rpc/doc-update', stream: true }
 })
 
 workerRpc.register({
   name: 'apply-ops',
-  request: { name: '@pear-docs-rpc/apply-ops-request' },
-  response: { name: '@pear-docs-rpc/apply-ops-response' }
+  request: { name: '@bonk-docs-rpc/apply-ops-request' },
+  response: { name: '@bonk-docs-rpc/apply-ops-response' }
 })
 
 workerRpc.register({
   name: 'update-presence',
-  request: { name: '@pear-docs-rpc/update-presence-request' },
-  response: { name: '@pear-docs-rpc/update-presence-response' }
+  request: { name: '@bonk-docs-rpc/update-presence-request' },
+  response: { name: '@bonk-docs-rpc/update-presence-response' }
 })
 
 workerRpc.register({
   name: 'list-invites',
-  request: { name: '@pear-docs-rpc/list-invites-request' },
-  response: { name: '@pear-docs-rpc/list-invites-response' }
+  request: { name: '@bonk-docs-rpc/list-invites-request' },
+  response: { name: '@bonk-docs-rpc/list-invites-response' }
 })
 
 workerRpc.register({
   name: 'create-invite',
-  request: { name: '@pear-docs-rpc/create-invite-request' },
-  response: { name: '@pear-docs-rpc/create-invite-response' }
+  request: { name: '@bonk-docs-rpc/create-invite-request' },
+  response: { name: '@bonk-docs-rpc/create-invite-response' }
 })
 
 workerRpc.register({
   name: 'revoke-invite',
-  request: { name: '@pear-docs-rpc/revoke-invite-request' },
-  response: { name: '@pear-docs-rpc/revoke-invite-response' }
+  request: { name: '@bonk-docs-rpc/revoke-invite-request' },
+  response: { name: '@bonk-docs-rpc/revoke-invite-response' }
 })
 
 HRPCBuilder.toDisk(hrpc)
 
-console.log('✅ Generated pear-docs schema bundle in', specRoot)
+console.log('✅ Generated bonk-docs schema bundle in', specRoot)

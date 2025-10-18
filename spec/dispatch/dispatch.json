@@ -52,32 +52,32 @@
     },
     {
       "id": 8,
-      "name": "@pear-docs/metadata-upsert",
-      "requestType": "@pear-docs/metadata",
+      "name": "@bonk-docs/metadata-upsert",
+      "requestType": "@bonk-docs/metadata",
       "version": 1
     },
     {
       "id": 9,
-      "name": "@pear-docs/operation-append",
-      "requestType": "@pear-docs/operation",
+      "name": "@bonk-docs/operation-append",
+      "requestType": "@bonk-docs/operation",
       "version": 1
     },
     {
       "id": 10,
-      "name": "@pear-docs/snapshot-save",
-      "requestType": "@pear-docs/snapshot",
+      "name": "@bonk-docs/snapshot-save",
+      "requestType": "@bonk-docs/snapshot",
       "version": 1
     },
     {
       "id": 11,
-      "name": "@pear-docs/presence-upsert",
-      "requestType": "@pear-docs/presence",
+      "name": "@bonk-docs/presence-upsert",
+      "requestType": "@bonk-docs/presence",
       "version": 1
     },
     {
       "id": 12,
-      "name": "@pear-docs/presence-remove",
-      "requestType": "@pear-docs/presence-remove",
+      "name": "@bonk-docs/presence-remove",
+      "requestType": "@bonk-docs/presence-remove",
       "version": 1
     },
     {

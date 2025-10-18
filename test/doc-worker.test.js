@@ -192,7 +192,7 @@ test('DocWorker applies delta operations and persists snapshot', async (t) => {
   t.ok(context, 'context resolved')
 
   const snapshotRecord = await context.base.view.findOne(
-    '@pear-docs/snapshots',
+    '@bonk-docs/snapshots',
     { reverse: true, limit: 1 }
   )
 

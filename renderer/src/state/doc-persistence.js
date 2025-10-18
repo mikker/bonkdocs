@@ -1,11 +1,11 @@
-const STORAGE_KEY = 'pear-docs/doc-state'
+const STORAGE_KEY = 'bonk-docs/doc-state'
 const META_KEY = '__meta__'
 const memoryStore = {}
 
 function isBrowserStorageAvailable() {
   try {
     if (typeof localStorage === 'undefined') return false
-    const testKey = '__pear-docs-test__'
+    const testKey = '__bonk-docs-test__'
     localStorage.setItem(testKey, '1')
     localStorage.removeItem(testKey)
     return true

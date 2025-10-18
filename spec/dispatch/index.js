@@ -54,19 +54,19 @@ class Router {
       case '@autobonk/revoke-roles':
         this._handler7 = handler
         break
-      case '@pear-docs/metadata-upsert':
+      case '@bonk-docs/metadata-upsert':
         this._handler8 = handler
         break
-      case '@pear-docs/operation-append':
+      case '@bonk-docs/operation-append':
         this._handler9 = handler
         break
-      case '@pear-docs/snapshot-save':
+      case '@bonk-docs/snapshot-save':
         this._handler10 = handler
         break
-      case '@pear-docs/presence-upsert':
+      case '@bonk-docs/presence-upsert':
         this._handler11 = handler
         break
-      case '@pear-docs/presence-remove':
+      case '@bonk-docs/presence-remove':
         this._handler12 = handler
         break
       case '@local/doc-upsert':
@@ -93,11 +93,11 @@ class Router {
     assert(this._handler5 !== null, 'Missing handler for "@autobonk/define-role"')
     assert(this._handler6 !== null, 'Missing handler for "@autobonk/grant-roles"')
     assert(this._handler7 !== null, 'Missing handler for "@autobonk/revoke-roles"')
-    assert(this._handler8 !== null, 'Missing handler for "@pear-docs/metadata-upsert"')
-    assert(this._handler9 !== null, 'Missing handler for "@pear-docs/operation-append"')
-    assert(this._handler10 !== null, 'Missing handler for "@pear-docs/snapshot-save"')
-    assert(this._handler11 !== null, 'Missing handler for "@pear-docs/presence-upsert"')
-    assert(this._handler12 !== null, 'Missing handler for "@pear-docs/presence-remove"')
+    assert(this._handler8 !== null, 'Missing handler for "@bonk-docs/metadata-upsert"')
+    assert(this._handler9 !== null, 'Missing handler for "@bonk-docs/operation-append"')
+    assert(this._handler10 !== null, 'Missing handler for "@bonk-docs/snapshot-save"')
+    assert(this._handler11 !== null, 'Missing handler for "@bonk-docs/presence-upsert"')
+    assert(this._handler12 !== null, 'Missing handler for "@bonk-docs/presence-remove"')
     assert(this._handler13 !== null, 'Missing handler for "@local/doc-upsert"')
     assert(this._handler14 !== null, 'Missing handler for "@local/state-update"')
     assert(this._handler15 !== null, 'Missing handler for "@local/profile-upsert"')
@@ -227,33 +227,33 @@ const route7 = {
 }
 
 const route8 = {
-  name: '@pear-docs/metadata-upsert',
+  name: '@bonk-docs/metadata-upsert',
   id: 8,
-  enc: getEncoding('@pear-docs/metadata')
+  enc: getEncoding('@bonk-docs/metadata')
 }
 
 const route9 = {
-  name: '@pear-docs/operation-append',
+  name: '@bonk-docs/operation-append',
   id: 9,
-  enc: getEncoding('@pear-docs/operation')
+  enc: getEncoding('@bonk-docs/operation')
 }
 
 const route10 = {
-  name: '@pear-docs/snapshot-save',
+  name: '@bonk-docs/snapshot-save',
   id: 10,
-  enc: getEncoding('@pear-docs/snapshot')
+  enc: getEncoding('@bonk-docs/snapshot')
 }
 
 const route11 = {
-  name: '@pear-docs/presence-upsert',
+  name: '@bonk-docs/presence-upsert',
   id: 11,
-  enc: getEncoding('@pear-docs/presence')
+  enc: getEncoding('@bonk-docs/presence')
 }
 
 const route12 = {
-  name: '@pear-docs/presence-remove',
+  name: '@bonk-docs/presence-remove',
   id: 12,
-  enc: getEncoding('@pear-docs/presence-remove')
+  enc: getEncoding('@bonk-docs/presence-remove')
 }
 
 const route13 = {
@@ -292,15 +292,15 @@ function getRouteByName (name) {
       return route6
     case '@autobonk/revoke-roles':
       return route7
-    case '@pear-docs/metadata-upsert':
+    case '@bonk-docs/metadata-upsert':
       return route8
-    case '@pear-docs/operation-append':
+    case '@bonk-docs/operation-append':
       return route9
-    case '@pear-docs/snapshot-save':
+    case '@bonk-docs/snapshot-save':
       return route10
-    case '@pear-docs/presence-upsert':
+    case '@bonk-docs/presence-upsert':
       return route11
-    case '@pear-docs/presence-remove':
+    case '@bonk-docs/presence-remove':
       return route12
     case '@local/doc-upsert':
       return route13

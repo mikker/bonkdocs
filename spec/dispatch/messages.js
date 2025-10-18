@@ -207,7 +207,7 @@ const encoding5 = {
   }
 }
 
-// @pear-docs/metadata
+// @bonk-docs/metadata
 const encoding6 = {
   preencode(state, m) {
     c.string.preencode(state, m.id)
@@ -253,7 +253,7 @@ const encoding6 = {
   }
 }
 
-// @pear-docs/operation
+// @bonk-docs/operation
 const encoding7 = {
   preencode(state, m) {
     c.uint.preencode(state, m.rev)
@@ -294,7 +294,7 @@ const encoding7 = {
   }
 }
 
-// @pear-docs/snapshot
+// @bonk-docs/snapshot
 const encoding8 = {
   preencode(state, m) {
     c.uint.preencode(state, m.rev)
@@ -333,7 +333,7 @@ const encoding8 = {
   }
 }
 
-// @pear-docs/presence
+// @bonk-docs/presence
 const encoding9 = {
   preencode(state, m) {
     c.string.preencode(state, m.id)
@@ -380,7 +380,7 @@ const encoding9 = {
   }
 }
 
-// @pear-docs/presence-remove
+// @bonk-docs/presence-remove
 const encoding10 = {
   preencode(state, m) {
     c.string.preencode(state, m.id)
@@ -519,10 +519,10 @@ const encoding13 = {
   }
 }
 
-// @pear-docs-rpc/doc-capabilities.roles
+// @bonk-docs-rpc/doc-capabilities.roles
 const encoding14_3 = encoding1_4
 
-// @pear-docs-rpc/doc-capabilities
+// @bonk-docs-rpc/doc-capabilities
 const encoding14 = {
   preencode(state, m) {
     state.end++ // max flag is 8 so always one byte
@@ -552,7 +552,7 @@ const encoding14 = {
   }
 }
 
-// @pear-docs-rpc/doc-presence
+// @bonk-docs-rpc/doc-presence
 const encoding15 = {
   preencode(state, m) {
     c.string.preencode(state, m.id)
@@ -599,7 +599,7 @@ const encoding15 = {
   }
 }
 
-// @pear-docs-rpc/doc-operation
+// @bonk-docs-rpc/doc-operation
 const encoding16 = {
   preencode(state, m) {
     state.end++ // max flag is 8 so always one byte
@@ -641,14 +641,14 @@ const encoding16 = {
   }
 }
 
-// @pear-docs-rpc/doc-update.ops
+// @bonk-docs-rpc/doc-update.ops
 const encoding17_7 = c.array(c.frame(encoding16))
-// @pear-docs-rpc/doc-update.presence
+// @bonk-docs-rpc/doc-update.presence
 const encoding17_8 = c.array(c.frame(encoding15))
-// @pear-docs-rpc/doc-update.capabilities
+// @bonk-docs-rpc/doc-update.capabilities
 const encoding17_9 = c.frame(encoding14)
 
-// @pear-docs-rpc/doc-update
+// @bonk-docs-rpc/doc-update
 const encoding17 = {
   preencode(state, m) {
     const flags =
@@ -718,10 +718,10 @@ const encoding17 = {
   }
 }
 
-// @pear-docs-rpc/doc-invite.roles
+// @bonk-docs-rpc/doc-invite.roles
 const encoding18_2 = encoding1_4
 
-// @pear-docs-rpc/doc-invite
+// @bonk-docs-rpc/doc-invite
 const encoding18 = {
   preencode(state, m) {
     c.string.preencode(state, m.id)
@@ -769,7 +769,7 @@ const encoding18 = {
   }
 }
 
-// @pear-docs-rpc/initialize-request
+// @bonk-docs-rpc/initialize-request
 const encoding19 = {
   preencode(state, m) {
     state.end++ // max flag is 1 so always one byte
@@ -788,10 +788,10 @@ const encoding19 = {
   }
 }
 
-// @pear-docs-rpc/initialize-response.docs
+// @bonk-docs-rpc/initialize-response.docs
 const encoding20_0 = c.array(c.frame(encoding11))
 
-// @pear-docs-rpc/initialize-response
+// @bonk-docs-rpc/initialize-response
 const encoding20 = {
   preencode(state, m) {
     encoding20_0.preencode(state, m.docs)
@@ -818,13 +818,13 @@ const encoding20 = {
   }
 }
 
-// @pear-docs-rpc/list-docs-request
+// @bonk-docs-rpc/list-docs-request
 const encoding21 = encoding19
 
-// @pear-docs-rpc/list-docs-response.docs
+// @bonk-docs-rpc/list-docs-response.docs
 const encoding22_0 = encoding20_0
 
-// @pear-docs-rpc/list-docs-response
+// @bonk-docs-rpc/list-docs-response
 const encoding22 = {
   preencode(state, m) {
     encoding22_0.preencode(state, m.docs)
@@ -841,7 +841,7 @@ const encoding22 = {
   }
 }
 
-// @pear-docs-rpc/create-doc-request
+// @bonk-docs-rpc/create-doc-request
 const encoding23 = {
   preencode(state, m) {
     state.end++ // max flag is 2 so always one byte
@@ -869,10 +869,10 @@ const encoding23 = {
   }
 }
 
-// @pear-docs-rpc/create-doc-response.doc
+// @bonk-docs-rpc/create-doc-response.doc
 const encoding24_0 = c.frame(encoding11)
 
-// @pear-docs-rpc/create-doc-response
+// @bonk-docs-rpc/create-doc-response
 const encoding24 = {
   preencode(state, m) {
     encoding24_0.preencode(state, m.doc)
@@ -903,7 +903,7 @@ const encoding24 = {
   }
 }
 
-// @pear-docs-rpc/join-doc-request
+// @bonk-docs-rpc/join-doc-request
 const encoding25 = {
   preencode(state, m) {
     c.string.preencode(state, m.invite)
@@ -930,10 +930,10 @@ const encoding25 = {
   }
 }
 
-// @pear-docs-rpc/join-doc-response.doc
+// @bonk-docs-rpc/join-doc-response.doc
 const encoding26_0 = encoding24_0
 
-// @pear-docs-rpc/join-doc-response
+// @bonk-docs-rpc/join-doc-response
 const encoding26 = {
   preencode(state, m) {
     encoding26_0.preencode(state, m.doc)
@@ -954,7 +954,7 @@ const encoding26 = {
   }
 }
 
-// @pear-docs-rpc/remove-doc-request
+// @bonk-docs-rpc/remove-doc-request
 const encoding27 = {
   preencode(state, m) {
     c.string.preencode(state, m.key)
@@ -971,7 +971,7 @@ const encoding27 = {
   }
 }
 
-// @pear-docs-rpc/remove-doc-response
+// @bonk-docs-rpc/remove-doc-response
 const encoding28 = {
   preencode(state, m) {
     state.end++ // max flag is 1 so always one byte
@@ -990,13 +990,13 @@ const encoding28 = {
   }
 }
 
-// @pear-docs-rpc/get-doc-request
+// @bonk-docs-rpc/get-doc-request
 const encoding29 = encoding27
 
-// @pear-docs-rpc/get-doc-response.doc
+// @bonk-docs-rpc/get-doc-response.doc
 const encoding30_0 = encoding24_0
 
-// @pear-docs-rpc/get-doc-response
+// @bonk-docs-rpc/get-doc-response
 const encoding30 = {
   preencode(state, m) {
     state.end++ // max flag is 1 so always one byte
@@ -1019,7 +1019,7 @@ const encoding30 = {
   }
 }
 
-// @pear-docs-rpc/watch-doc-request
+// @bonk-docs-rpc/watch-doc-request
 const encoding31 = {
   preencode(state, m) {
     c.string.preencode(state, m.key)
@@ -1049,10 +1049,10 @@ const encoding31 = {
   }
 }
 
-// @pear-docs-rpc/apply-ops-request.ops
+// @bonk-docs-rpc/apply-ops-request.ops
 const encoding32_1 = encoding17_7
 
-// @pear-docs-rpc/apply-ops-request
+// @bonk-docs-rpc/apply-ops-request
 const encoding32 = {
   preencode(state, m) {
     c.string.preencode(state, m.key)
@@ -1083,7 +1083,7 @@ const encoding32 = {
   }
 }
 
-// @pear-docs-rpc/apply-ops-response
+// @bonk-docs-rpc/apply-ops-response
 const encoding33 = {
   preencode(state, m) {
     state.end++ // max flag is 4 so always one byte
@@ -1113,7 +1113,7 @@ const encoding33 = {
   }
 }
 
-// @pear-docs-rpc/update-presence-request
+// @bonk-docs-rpc/update-presence-request
 const encoding34 = {
   preencode(state, m) {
     c.string.preencode(state, m.key)
@@ -1157,7 +1157,7 @@ const encoding34 = {
   }
 }
 
-// @pear-docs-rpc/update-presence-response
+// @bonk-docs-rpc/update-presence-response
 const encoding35 = {
   preencode(state, m) {
     state.end++ // max flag is 1 so always one byte
@@ -1180,7 +1180,7 @@ const encoding35 = {
   }
 }
 
-// @pear-docs-rpc/list-invites-request
+// @bonk-docs-rpc/list-invites-request
 const encoding36 = {
   preencode(state, m) {
     c.string.preencode(state, m.key)
@@ -1203,10 +1203,10 @@ const encoding36 = {
   }
 }
 
-// @pear-docs-rpc/list-invites-response.invites
+// @bonk-docs-rpc/list-invites-response.invites
 const encoding37_0 = c.array(c.frame(encoding18))
 
-// @pear-docs-rpc/list-invites-response
+// @bonk-docs-rpc/list-invites-response
 const encoding37 = {
   preencode(state, m) {
     encoding37_0.preencode(state, m.invites)
@@ -1223,10 +1223,10 @@ const encoding37 = {
   }
 }
 
-// @pear-docs-rpc/create-invite-request.roles
+// @bonk-docs-rpc/create-invite-request.roles
 const encoding38_1 = encoding1_4
 
-// @pear-docs-rpc/create-invite-request
+// @bonk-docs-rpc/create-invite-request
 const encoding38 = {
   preencode(state, m) {
     c.string.preencode(state, m.key)
@@ -1258,7 +1258,7 @@ const encoding38 = {
   }
 }
 
-// @pear-docs-rpc/create-invite-response
+// @bonk-docs-rpc/create-invite-response
 const encoding39 = {
   preencode(state, m) {
     c.string.preencode(state, m.invite)
@@ -1279,7 +1279,7 @@ const encoding39 = {
   }
 }
 
-// @pear-docs-rpc/revoke-invite-request
+// @bonk-docs-rpc/revoke-invite-request
 const encoding40 = {
   preencode(state, m) {
     c.string.preencode(state, m.key)
@@ -1300,7 +1300,7 @@ const encoding40 = {
   }
 }
 
-// @pear-docs-rpc/revoke-invite-response
+// @bonk-docs-rpc/revoke-invite-response
 const encoding41 = {
   preencode(state, m) {
     state.end++ // max flag is 1 so always one byte
@@ -1319,13 +1319,13 @@ const encoding41 = {
   }
 }
 
-// @pear-docs-rpc/pair-invite-request
+// @bonk-docs-rpc/pair-invite-request
 const encoding42 = encoding25
 
-// @pear-docs-rpc/pair-status.doc
+// @bonk-docs-rpc/pair-status.doc
 const encoding43_3 = encoding24_0
 
-// @pear-docs-rpc/pair-status
+// @bonk-docs-rpc/pair-status
 const encoding43 = {
   preencode(state, m) {
     c.string.preencode(state, m.state)
@@ -1400,15 +1400,15 @@ function getEncoding(name) {
       return encoding4
     case '@autobonk/acl-entry':
       return encoding5
-    case '@pear-docs/metadata':
+    case '@bonk-docs/metadata':
       return encoding6
-    case '@pear-docs/operation':
+    case '@bonk-docs/operation':
       return encoding7
-    case '@pear-docs/snapshot':
+    case '@bonk-docs/snapshot':
       return encoding8
-    case '@pear-docs/presence':
+    case '@bonk-docs/presence':
       return encoding9
-    case '@pear-docs/presence-remove':
+    case '@bonk-docs/presence-remove':
       return encoding10
     case '@local/doc':
       return encoding11
@@ -1416,65 +1416,65 @@ function getEncoding(name) {
       return encoding12
     case '@local/profile':
       return encoding13
-    case '@pear-docs-rpc/doc-capabilities':
+    case '@bonk-docs-rpc/doc-capabilities':
       return encoding14
-    case '@pear-docs-rpc/doc-presence':
+    case '@bonk-docs-rpc/doc-presence':
       return encoding15
-    case '@pear-docs-rpc/doc-operation':
+    case '@bonk-docs-rpc/doc-operation':
       return encoding16
-    case '@pear-docs-rpc/doc-update':
+    case '@bonk-docs-rpc/doc-update':
       return encoding17
-    case '@pear-docs-rpc/doc-invite':
+    case '@bonk-docs-rpc/doc-invite':
       return encoding18
-    case '@pear-docs-rpc/initialize-request':
+    case '@bonk-docs-rpc/initialize-request':
       return encoding19
-    case '@pear-docs-rpc/initialize-response':
+    case '@bonk-docs-rpc/initialize-response':
       return encoding20
-    case '@pear-docs-rpc/list-docs-request':
+    case '@bonk-docs-rpc/list-docs-request':
       return encoding21
-    case '@pear-docs-rpc/list-docs-response':
+    case '@bonk-docs-rpc/list-docs-response':
       return encoding22
-    case '@pear-docs-rpc/create-doc-request':
+    case '@bonk-docs-rpc/create-doc-request':
       return encoding23
-    case '@pear-docs-rpc/create-doc-response':
+    case '@bonk-docs-rpc/create-doc-response':
       return encoding24
-    case '@pear-docs-rpc/join-doc-request':
+    case '@bonk-docs-rpc/join-doc-request':
       return encoding25
-    case '@pear-docs-rpc/join-doc-response':
+    case '@bonk-docs-rpc/join-doc-response':
       return encoding26
-    case '@pear-docs-rpc/remove-doc-request':
+    case '@bonk-docs-rpc/remove-doc-request':
       return encoding27
-    case '@pear-docs-rpc/remove-doc-response':
+    case '@bonk-docs-rpc/remove-doc-response':
       return encoding28
-    case '@pear-docs-rpc/get-doc-request':
+    case '@bonk-docs-rpc/get-doc-request':
       return encoding29
-    case '@pear-docs-rpc/get-doc-response':
+    case '@bonk-docs-rpc/get-doc-response':
       return encoding30
-    case '@pear-docs-rpc/watch-doc-request':
+    case '@bonk-docs-rpc/watch-doc-request':
       return encoding31
-    case '@pear-docs-rpc/apply-ops-request':
+    case '@bonk-docs-rpc/apply-ops-request':
       return encoding32
-    case '@pear-docs-rpc/apply-ops-response':
+    case '@bonk-docs-rpc/apply-ops-response':
       return encoding33
-    case '@pear-docs-rpc/update-presence-request':
+    case '@bonk-docs-rpc/update-presence-request':
       return encoding34
-    case '@pear-docs-rpc/update-presence-response':
+    case '@bonk-docs-rpc/update-presence-response':
       return encoding35
-    case '@pear-docs-rpc/list-invites-request':
+    case '@bonk-docs-rpc/list-invites-request':
       return encoding36
-    case '@pear-docs-rpc/list-invites-response':
+    case '@bonk-docs-rpc/list-invites-response':
       return encoding37
-    case '@pear-docs-rpc/create-invite-request':
+    case '@bonk-docs-rpc/create-invite-request':
       return encoding38
-    case '@pear-docs-rpc/create-invite-response':
+    case '@bonk-docs-rpc/create-invite-response':
       return encoding39
-    case '@pear-docs-rpc/revoke-invite-request':
+    case '@bonk-docs-rpc/revoke-invite-request':
       return encoding40
-    case '@pear-docs-rpc/revoke-invite-response':
+    case '@bonk-docs-rpc/revoke-invite-response':
       return encoding41
-    case '@pear-docs-rpc/pair-invite-request':
+    case '@bonk-docs-rpc/pair-invite-request':
       return encoding42
-    case '@pear-docs-rpc/pair-status':
+    case '@bonk-docs-rpc/pair-status':
       return encoding43
     default:
       throw new Error('Encoder not found ' + name)

@@ -3,146 +3,146 @@
   "schema": [
     {
       "id": 0,
-      "name": "@pear-docs/initialize",
+      "name": "@bonk-docs/initialize",
       "request": {
-        "name": "@pear-docs-rpc/initialize-request"
+        "name": "@bonk-docs-rpc/initialize-request"
       },
       "response": {
-        "name": "@pear-docs-rpc/initialize-response"
+        "name": "@bonk-docs-rpc/initialize-response"
       },
       "version": 1
     },
     {
       "id": 1,
-      "name": "@pear-docs/list-docs",
+      "name": "@bonk-docs/list-docs",
       "request": {
-        "name": "@pear-docs-rpc/list-docs-request"
+        "name": "@bonk-docs-rpc/list-docs-request"
       },
       "response": {
-        "name": "@pear-docs-rpc/list-docs-response"
+        "name": "@bonk-docs-rpc/list-docs-response"
       },
       "version": 1
     },
     {
       "id": 2,
-      "name": "@pear-docs/create-doc",
+      "name": "@bonk-docs/create-doc",
       "request": {
-        "name": "@pear-docs-rpc/create-doc-request"
+        "name": "@bonk-docs-rpc/create-doc-request"
       },
       "response": {
-        "name": "@pear-docs-rpc/create-doc-response"
+        "name": "@bonk-docs-rpc/create-doc-response"
       },
       "version": 1
     },
     {
       "id": 3,
-      "name": "@pear-docs/join-doc",
+      "name": "@bonk-docs/join-doc",
       "request": {
-        "name": "@pear-docs-rpc/join-doc-request"
+        "name": "@bonk-docs-rpc/join-doc-request"
       },
       "response": {
-        "name": "@pear-docs-rpc/join-doc-response"
+        "name": "@bonk-docs-rpc/join-doc-response"
       },
       "version": 1
     },
     {
       "id": 4,
-      "name": "@pear-docs/pair-invite",
+      "name": "@bonk-docs/pair-invite",
       "request": {
-        "name": "@pear-docs-rpc/pair-invite-request"
+        "name": "@bonk-docs-rpc/pair-invite-request"
       },
       "response": {
-        "name": "@pear-docs-rpc/pair-status",
+        "name": "@bonk-docs-rpc/pair-status",
         "stream": true
       },
       "version": 1
     },
     {
       "id": 5,
-      "name": "@pear-docs/remove-doc",
+      "name": "@bonk-docs/remove-doc",
       "request": {
-        "name": "@pear-docs-rpc/remove-doc-request"
+        "name": "@bonk-docs-rpc/remove-doc-request"
       },
       "response": {
-        "name": "@pear-docs-rpc/remove-doc-response"
+        "name": "@bonk-docs-rpc/remove-doc-response"
       },
       "version": 1
     },
     {
       "id": 6,
-      "name": "@pear-docs/get-doc",
+      "name": "@bonk-docs/get-doc",
       "request": {
-        "name": "@pear-docs-rpc/get-doc-request"
+        "name": "@bonk-docs-rpc/get-doc-request"
       },
       "response": {
-        "name": "@pear-docs-rpc/get-doc-response"
+        "name": "@bonk-docs-rpc/get-doc-response"
       },
       "version": 1
     },
     {
       "id": 7,
-      "name": "@pear-docs/watch-doc",
+      "name": "@bonk-docs/watch-doc",
       "request": {
-        "name": "@pear-docs-rpc/watch-doc-request"
+        "name": "@bonk-docs-rpc/watch-doc-request"
       },
       "response": {
-        "name": "@pear-docs-rpc/doc-update",
+        "name": "@bonk-docs-rpc/doc-update",
         "stream": true
       },
       "version": 1
     },
     {
       "id": 8,
-      "name": "@pear-docs/apply-ops",
+      "name": "@bonk-docs/apply-ops",
       "request": {
-        "name": "@pear-docs-rpc/apply-ops-request"
+        "name": "@bonk-docs-rpc/apply-ops-request"
       },
       "response": {
-        "name": "@pear-docs-rpc/apply-ops-response"
+        "name": "@bonk-docs-rpc/apply-ops-response"
       },
       "version": 1
     },
     {
       "id": 9,
-      "name": "@pear-docs/update-presence",
+      "name": "@bonk-docs/update-presence",
       "request": {
-        "name": "@pear-docs-rpc/update-presence-request"
+        "name": "@bonk-docs-rpc/update-presence-request"
       },
       "response": {
-        "name": "@pear-docs-rpc/update-presence-response"
+        "name": "@bonk-docs-rpc/update-presence-response"
       },
       "version": 1
     },
     {
       "id": 10,
-      "name": "@pear-docs/list-invites",
+      "name": "@bonk-docs/list-invites",
       "request": {
-        "name": "@pear-docs-rpc/list-invites-request"
+        "name": "@bonk-docs-rpc/list-invites-request"
       },
       "response": {
-        "name": "@pear-docs-rpc/list-invites-response"
+        "name": "@bonk-docs-rpc/list-invites-response"
       },
       "version": 1
     },
     {
       "id": 11,
-      "name": "@pear-docs/create-invite",
+      "name": "@bonk-docs/create-invite",
       "request": {
-        "name": "@pear-docs-rpc/create-invite-request"
+        "name": "@bonk-docs-rpc/create-invite-request"
       },
       "response": {
-        "name": "@pear-docs-rpc/create-invite-response"
+        "name": "@bonk-docs-rpc/create-invite-response"
       },
       "version": 1
     },
     {
       "id": 12,
-      "name": "@pear-docs/revoke-invite",
+      "name": "@bonk-docs/revoke-invite",
       "request": {
-        "name": "@pear-docs-rpc/revoke-invite-request"
+        "name": "@bonk-docs-rpc/revoke-invite-request"
       },
       "response": {
-        "name": "@pear-docs-rpc/revoke-invite-response"
+        "name": "@bonk-docs-rpc/revoke-invite-response"
       },
       "version": 1
     }

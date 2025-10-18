@@ -29,7 +29,7 @@ async function getLatestEntry(view, collection) {
 export class DocContext extends Context {
   setupRoutes() {
     this.router.add(
-      '@pear-docs/metadata-upsert',
+      '@bonk-docs/metadata-upsert',
       async (data = {}, context) => {
         await this.requirePermission(context.writerKey, PERMISSIONS.DOC_EDIT)
 
@@ -49,18 +49,18 @@ export class DocContext extends Context {
 
         await this._assertNextRevision(
           context.view,
-          '@pear-docs/metadata',
+          '@bonk-docs/metadata',
           { id: record.id },
           record.rev,
           'Invalid metadata revision'
         )
 
-        await context.view.insert('@pear-docs/metadata', record)
+        await context.view.insert('@bonk-docs/metadata', record)
       }
     )
 
     this.router.add(
-      '@pear-docs/operation-append',
+      '@bonk-docs/operation-append',
       async (data = {}, context) => {
         await this.requirePermission(context.writerKey, PERMISSIONS.DOC_EDIT)
 
@@ -88,11 +88,11 @@ export class DocContext extends Context {
           data: data.data
         }
 
-        await context.view.insert('@pear-docs/operations', record)
+        await context.view.insert('@bonk-docs/operations', record)
       }
     )
 
-    this.router.add('@pear-docs/snapshot-save', async (data = {}, context) => {
+    this.router.add('@bonk-docs/snapshot-save', async (data = {}, context) => {
       await this.requirePermission(context.writerKey, PERMISSIONS.DOC_SNAPSHOT)
 
       if (typeof data.rev !== 'number') {
@@ -102,7 +102,7 @@ export class DocContext extends Context {
         throw new Error('snapshot-save requires snapshot data')
       }
 
-      await context.view.insert('@pear-docs/snapshots', {
+      await context.view.insert('@bonk-docs/snapshots', {
         rev: data.rev,
         createdAt: data.createdAt || Date.now(),
         compression: data.compression || null,
@@ -112,7 +112,7 @@ export class DocContext extends Context {
     })
 
     this.router.add(
-      '@pear-docs/presence-upsert',
+      '@bonk-docs/presence-upsert',
       async (data = {}, context) => {
         await this.requirePermission(
           context.writerKey,
@@ -123,7 +123,7 @@ export class DocContext extends Context {
           throw new Error('presence-upsert requires id')
         }
 
-        await context.view.insert('@pear-docs/presence', {
+        await context.view.insert('@bonk-docs/presence', {
           id: data.id,
           writerKey: data.writerKey || context.writerKey,
           sessionId: data.sessionId || data.id,
@@ -136,7 +136,7 @@ export class DocContext extends Context {
     )
 
     this.router.add(
-      '@pear-docs/presence-remove',
+      '@bonk-docs/presence-remove',
       async (data = {}, context) => {
         await this.requirePermission(
           context.writerKey,
@@ -147,7 +147,7 @@ export class DocContext extends Context {
           throw new Error('presence-remove requires id')
         }
 
-        await context.view.delete('@pear-docs/presence', { id: data.id })
+        await context.view.delete('@bonk-docs/presence', { id: data.id })
       }
     )
 
@@ -209,7 +209,7 @@ export class DocContext extends Context {
   async bootstrapDoc(options = {}) {
     await this.ensureDocRoles()
 
-    const existing = await this.base.view.get('@pear-docs/metadata', {
+    const existing = await this.base.view.get('@bonk-docs/metadata', {
       id: METADATA_ID
     })
     if (existing) return existing
@@ -231,18 +231,18 @@ export class DocContext extends Context {
     }
 
     await this.base.append(
-      this.schema.dispatch.encode('@pear-docs/metadata-upsert', record)
+      this.schema.dispatch.encode('@bonk-docs/metadata-upsert', record)
     )
 
     return record
   }
 
   async getMetadata() {
-    return await this.base.view.get('@pear-docs/metadata', { id: METADATA_ID })
+    return await this.base.view.get('@bonk-docs/metadata', { id: METADATA_ID })
   }
 
   async getLatestRevision() {
-    const latest = await getLatestEntry(this.base.view, '@pear-docs/operations')
+    const latest = await getLatestEntry(this.base.view, '@bonk-docs/operations')
     return latest ? latest.rev : 0
   }
 
@@ -270,7 +270,7 @@ export class DocContext extends Context {
     }
 
     await this.base.append(
-      this.schema.dispatch.encode('@pear-docs/operation-append', record)
+      this.schema.dispatch.encode('@bonk-docs/operation-append', record)
     )
 
     return record
@@ -295,7 +295,7 @@ export class DocContext extends Context {
     }
 
     await this.base.append(
-      this.schema.dispatch.encode('@pear-docs/snapshot-save', record)
+      this.schema.dispatch.encode('@bonk-docs/snapshot-save', record)
     )
 
     return record
@@ -319,7 +319,7 @@ export class DocContext extends Context {
     }
 
     await this.base.append(
-      this.schema.dispatch.encode('@pear-docs/presence-upsert', record)
+      this.schema.dispatch.encode('@bonk-docs/presence-upsert', record)
     )
 
     return record
@@ -333,7 +333,7 @@ export class DocContext extends Context {
     }
 
     await this.base.append(
-      this.schema.dispatch.encode('@pear-docs/presence-remove', {
+      this.schema.dispatch.encode('@bonk-docs/presence-remove', {
         id,
         removedAt: Date.now()
       })
@@ -341,7 +341,7 @@ export class DocContext extends Context {
   }
 
   async _assertNextOperationRevision(view, rev) {
-    const latest = await getLatestEntry(view, '@pear-docs/operations')
+    const latest = await getLatestEntry(view, '@bonk-docs/operations')
     const expected = latest ? latest.rev + 1 : 1
     if (rev !== expected) {
       throw new Error(

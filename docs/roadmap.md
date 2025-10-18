@@ -18,7 +18,7 @@
 
 ## Phase 2 — Collaboration Polish
 
-- Activate comment storage (`@pear-docs/comments`) and renderer drawer UI.
+- Activate comment storage (`@bonk-docs/comments`) and renderer drawer UI.
 - Enhance presence UI (avatars, named cursors, doc activity sidebar).
 - Add document history view powered by Autobonk log replay.
 - Expand invites management (role changes, revocation, resend) in worker + renderer.
@@ -26,7 +26,7 @@
 
 ## Phase 3 — Asset & Extensibility Prep
 
-- Finalize schema + storage plan for embedded assets (`@pear-docs/assets`, Hyperblobs pointers).
+- Finalize schema + storage plan for embedded assets (`@bonk-docs/assets`, Hyperblobs pointers).
 - Prototype image/table insertion flows without shipping them in earlier phases.
 - Integrate asset permissions and upload/download HRPC routes.
 - Document extension hooks for future features (templates, export).

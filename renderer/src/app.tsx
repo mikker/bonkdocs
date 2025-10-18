@@ -99,7 +99,7 @@ function DocsTitleBar() {
         {fullDoc?.title ? (
           <span>{fullDoc.title}</span>
         ) : (
-          <span className='text-muted-foreground'>Pear Docs</span>
+          <span className='text-muted-foreground'>Bonk Docs</span>
         )}
         {isReadOnly ? (
           <Badge className='px-2 py-0.5 text-[0.65rem] uppercase tracking-wide'>

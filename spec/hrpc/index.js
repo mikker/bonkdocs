@@ -6,32 +6,32 @@ import { c, RPC, RPCStream, RPCRequestStream } from 'hrpc/runtime'
 import { getEncoding } from './messages.js'
 
 const methods = new Map([
-  ['@pear-docs/initialize', 0],
-  [0, '@pear-docs/initialize'],
-  ['@pear-docs/list-docs', 1],
-  [1, '@pear-docs/list-docs'],
-  ['@pear-docs/create-doc', 2],
-  [2, '@pear-docs/create-doc'],
-  ['@pear-docs/join-doc', 3],
-  [3, '@pear-docs/join-doc'],
-  ['@pear-docs/pair-invite', 4],
-  [4, '@pear-docs/pair-invite'],
-  ['@pear-docs/remove-doc', 5],
-  [5, '@pear-docs/remove-doc'],
-  ['@pear-docs/get-doc', 6],
-  [6, '@pear-docs/get-doc'],
-  ['@pear-docs/watch-doc', 7],
-  [7, '@pear-docs/watch-doc'],
-  ['@pear-docs/apply-ops', 8],
-  [8, '@pear-docs/apply-ops'],
-  ['@pear-docs/update-presence', 9],
-  [9, '@pear-docs/update-presence'],
-  ['@pear-docs/list-invites', 10],
-  [10, '@pear-docs/list-invites'],
-  ['@pear-docs/create-invite', 11],
-  [11, '@pear-docs/create-invite'],
-  ['@pear-docs/revoke-invite', 12],
-  [12, '@pear-docs/revoke-invite']
+  ['@bonk-docs/initialize', 0],
+  [0, '@bonk-docs/initialize'],
+  ['@bonk-docs/list-docs', 1],
+  [1, '@bonk-docs/list-docs'],
+  ['@bonk-docs/create-doc', 2],
+  [2, '@bonk-docs/create-doc'],
+  ['@bonk-docs/join-doc', 3],
+  [3, '@bonk-docs/join-doc'],
+  ['@bonk-docs/pair-invite', 4],
+  [4, '@bonk-docs/pair-invite'],
+  ['@bonk-docs/remove-doc', 5],
+  [5, '@bonk-docs/remove-doc'],
+  ['@bonk-docs/get-doc', 6],
+  [6, '@bonk-docs/get-doc'],
+  ['@bonk-docs/watch-doc', 7],
+  [7, '@bonk-docs/watch-doc'],
+  ['@bonk-docs/apply-ops', 8],
+  [8, '@bonk-docs/apply-ops'],
+  ['@bonk-docs/update-presence', 9],
+  [9, '@bonk-docs/update-presence'],
+  ['@bonk-docs/list-invites', 10],
+  [10, '@bonk-docs/list-invites'],
+  ['@bonk-docs/create-invite', 11],
+  [11, '@bonk-docs/create-invite'],
+  ['@bonk-docs/revoke-invite', 12],
+  [12, '@bonk-docs/revoke-invite']
 ])
 
 class HRPC {
@@ -39,34 +39,34 @@ class HRPC {
     this._stream = stream
     this._handlers = []
     this._requestEncodings = new Map([
-      ['@pear-docs/initialize', getEncoding('@pear-docs-rpc/initialize-request')],
-      ['@pear-docs/list-docs', getEncoding('@pear-docs-rpc/list-docs-request')],
-      ['@pear-docs/create-doc', getEncoding('@pear-docs-rpc/create-doc-request')],
-      ['@pear-docs/join-doc', getEncoding('@pear-docs-rpc/join-doc-request')],
-      ['@pear-docs/pair-invite', getEncoding('@pear-docs-rpc/pair-invite-request')],
-      ['@pear-docs/remove-doc', getEncoding('@pear-docs-rpc/remove-doc-request')],
-      ['@pear-docs/get-doc', getEncoding('@pear-docs-rpc/get-doc-request')],
-      ['@pear-docs/watch-doc', getEncoding('@pear-docs-rpc/watch-doc-request')],
-      ['@pear-docs/apply-ops', getEncoding('@pear-docs-rpc/apply-ops-request')],
-      ['@pear-docs/update-presence', getEncoding('@pear-docs-rpc/update-presence-request')],
-      ['@pear-docs/list-invites', getEncoding('@pear-docs-rpc/list-invites-request')],
-      ['@pear-docs/create-invite', getEncoding('@pear-docs-rpc/create-invite-request')],
-      ['@pear-docs/revoke-invite', getEncoding('@pear-docs-rpc/revoke-invite-request')]
+      ['@bonk-docs/initialize', getEncoding('@bonk-docs-rpc/initialize-request')],
+      ['@bonk-docs/list-docs', getEncoding('@bonk-docs-rpc/list-docs-request')],
+      ['@bonk-docs/create-doc', getEncoding('@bonk-docs-rpc/create-doc-request')],
+      ['@bonk-docs/join-doc', getEncoding('@bonk-docs-rpc/join-doc-request')],
+      ['@bonk-docs/pair-invite', getEncoding('@bonk-docs-rpc/pair-invite-request')],
+      ['@bonk-docs/remove-doc', getEncoding('@bonk-docs-rpc/remove-doc-request')],
+      ['@bonk-docs/get-doc', getEncoding('@bonk-docs-rpc/get-doc-request')],
+      ['@bonk-docs/watch-doc', getEncoding('@bonk-docs-rpc/watch-doc-request')],
+      ['@bonk-docs/apply-ops', getEncoding('@bonk-docs-rpc/apply-ops-request')],
+      ['@bonk-docs/update-presence', getEncoding('@bonk-docs-rpc/update-presence-request')],
+      ['@bonk-docs/list-invites', getEncoding('@bonk-docs-rpc/list-invites-request')],
+      ['@bonk-docs/create-invite', getEncoding('@bonk-docs-rpc/create-invite-request')],
+      ['@bonk-docs/revoke-invite', getEncoding('@bonk-docs-rpc/revoke-invite-request')]
     ])
     this._responseEncodings = new Map([
-      ['@pear-docs/initialize', getEncoding('@pear-docs-rpc/initialize-response')],
-      ['@pear-docs/list-docs', getEncoding('@pear-docs-rpc/list-docs-response')],
-      ['@pear-docs/create-doc', getEncoding('@pear-docs-rpc/create-doc-response')],
-      ['@pear-docs/join-doc', getEncoding('@pear-docs-rpc/join-doc-response')],
-      ['@pear-docs/pair-invite', getEncoding('@pear-docs-rpc/pair-status')],
-      ['@pear-docs/remove-doc', getEncoding('@pear-docs-rpc/remove-doc-response')],
-      ['@pear-docs/get-doc', getEncoding('@pear-docs-rpc/get-doc-response')],
-      ['@pear-docs/watch-doc', getEncoding('@pear-docs-rpc/doc-update')],
-      ['@pear-docs/apply-ops', getEncoding('@pear-docs-rpc/apply-ops-response')],
-      ['@pear-docs/update-presence', getEncoding('@pear-docs-rpc/update-presence-response')],
-      ['@pear-docs/list-invites', getEncoding('@pear-docs-rpc/list-invites-response')],
-      ['@pear-docs/create-invite', getEncoding('@pear-docs-rpc/create-invite-response')],
-      ['@pear-docs/revoke-invite', getEncoding('@pear-docs-rpc/revoke-invite-response')]
+      ['@bonk-docs/initialize', getEncoding('@bonk-docs-rpc/initialize-response')],
+      ['@bonk-docs/list-docs', getEncoding('@bonk-docs-rpc/list-docs-response')],
+      ['@bonk-docs/create-doc', getEncoding('@bonk-docs-rpc/create-doc-response')],
+      ['@bonk-docs/join-doc', getEncoding('@bonk-docs-rpc/join-doc-response')],
+      ['@bonk-docs/pair-invite', getEncoding('@bonk-docs-rpc/pair-status')],
+      ['@bonk-docs/remove-doc', getEncoding('@bonk-docs-rpc/remove-doc-response')],
+      ['@bonk-docs/get-doc', getEncoding('@bonk-docs-rpc/get-doc-response')],
+      ['@bonk-docs/watch-doc', getEncoding('@bonk-docs-rpc/doc-update')],
+      ['@bonk-docs/apply-ops', getEncoding('@bonk-docs-rpc/apply-ops-response')],
+      ['@bonk-docs/update-presence', getEncoding('@bonk-docs-rpc/update-presence-response')],
+      ['@bonk-docs/list-invites', getEncoding('@bonk-docs-rpc/list-invites-response')],
+      ['@bonk-docs/create-invite', getEncoding('@bonk-docs-rpc/create-invite-response')],
+      ['@bonk-docs/revoke-invite', getEncoding('@bonk-docs-rpc/revoke-invite-response')]
     ])
     this._rpc = new RPC(stream, async (req) => {
       const command = methods.get(req.command)
@@ -162,107 +162,107 @@ class HRPC {
   }
 
   async initialize(args) {
-    return this._call('@pear-docs/initialize', args)
+    return this._call('@bonk-docs/initialize', args)
   }
 
   async listDocs(args) {
-    return this._call('@pear-docs/list-docs', args)
+    return this._call('@bonk-docs/list-docs', args)
   }
 
   async createDoc(args) {
-    return this._call('@pear-docs/create-doc', args)
+    return this._call('@bonk-docs/create-doc', args)
   }
 
   async joinDoc(args) {
-    return this._call('@pear-docs/join-doc', args)
+    return this._call('@bonk-docs/join-doc', args)
   }
 
   pairInvite(args) {
-    return this._callSync('@pear-docs/pair-invite', args)
+    return this._callSync('@bonk-docs/pair-invite', args)
   }
 
   async removeDoc(args) {
-    return this._call('@pear-docs/remove-doc', args)
+    return this._call('@bonk-docs/remove-doc', args)
   }
 
   async getDoc(args) {
-    return this._call('@pear-docs/get-doc', args)
+    return this._call('@bonk-docs/get-doc', args)
   }
 
   watchDoc(args) {
-    return this._callSync('@pear-docs/watch-doc', args)
+    return this._callSync('@bonk-docs/watch-doc', args)
   }
 
   async applyOps(args) {
-    return this._call('@pear-docs/apply-ops', args)
+    return this._call('@bonk-docs/apply-ops', args)
   }
 
   async updatePresence(args) {
-    return this._call('@pear-docs/update-presence', args)
+    return this._call('@bonk-docs/update-presence', args)
   }
 
   async listInvites(args) {
-    return this._call('@pear-docs/list-invites', args)
+    return this._call('@bonk-docs/list-invites', args)
   }
 
   async createInvite(args) {
-    return this._call('@pear-docs/create-invite', args)
+    return this._call('@bonk-docs/create-invite', args)
   }
 
   async revokeInvite(args) {
-    return this._call('@pear-docs/revoke-invite', args)
+    return this._call('@bonk-docs/revoke-invite', args)
   }
 
   onInitialize(responseFn) {
-    this._handlers['@pear-docs/initialize'] = responseFn
+    this._handlers['@bonk-docs/initialize'] = responseFn
   }
 
   onListDocs(responseFn) {
-    this._handlers['@pear-docs/list-docs'] = responseFn
+    this._handlers['@bonk-docs/list-docs'] = responseFn
   }
 
   onCreateDoc(responseFn) {
-    this._handlers['@pear-docs/create-doc'] = responseFn
+    this._handlers['@bonk-docs/create-doc'] = responseFn
   }
 
   onJoinDoc(responseFn) {
-    this._handlers['@pear-docs/join-doc'] = responseFn
+    this._handlers['@bonk-docs/join-doc'] = responseFn
   }
 
   onPairInvite(responseFn) {
-    this._handlers['@pear-docs/pair-invite'] = responseFn
+    this._handlers['@bonk-docs/pair-invite'] = responseFn
   }
 
   onRemoveDoc(responseFn) {
-    this._handlers['@pear-docs/remove-doc'] = responseFn
+    this._handlers['@bonk-docs/remove-doc'] = responseFn
   }
 
   onGetDoc(responseFn) {
-    this._handlers['@pear-docs/get-doc'] = responseFn
+    this._handlers['@bonk-docs/get-doc'] = responseFn
   }
 
   onWatchDoc(responseFn) {
-    this._handlers['@pear-docs/watch-doc'] = responseFn
+    this._handlers['@bonk-docs/watch-doc'] = responseFn
   }
 
   onApplyOps(responseFn) {
-    this._handlers['@pear-docs/apply-ops'] = responseFn
+    this._handlers['@bonk-docs/apply-ops'] = responseFn
   }
 
   onUpdatePresence(responseFn) {
-    this._handlers['@pear-docs/update-presence'] = responseFn
+    this._handlers['@bonk-docs/update-presence'] = responseFn
   }
 
   onListInvites(responseFn) {
-    this._handlers['@pear-docs/list-invites'] = responseFn
+    this._handlers['@bonk-docs/list-invites'] = responseFn
   }
 
   onCreateInvite(responseFn) {
-    this._handlers['@pear-docs/create-invite'] = responseFn
+    this._handlers['@bonk-docs/create-invite'] = responseFn
   }
 
   onRevokeInvite(responseFn) {
-    this._handlers['@pear-docs/revoke-invite'] = responseFn
+    this._handlers['@bonk-docs/revoke-invite'] = responseFn
   }
 
   _requestIsStream(command) {
@@ -272,8 +272,8 @@ class HRPC {
 
   _responseIsStream(command) {
     return [
-      '@pear-docs/pair-invite',
-      '@pear-docs/watch-doc'
+      '@bonk-docs/pair-invite',
+      '@bonk-docs/watch-doc'
     ].includes(command)
   }
 
