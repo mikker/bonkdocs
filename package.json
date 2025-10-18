@@ -1,5 +1,6 @@
 {
-  "name": "pear-app",
+  "name": "bonk-docs",
+  "version": "1.0.0",
   "type": "module",
   "main": "index.js",
   "pear": {
@@ -10,6 +11,7 @@
       "minWidth": 400,
       "minHeight": 300
     },
+    "name": "bonk-docs",
     "pre": "pear-electron/pre"
   },
   "scripts": {
@@ -42,6 +44,7 @@
     "lucide-react": "^0.545.0",
     "pear-bridge": "^1.2.4",
     "pear-electron": "^1.7.24",
+    "pear-messages": "^1.0.5",
     "pear-pipe": "^1.0.5",
     "pear-run": "^1.0.5",
     "pear-updates": "^1.1.0",
@@ -57,6 +60,7 @@
     "brittle": "^3.19.0",
     "concurrently": "^9.2.1",
     "lunte": "^0.2.3",
+    "pear-interface": "^1.1.0",
     "prettier": "^3.6.2",
     "prettier-config-holepunch": "^2.0.0",
     "prettier-config-standard": "^7.0.0",
