@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { FormEvent, useEffect, useState } from 'react'
 import { TitleBar, TitleBarTitle } from './components/title-bar'
 import { Button } from '@/components/ui/button'
 import { Toaster } from '@/components/ui/sonner'
@@ -23,13 +23,28 @@ import {
   SidebarTrigger,
   useSidebar
 } from './components/ui/sidebar'
-import { FilePlus2 } from 'lucide-react'
+import { FilePlus2, MoreHorizontal, Pencil } from 'lucide-react'
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger
 } from './components/ui/tooltip'
 import { Badge } from '@/components/ui/badge'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger
+} from '@/components/ui/dropdown-menu'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
+} from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
 
 function useDocState<T>(
   selector: (state: ReturnType<typeof useDocStore.getState>) => T
@@ -85,31 +100,142 @@ function DocsTitleBar() {
   const activeDoc = useDocState((state) => state.activeDoc)
   const docs = useDocState((state) => state.docs)
   const capabilities = useDocState((state) => state.currentUpdate?.capabilities)
+  const renameDoc = useDocState((state) => state.renameDoc)
   const fullDoc = docs.find((doc) => doc.key === activeDoc)
   const { open } = useSidebar()
   const isReadOnly =
     Boolean(activeDoc) && capabilities?.canEdit === false && !!fullDoc
 
+  const [renameOpen, setRenameOpen] = useState(false)
+  const [renameValue, setRenameValue] = useState('')
+  const [renaming, setRenaming] = useState(false)
+  const [renameError, setRenameError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (renameOpen) {
+      setRenameValue(fullDoc?.title ?? '')
+      setRenameError(null)
+    }
+  }, [renameOpen, fullDoc?.title])
+
+  useEffect(() => {
+    if (!renameOpen) {
+      setRenaming(false)
+      setRenameError(null)
+    }
+  }, [renameOpen])
+
+  const handleRenameSubmit = async (event?: FormEvent<HTMLFormElement>) => {
+    if (event) {
+      event.preventDefault()
+    }
+    if (!activeDoc) return
+
+    const trimmed = renameValue.trim()
+    const currentTitle = (fullDoc?.title ?? '').trim()
+    if (trimmed === currentTitle) {
+      setRenameOpen(false)
+      return
+    }
+
+    setRenaming(true)
+    setRenameError(null)
+
+    try {
+      await renameDoc(activeDoc, renameValue)
+      setRenameOpen(false)
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Failed to rename document'
+      setRenameError(message)
+    } finally {
+      setRenaming(false)
+    }
+  }
+
   return (
-    <TitleBar
-      data-sidebar-open={open}
-      className='border-b w-full flex gap-2 items-center h-(--header-height) data-[sidebar-open=true]:pl-3 pl-(--window-ctrl-width)'
-    >
-      <SidebarTrigger className='' />
-      <TitleBarTitle className='flex flex-1 flex-wrap items-center gap-2'>
-        {fullDoc?.title ? (
-          <span>{fullDoc.title}</span>
-        ) : (
-          <span className='text-muted-foreground'>Bonk Docs</span>
-        )}
-        {isReadOnly ? (
-          <Badge className='px-2 py-0.5 text-[0.65rem] uppercase tracking-wide'>
-            Read-only
-          </Badge>
+    <>
+      <TitleBar
+        data-sidebar-open={open}
+        className='border-b w-full flex gap-2 items-center h-(--header-height) data-[sidebar-open=true]:pl-3 pl-(--window-ctrl-width)'
+      >
+        <SidebarTrigger className='' />
+        <TitleBarTitle className='flex flex-1 items-center gap-2'>
+          {fullDoc?.title ? (
+            <span>{fullDoc.title}</span>
+          ) : (
+            <span className='text-muted-foreground'>Bonk Docs</span>
+          )}
+          {isReadOnly ? (
+            <Badge className='px-2 py-0.5 text-[0.65rem] uppercase tracking-wide'>
+              Read-only
+            </Badge>
+          ) : null}
+        </TitleBarTitle>
+        {fullDoc ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                size='icon-sm'
+                variant='ghost'
+                className='text-muted-foreground'
+                aria-label='Document actions'
+              >
+                <MoreHorizontal className='h-4 w-4' />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align='end' sideOffset={4} className='w-48'>
+              <DropdownMenuItem
+                disabled={isReadOnly}
+                onSelect={(event) => {
+                  event.preventDefault()
+                  if (isReadOnly) return
+                  setRenameOpen(true)
+                }}
+              >
+                <Pencil className='mr-2 h-4 w-4' /> Rename document
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         ) : null}
-      </TitleBarTitle>
-      <DocInvitesDialog />
-    </TitleBar>
+        <DocInvitesDialog />
+      </TitleBar>
+
+      <Dialog open={renameOpen} onOpenChange={setRenameOpen}>
+        <DialogContent className='max-w-sm'>
+          <DialogHeader>
+            <DialogTitle>Rename document</DialogTitle>
+            <DialogDescription>
+              Choose a new name to help identify this document.
+            </DialogDescription>
+          </DialogHeader>
+          <form className='space-y-4' onSubmit={handleRenameSubmit}>
+            <Input
+              autoFocus
+              value={renameValue}
+              onChange={(event) => setRenameValue(event.target.value)}
+              placeholder='Untitled document'
+            />
+            {renameError ? (
+              <p className='text-sm text-destructive'>{renameError}</p>
+            ) : null}
+            <DialogFooter className='flex gap-2 justify-end'>
+              <Button
+                type='button'
+                variant='outline'
+                size='sm'
+                onClick={() => setRenameOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button type='submit' size='sm' disabled={renaming}>
+                {renaming ? 'Saving…' : 'Save'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </>
   )
 }
 

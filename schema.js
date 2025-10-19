@@ -279,6 +279,26 @@ rpc.register({
 })
 
 rpc.register({
+  name: 'rename-doc-request',
+  compact: false,
+  fields: [
+    { name: 'key', type: 'string', required: true },
+    { name: 'title', type: 'string', required: false }
+  ]
+})
+
+rpc.register({
+  name: 'rename-doc-response',
+  compact: false,
+  fields: [
+    { name: 'key', type: 'string', required: true },
+    { name: 'title', type: 'string', required: true },
+    { name: 'updatedAt', type: 'uint', required: false },
+    { name: 'rev', type: 'uint', required: false }
+  ]
+})
+
+rpc.register({
   name: 'get-doc-request',
   compact: false,
   fields: [{ name: 'key', type: 'string', required: true }]
@@ -589,6 +609,12 @@ workerRpc.register({
   name: 'revoke-invite',
   request: { name: '@bonk-docs-rpc/revoke-invite-request' },
   response: { name: '@bonk-docs-rpc/revoke-invite-response' }
+})
+
+workerRpc.register({
+  name: 'rename-doc',
+  request: { name: '@bonk-docs-rpc/rename-doc-request' },
+  response: { name: '@bonk-docs-rpc/rename-doc-response' }
 })
 
 HRPCBuilder.toDisk(hrpc)

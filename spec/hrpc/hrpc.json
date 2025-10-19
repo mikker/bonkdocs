@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "schema": [
     {
       "id": 0,
@@ -145,6 +145,17 @@
         "name": "@bonk-docs-rpc/revoke-invite-response"
       },
       "version": 1
+    },
+    {
+      "id": 13,
+      "name": "@bonk-docs/rename-doc",
+      "request": {
+        "name": "@bonk-docs-rpc/rename-doc-request"
+      },
+      "response": {
+        "name": "@bonk-docs-rpc/rename-doc-response"
+      },
+      "version": 2
     }
   ]
 }

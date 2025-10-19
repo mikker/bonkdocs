@@ -77,6 +77,12 @@ function createRpcMock({ docs = [], activeDoc = null } = {}) {
     stream.emit('close')
   }
   let pairInviteCalls = 0
+  const renameDocCalls = []
+  let renameDocHandler = async (request = {}) => ({
+    key: request.key,
+    title: request.title || 'Untitled document',
+    updatedAt: Date.now()
+  })
 
   function rememberWatcher(key, stream) {
     if (!watchers.has(key)) {
@@ -101,6 +107,10 @@ function createRpcMock({ docs = [], activeDoc = null } = {}) {
     async applyOps(request = {}) {
       applyOpsCalls.push(request)
       return await applyOpsHandler(request)
+    },
+    async renameDoc(request = {}) {
+      renameDocCalls.push(request)
+      return await renameDocHandler(request)
     },
     async joinDoc(request = {}) {
       joinDocCalls++
@@ -187,6 +197,9 @@ function createRpcMock({ docs = [], activeDoc = null } = {}) {
     getPairInviteCalls() {
       return pairInviteCalls
     },
+    getRenameDocCalls() {
+      return renameDocCalls
+    },
     setInvites(key, invites = []) {
       invitesByKey.set(key, invites)
     },
@@ -195,6 +208,9 @@ function createRpcMock({ docs = [], activeDoc = null } = {}) {
     },
     getListInvitesCalls() {
       return listInvitesCalls
+    },
+    setRenameDocHandler(fn) {
+      renameDocHandler = fn
     },
     destroyAll() {
       for (const streams of watchers.values()) {
@@ -388,6 +404,64 @@ test('doc store queues applyOps requests per document', async (t) => {
   t.is(calls.length, 2, 'both applyOps calls eventually execute')
   t.is(calls[0].ops[0].baseRev, 1, 'first call uses starting revision')
   t.is(calls[1].ops[0].baseRev, 2, 'second call chains from first revision')
+
+  mock.destroyAll()
+  resetStoreState()
+})
+
+test('renameDoc updates title and calls rpc rename', async (t) => {
+  const doc = {
+    key: 'doc-rename',
+    title: 'Original Title',
+    lastRevision: 3,
+    lastOpenedAt: Date.now()
+  }
+
+  const mock = createRpcMock({
+    docs: [doc],
+    activeDoc: doc.key
+  })
+
+  const renamedAt = Date.now() + 10
+
+  mock.setRenameDocHandler(async (request = {}) => ({
+    key: request.key,
+    title: request.title || 'Untitled document',
+    updatedAt: renamedAt
+  }))
+
+  setRpcClient(mock.rpc)
+  t.teardown(() => {
+    setRpcClient(null)
+  })
+  resetStoreState()
+
+  await useDocStore.getState().initialize()
+  mock.emitUpdate(doc.key, {
+    key: doc.key,
+    revision: doc.lastRevision,
+    snapshotRevision: doc.lastRevision,
+    snapshot: {
+      type: 'doc',
+      content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Hi' }] }]
+    },
+    title: doc.title,
+    updatedAt: doc.lastOpenedAt
+  })
+
+  await useDocStore.getState().renameDoc(doc.key, 'Renamed Document')
+
+  const renameCalls = mock.getRenameDocCalls()
+  t.is(renameCalls.length, 1, 'renameDoc called exactly once')
+  t.is(renameCalls[0].key, doc.key)
+  t.is(renameCalls[0].title, 'Renamed Document')
+
+  const state = useDocStore.getState()
+  const renamedDoc = state.docs.find((entry) => entry.key === doc.key)
+  t.ok(renamedDoc, 'doc still present after rename')
+  t.is(renamedDoc?.title, 'Renamed Document')
+  t.is(state.currentUpdate?.title, 'Renamed Document')
+  t.is(state.currentUpdate?.updatedAt, renamedAt)
 
   mock.destroyAll()
   resetStoreState()

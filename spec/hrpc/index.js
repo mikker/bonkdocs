@@ -31,7 +31,9 @@ const methods = new Map([
   ['@bonk-docs/create-invite', 11],
   [11, '@bonk-docs/create-invite'],
   ['@bonk-docs/revoke-invite', 12],
-  [12, '@bonk-docs/revoke-invite']
+  [12, '@bonk-docs/revoke-invite'],
+  ['@bonk-docs/rename-doc', 13],
+  [13, '@bonk-docs/rename-doc']
 ])
 
 class HRPC {
@@ -51,7 +53,8 @@ class HRPC {
       ['@bonk-docs/update-presence', getEncoding('@bonk-docs-rpc/update-presence-request')],
       ['@bonk-docs/list-invites', getEncoding('@bonk-docs-rpc/list-invites-request')],
       ['@bonk-docs/create-invite', getEncoding('@bonk-docs-rpc/create-invite-request')],
-      ['@bonk-docs/revoke-invite', getEncoding('@bonk-docs-rpc/revoke-invite-request')]
+      ['@bonk-docs/revoke-invite', getEncoding('@bonk-docs-rpc/revoke-invite-request')],
+      ['@bonk-docs/rename-doc', getEncoding('@bonk-docs-rpc/rename-doc-request')]
     ])
     this._responseEncodings = new Map([
       ['@bonk-docs/initialize', getEncoding('@bonk-docs-rpc/initialize-response')],
@@ -66,7 +69,8 @@ class HRPC {
       ['@bonk-docs/update-presence', getEncoding('@bonk-docs-rpc/update-presence-response')],
       ['@bonk-docs/list-invites', getEncoding('@bonk-docs-rpc/list-invites-response')],
       ['@bonk-docs/create-invite', getEncoding('@bonk-docs-rpc/create-invite-response')],
-      ['@bonk-docs/revoke-invite', getEncoding('@bonk-docs-rpc/revoke-invite-response')]
+      ['@bonk-docs/revoke-invite', getEncoding('@bonk-docs-rpc/revoke-invite-response')],
+      ['@bonk-docs/rename-doc', getEncoding('@bonk-docs-rpc/rename-doc-response')]
     ])
     this._rpc = new RPC(stream, async (req) => {
       const command = methods.get(req.command)
@@ -213,6 +217,10 @@ class HRPC {
     return this._call('@bonk-docs/revoke-invite', args)
   }
 
+  async renameDoc(args) {
+    return this._call('@bonk-docs/rename-doc', args)
+  }
+
   onInitialize(responseFn) {
     this._handlers['@bonk-docs/initialize'] = responseFn
   }
@@ -263,6 +271,10 @@ class HRPC {
 
   onRevokeInvite(responseFn) {
     this._handlers['@bonk-docs/revoke-invite'] = responseFn
+  }
+
+  onRenameDoc(responseFn) {
+    this._handlers['@bonk-docs/rename-doc'] = responseFn
   }
 
   _requestIsStream(command) {

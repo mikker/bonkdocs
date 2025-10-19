@@ -136,6 +136,7 @@ type DocStore = {
   selectDoc: (key: string | null) => Promise<void>
   createDoc: (title?: string) => Promise<void>
   joinDoc: (invite: string, options?: JoinDocOptions) => Promise<void>
+  renameDoc: (key: string, title: string) => Promise<void>
   applySnapshot: (key: string, snapshot: DocSnapshot) => Promise<void>
   loadInvites: (
     key: string,
@@ -814,6 +815,141 @@ export const useDocStore = create<DocStore>((set, get) => ({
       }
     } catch (error) {
       set({ error: error instanceof Error ? error.message : String(error) })
+    }
+  },
+  renameDoc: async (key, title) => {
+    if (!key) return
+
+    const trimmed = typeof title === 'string' ? title.trim() : ''
+    const fallbackTitle = trimmed.length > 0 ? trimmed : 'Untitled document'
+
+    const previousState = get()
+    const previousDoc = previousState.docs.find((doc) => doc.key === key) || null
+    const previousTitle = previousDoc?.title ?? null
+    const previousUpdate = previousState.currentUpdate?.key === key
+      ? previousState.currentUpdate
+      : null
+
+    set((state) => {
+      const nextDocs = state.docs.map((doc) =>
+        doc.key === key
+          ? {
+              ...doc,
+              title: fallbackTitle
+            }
+          : doc
+      )
+
+      const currentUpdate =
+        state.currentUpdate && state.currentUpdate.key === key
+          ? {
+              ...state.currentUpdate,
+              title: fallbackTitle
+            }
+          : state.currentUpdate
+
+      return {
+        ...state,
+        docs: nextDocs,
+        currentUpdate
+      }
+    })
+
+    const optimisticState = get()
+    if (optimisticState.currentUpdate?.key === key) {
+      persistDocStateEntry(
+        key,
+        optimisticState.currentUpdate,
+        optimisticState.pendingOps[key] ?? []
+      )
+    }
+
+    try {
+      const rpc = getRpc()
+      const response = await rpc.renameDoc({ key, title: trimmed || null })
+      const nextTitle =
+        typeof response?.title === 'string' && response.title.length > 0
+          ? response.title
+          : fallbackTitle
+      const updatedAt =
+        typeof response?.updatedAt === 'number' &&
+        Number.isFinite(response.updatedAt)
+          ? response.updatedAt
+          : Date.now()
+      set((state) => {
+        const docs = state.docs.map((doc) =>
+          doc.key === key
+            ? {
+                ...doc,
+                title: nextTitle,
+                lastOpenedAt: updatedAt
+              }
+            : doc
+        )
+
+        const currentUpdate =
+          state.currentUpdate && state.currentUpdate.key === key
+            ? {
+                ...state.currentUpdate,
+                title: nextTitle,
+                updatedAt
+              }
+            : state.currentUpdate
+
+        return {
+          ...state,
+          docs,
+          currentUpdate
+        }
+      })
+
+      const nextState = get()
+      if (nextState.currentUpdate?.key === key) {
+        persistDocStateEntry(
+          key,
+          nextState.currentUpdate,
+          nextState.pendingOps[key] ?? []
+        )
+      }
+    } catch (error) {
+      set((state) => {
+        const docs = state.docs.map((doc) =>
+          doc.key === key
+            ? {
+                ...doc,
+                title: previousTitle ?? doc.title
+              }
+            : doc
+        )
+
+        const currentUpdate =
+          previousUpdate
+            ? { ...previousUpdate }
+            : state.currentUpdate && state.currentUpdate.key === key
+                ? {
+                    ...state.currentUpdate,
+                    title: previousTitle ?? state.currentUpdate.title
+                  }
+                : state.currentUpdate
+
+        return {
+          ...state,
+          docs,
+          currentUpdate,
+          error: error instanceof Error ? error.message : String(error)
+        }
+      })
+
+      const revertedState = get()
+      if (revertedState.currentUpdate?.key === key) {
+        persistDocStateEntry(
+          key,
+          revertedState.currentUpdate,
+          revertedState.pendingOps[key] ?? []
+        )
+      }
+
+      throw error
     }
   },
   joinDoc: async (invite, options) => {

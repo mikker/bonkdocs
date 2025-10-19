@@ -276,6 +276,33 @@ export class DocWorker {
     return this.normalizeDocRecord(fallback, metadata)
   }
 
+  async renameDoc(request = {}) {
+    await this.ready()
+
+    if (!request.key) {
+      throw new Error('Doc key is required to rename')
+    }
+
+    const context = await this.manager.getDoc(request.key)
+    if (!context) {
+      throw new Error('Doc not found')
+    }
+
+    const inputTitle =
+      typeof request.title === 'string' ? request.title.trim() : ''
+    const nextTitle =
+      inputTitle.length > 0 ? inputTitle.slice(0, 256) : DEFAULT_TITLE
+
+    const metadata = await context.updateMetadata({ title: nextTitle })
+
+    return {
+      key: request.key,
+      title: metadata?.title || nextTitle,
+      updatedAt: metadata?.updatedAt || Date.now(),
+      rev: metadata?.rev || null
+    }
+  }
+
   async watchDoc(keyHex, options = {}, onUpdate) {
     await this.ready()
 

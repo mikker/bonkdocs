@@ -237,6 +237,43 @@ export class DocContext extends Context {
     return record
   }
 
+  async updateMetadata(patch = {}) {
+    await this.ensureDocRoles()
+    await this.requirePermission(this.writerKey, PERMISSIONS.DOC_EDIT)
+
+    const existing = await this.getMetadata()
+    if (!existing) {
+      throw new Error('Document metadata not found')
+    }
+
+    if (!this.writable) {
+      throw new Error('Cannot update metadata from a read-only context')
+    }
+
+    const now = Date.now()
+    const rawTitle =
+      typeof patch.title === 'string' ? patch.title.trim() : existing.title
+    const nextTitle =
+      rawTitle && rawTitle.length > 0 ? rawTitle.slice(0, 256) : DEFAULT_TITLE
+
+    const record = {
+      ...existing,
+      title: nextTitle,
+      description:
+        patch.description === undefined
+          ? existing.description || null
+          : patch.description,
+      updatedAt: now,
+      rev: (existing.rev || 0) + 1
+    }
+
+    await this.base.append(
+      this.schema.dispatch.encode('@bonk-docs/metadata-upsert', record)
+    )
+
+    return record
+  }
+
   async getMetadata() {
     return await this.base.view.get('@bonk-docs/metadata', { id: METADATA_ID })
   }

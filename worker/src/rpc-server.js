@@ -87,6 +87,15 @@ export function createRpcServer(stream, worker) {
     })
   })
 
+  rpc.onRenameDoc(async (request = {}) => {
+    console.log('[worker] rename-doc request', request?.key)
+    if (!request.key) throw new Error('Doc key is required to rename')
+    return await worker.renameDoc({
+      key: request.key,
+      title: request.title
+    })
+  })
+
   rpc.onJoinDoc(async (request = {}) => {
     console.log('[worker] join-doc request')
     return await worker.joinDoc({
