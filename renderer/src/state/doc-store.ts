@@ -164,10 +164,12 @@ function enqueueApplyTask(
 ): Promise<void> {
   const token = applyQueueTokens.get(key) ?? 0
   const previous = applyQueuePromises.get(key) ?? Promise.resolve()
-  const next = previous.catch(() => {}).then(async () => {
-    if ((applyQueueTokens.get(key) ?? 0) !== token) return
-    await task()
-  })
+  const next = previous
+    .catch(() => {})
+    .then(async () => {
+      if ((applyQueueTokens.get(key) ?? 0) !== token) return
+      await task()
+    })
   const tracked = next.finally(() => {
     if (applyQueuePromises.get(key) === tracked) {
       applyQueuePromises.delete(key)
@@ -824,11 +826,13 @@ export const useDocStore = create<DocStore>((set, get) => ({
     const fallbackTitle = trimmed.length > 0 ? trimmed : 'Untitled document'
 
     const previousState = get()
-    const previousDoc = previousState.docs.find((doc) => doc.key === key) || null
+    const previousDoc =
+      previousState.docs.find((doc) => doc.key === key) || null
     const previousTitle = previousDoc?.title ?? null
-    const previousUpdate = previousState.currentUpdate?.key === key
-      ? previousState.currentUpdate
-      : null
+    const previousUpdate =
+      previousState.currentUpdate?.key === key
+        ? previousState.currentUpdate
+        : null
 
     set((state) => {
       const nextDocs = state.docs.map((doc) =>
@@ -922,15 +926,14 @@ export const useDocStore = create<DocStore>((set, get) => ({
             : doc
         )
 
-        const currentUpdate =
-          previousUpdate
-            ? { ...previousUpdate }
-            : state.currentUpdate && state.currentUpdate.key === key
-                ? {
-                    ...state.currentUpdate,
-                    title: previousTitle ?? state.currentUpdate.title
-                  }
-                : state.currentUpdate
+        const currentUpdate = previousUpdate
+          ? { ...previousUpdate }
+          : state.currentUpdate && state.currentUpdate.key === key
+            ? {
+                ...state.currentUpdate,
+                title: previousTitle ?? state.currentUpdate.title
+              }
+            : state.currentUpdate
 
         return {
           ...state,

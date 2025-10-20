@@ -22,7 +22,8 @@
     "test": "brittle test/*.test.js",
     "schema:build": "node schema.js",
     "lint": "prettier --check . && lunte .",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "stage:dev": "npm run build && pear stage dev"
   },
   "imports": {
     "fs": {

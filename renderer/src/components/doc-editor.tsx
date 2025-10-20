@@ -224,9 +224,7 @@ export function DocEditor({
             type='button'
             className={cn(
               bubbleButtonClass,
-              editor.isActive('link')
-                ? bubbleActiveClass
-                : bubbleInactiveClass
+              editor.isActive('link') ? bubbleActiveClass : bubbleInactiveClass
             )}
             onClick={handleToggleLink}
           >
@@ -246,7 +244,9 @@ export function DocEditor({
       <Dialog open={linkDialogOpen} onOpenChange={setLinkDialogOpen}>
         <DialogContent className='max-w-sm'>
           <DialogHeader>
-            <DialogTitle>{editor?.isActive('link') ? 'Edit link' : 'Add link'}</DialogTitle>
+            <DialogTitle>
+              {editor?.isActive('link') ? 'Edit link' : 'Add link'}
+            </DialogTitle>
           </DialogHeader>
           <div className='space-y-4'>
             <Input
