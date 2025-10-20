@@ -373,3 +373,110 @@ test('DocWorker invite lifecycle', async (t) => {
   const afterRevoke = await worker.listInvites(key)
   t.is(afterRevoke.length, 0, 'invite list empty after revoke')
 })
+
+test('DocWorker surfaces revision conflicts with recovery info', async (t) => {
+  const { dir, cleanup } = await createTempDir('doc-worker-conflict')
+  t.teardown(cleanup)
+
+  const worker = new DocWorker({ baseDir: dir })
+  t.teardown(async () => {
+    await worker.close()
+  })
+
+  await worker.ready()
+
+  const { doc } = await worker.createDoc({ title: 'Conflict Doc' })
+  const context = await worker.manager.getDoc(doc.key)
+  t.ok(context, 'context retrieved')
+  if (!context) return
+
+  const payloadA = {
+    type: 'replace',
+    doc: {
+      type: 'doc',
+      content: [
+        {
+          type: 'paragraph',
+          content: [{ type: 'text', text: 'First edit' }]
+        }
+      ]
+    }
+  }
+
+  const payloadB = {
+    type: 'replace',
+    doc: {
+      type: 'doc',
+      content: [
+        {
+          type: 'paragraph',
+          content: [{ type: 'text', text: 'Conflicting edit' }]
+        }
+      ]
+    }
+  }
+
+  const originalGetLatestRevision = context.getLatestRevision.bind(context)
+  const revisionQueue = [0, 1]
+  context.getLatestRevision = async () =>
+    revisionQueue.length > 0 ? revisionQueue.shift() : 1
+
+  const originalViewGet = context.base.view.get.bind(context.base.view)
+  const existingRecord = {
+    baseRev: 0,
+    clientId: Buffer.from('b'.repeat(32)),
+    sessionId: Buffer.from('b'.repeat(32)),
+    data: Buffer.from(JSON.stringify(payloadB))
+  }
+  context.base.view.get = async (collection, query) => {
+    if (collection === '@bonk-docs/operations' && query?.rev === 1) {
+      return existingRecord
+    }
+    return await originalViewGet(collection, query)
+  }
+
+  const originalAppend = context.appendOperation.bind(context)
+  let firstCall = true
+  context.appendOperation = async function (...args) {
+    if (firstCall) {
+      firstCall = false
+      throw new Error('Conflicting operation revision 1: expected 2')
+    }
+    return args[0]
+  }
+
+  t.teardown(() => {
+    context.getLatestRevision = originalGetLatestRevision
+    context.base.view.get = originalViewGet
+    context.appendOperation = originalAppend
+  })
+
+  const timestamp = Date.now()
+  const result = await worker.applyOperations({
+    key: doc.key,
+    ops: [
+      {
+        rev: 1,
+        baseRev: 0,
+        clientId: 'a'.repeat(64),
+        sessionId: 'a'.repeat(64),
+        timestamp,
+        data: Buffer.from(JSON.stringify(payloadA))
+      }
+    ],
+    clientTime: timestamp
+  })
+
+  t.is(result.accepted, false, 'conflicting operation rejected')
+  t.is(result.reason, 'REVISION_CONFLICT')
+  t.is(result.revision, 1)
+  t.ok(result.conflict, 'conflict payload provided')
+  if (result.conflict) {
+    t.is(result.conflict.attemptedRevision, 1)
+    t.is(result.conflict.existingRevision, 1)
+    t.is(result.conflict.baseRevision, 0)
+    t.is(result.conflict.message.includes('Conflicting operation revision'), true)
+  }
+
+  await context.close?.()
+})

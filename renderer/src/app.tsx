@@ -5,6 +5,7 @@ import { Toaster } from '@/components/ui/sonner'
 import { DocEditor } from '@/components/doc-editor'
 import { DocInvitesDialog } from '@/components/doc-invites-dialog'
 import { DocJoinDialog } from '@/components/doc-join-dialog'
+import { DocConflictView } from '@/components/doc-conflict-view'
 import { EditorEmptyState } from '@/components/editor-empty-state'
 import { useDocStore } from './state/doc-store'
 import {
@@ -57,6 +58,13 @@ export function App() {
   const activeDoc = useDocState((state) => state.activeDoc)
   const currentUpdate = useDocState((state) => state.currentUpdate)
   const applySnapshot = useDocState((state) => state.applySnapshot)
+  const conflict = useDocState((state) =>
+    state.activeDoc ? state.conflicts[state.activeDoc] ?? null : null
+  )
+  const resyncDoc = useDocState((state) => state.resyncDoc)
+  const forkDocFromConflict = useDocState(
+    (state) => state.forkDocFromConflict
+  )
 
   useEffect(() => {
     void initialize()
@@ -74,7 +82,15 @@ export function App() {
 
         <SidebarInset className='h-dvh grid grid-cols-1 grid-rows-[auto_1fr]'>
           <DocsTitleBar />
-          {currentUpdate ? (
+          {conflict && activeDoc ? (
+            <DocConflictView
+              key={activeDoc}
+              docKey={activeDoc}
+              conflict={conflict}
+              onResync={() => resyncDoc(activeDoc!)}
+              onFork={() => forkDocFromConflict(activeDoc!)}
+            />
+          ) : currentUpdate ? (
             <>
               <DocEditor
                 snapshot={currentUpdate.snapshot}

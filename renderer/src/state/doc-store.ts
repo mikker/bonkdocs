@@ -106,6 +106,17 @@ type PendingOp = {
   delta: DeltaPayload
 }
 
+export type DocConflictState = {
+  message: string
+  baseRevision: number
+  attemptedRevision: number
+  existingRevision: number
+  expectedRevision: number
+  clientId?: string | null
+  sessionId?: string | null
+  timestamp?: number | null
+}
+
 export type DocPairStatus = {
   state: string
   message?: string | null
@@ -131,6 +142,7 @@ type DocStore = {
   invites: Record<string, DocInvite[]>
   invitesLoading: boolean
   invitesError: string | null
+  conflicts: Record<string, DocConflictState | null>
   initialize: () => Promise<void>
   refresh: () => Promise<void>
   selectDoc: (key: string | null) => Promise<void>
@@ -138,6 +150,8 @@ type DocStore = {
   joinDoc: (invite: string, options?: JoinDocOptions) => Promise<void>
   renameDoc: (key: string, title: string) => Promise<void>
   applySnapshot: (key: string, snapshot: DocSnapshot) => Promise<void>
+  resyncDoc: (key: string) => Promise<void>
+  forkDocFromConflict: (key: string) => Promise<void>
   loadInvites: (
     key: string,
     options?: { includeRevoked?: boolean }
@@ -150,6 +164,22 @@ type DocStore = {
     expiresAt?: number
   }) => Promise<{ invite: string; inviteId: string }>
   revokeDocInvite: (options: { inviteId: string }) => Promise<void>
+}
+
+async function waitForDocActivation(
+  key: string,
+  getState: () => DocStore,
+  timeout = 4000
+): Promise<DocUpdate> {
+  const startedAt = Date.now()
+  while (Date.now() - startedAt < timeout) {
+    const current = getState().currentUpdate
+    if (current && current.key === key) {
+      return current
+    }
+    await sleep(50)
+  }
+  throw new Error('Timed out waiting for document snapshot')
 }
 
 const textDecoder = new TextDecoder()
@@ -197,6 +227,83 @@ function isPlainObject(
   value: unknown
 ): value is Record<string | number | symbol, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+const DEFAULT_CONFLICT_MESSAGE = 'Sync conflict detected'
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms)
+  })
+}
+
+function toConflictState(
+  value: unknown,
+  fallback: DocConflictState
+): DocConflictState {
+  if (!isPlainObject(value)) {
+    return {
+      message: fallback.message,
+      baseRevision: fallback.baseRevision,
+      attemptedRevision: fallback.attemptedRevision,
+      existingRevision: fallback.existingRevision,
+      expectedRevision: fallback.expectedRevision,
+      clientId: fallback.clientId ?? null,
+      sessionId: fallback.sessionId ?? null,
+      timestamp: fallback.timestamp ?? null
+    }
+  }
+
+  const message =
+    typeof value.message === 'string' && value.message.length > 0
+      ? value.message
+      : fallback.message
+
+  const baseRevision =
+    typeof value.baseRevision === 'number'
+      ? value.baseRevision
+      : fallback.baseRevision
+
+  const attemptedRevision =
+    typeof value.attemptedRevision === 'number'
+      ? value.attemptedRevision
+      : fallback.attemptedRevision
+
+  const existingRevision =
+    typeof value.existingRevision === 'number'
+      ? value.existingRevision
+      : fallback.existingRevision
+
+  const expectedRevision =
+    typeof value.expectedRevision === 'number'
+      ? value.expectedRevision
+      : fallback.expectedRevision
+
+  const clientId =
+    typeof value.clientId === 'string' && value.clientId.length > 0
+      ? value.clientId
+      : fallback.clientId ?? null
+
+  const sessionId =
+    typeof value.sessionId === 'string' && value.sessionId.length > 0
+      ? value.sessionId
+      : fallback.sessionId ?? null
+
+  const timestamp =
+    typeof value.timestamp === 'number'
+      ? value.timestamp
+      : fallback.timestamp ?? null
+
+  return {
+    message,
+    baseRevision,
+    attemptedRevision,
+    existingRevision,
+    expectedRevision,
+    clientId,
+    sessionId,
+    timestamp
+  }
 }
 
 function sanitizeDocSnapshot(value: unknown): DocSnapshot {
@@ -604,6 +711,7 @@ export const useDocStore = create<DocStore>((set, get) => ({
   invites: {},
   invitesLoading: false,
   invitesError: null,
+  conflicts: {},
   initialize: async () => {
     if (get().loading) return
 
@@ -717,6 +825,10 @@ export const useDocStore = create<DocStore>((set, get) => ({
           pendingOps: {
             ...state.pendingOps,
             [key]: pending
+          },
+          conflicts: {
+            ...state.conflicts,
+            [key]: null
           }
         }
       })
@@ -725,6 +837,10 @@ export const useDocStore = create<DocStore>((set, get) => ({
         pendingOps: {
           ...state.pendingOps,
           [key]: []
+        },
+        conflicts: {
+          ...state.conflicts,
+          [key]: null
         }
       }))
     }
@@ -775,6 +891,10 @@ export const useDocStore = create<DocStore>((set, get) => ({
             pendingOps: {
               ...state.pendingOps,
               [update.key]: remaining
+            },
+            conflicts: {
+              ...state.conflicts,
+              [update.key]: null
             }
           }
         })
@@ -1141,21 +1261,64 @@ export const useDocStore = create<DocStore>((set, get) => ({
           ],
           clientTime: timestamp
         })
-        if (!result?.accepted) {
+        const resultPayload = isPlainObject(result) ? result : null
+        const accepted = resultPayload?.accepted === true
+        if (!accepted) {
           const reason =
-            (result && 'reason' in result && result.reason) || 'REJECTED'
+            typeof resultPayload?.reason === 'string'
+              ? resultPayload.reason
+              : 'REJECTED'
+
+          const existingRevision =
+            typeof resultPayload?.revision === 'number'
+              ? resultPayload.revision
+              : baseRevision
+
+          const expectedRevision =
+            typeof resultPayload?.expected === 'number'
+              ? resultPayload.expected
+              : existingRevision + 1
+
+          const conflictDetails =
+            reason === 'REVISION_CONFLICT'
+              ? toConflictState(resultPayload?.conflict, {
+                  message: DEFAULT_CONFLICT_MESSAGE,
+                  baseRevision,
+                  attemptedRevision: nextRevision,
+                  existingRevision,
+                  expectedRevision,
+                  clientId: null,
+                  sessionId: null,
+                  timestamp
+                })
+              : null
+
+          const errorMessage =
+            conflictDetails?.message ??
+            (typeof reason === 'string' ? reason : 'applyOps failed')
+
           set((prev) => {
             const existing = prev.pendingOps[key] ?? []
             const filtered = existing.filter((op) => op.rev !== nextRevision)
             return {
               ...prev,
-              error: typeof reason === 'string' ? reason : 'applyOps failed',
+              error: errorMessage,
               pendingOps: {
                 ...prev.pendingOps,
                 [key]: filtered
-              }
+              },
+              conflicts: conflictDetails
+                ? {
+                    ...prev.conflicts,
+                    [key]: conflictDetails
+                  }
+                : {
+                    ...prev.conflicts,
+                    [key]: null
+                  }
             }
           })
+
           clearDocState(key)
           clearApplyQueue(key)
           void get().selectDoc(key)
@@ -1170,6 +1333,10 @@ export const useDocStore = create<DocStore>((set, get) => ({
             pendingOps: {
               ...prev.pendingOps,
               [key]: filtered
+            },
+            conflicts: {
+              ...prev.conflicts,
+              [key]: null
             }
           }
         })
@@ -1190,6 +1357,10 @@ export const useDocStore = create<DocStore>((set, get) => ({
             pendingOps: {
               ...prev.pendingOps,
               [key]: filtered
+            },
+            conflicts: {
+              ...prev.conflicts,
+              [key]: null
             }
           }
         })
@@ -1200,6 +1371,89 @@ export const useDocStore = create<DocStore>((set, get) => ({
     }
 
     return await enqueueApplyTask(key, send)
+  },
+  resyncDoc: async (key) => {
+    if (!key) return
+
+    clearDocState(key)
+    clearApplyQueue(key)
+
+    set((state) => ({
+      conflicts: {
+        ...state.conflicts,
+        [key]: null
+      },
+      pendingOps: {
+        ...state.pendingOps,
+        [key]: []
+      },
+      error: null
+    }))
+
+    try {
+      await get().selectDoc(key)
+    } catch (error) {
+      set({
+        error: error instanceof Error ? error.message : String(error)
+      })
+      throw error
+    }
+  },
+  forkDocFromConflict: async (key) => {
+    if (!key) return
+
+    const state = get()
+    const current = state.currentUpdate
+    if (!current || current.key !== key) {
+      throw new Error('Open the document before forking')
+    }
+
+    const sourceSnapshot = sanitizeDocSnapshot(current.snapshot)
+    const sourceTitle =
+      typeof current.title === 'string' && current.title.length > 0
+        ? current.title
+        : 'Untitled document'
+    const forkTitle = `${sourceTitle} (Fork)`
+
+    clearDocState(key)
+    clearApplyQueue(key)
+
+    set((prev) => ({
+      conflicts: {
+        ...prev.conflicts,
+        [key]: null
+      },
+      pendingOps: {
+        ...prev.pendingOps,
+        [key]: []
+      }
+    }))
+
+    try {
+      const rpc = getRpc()
+      const response = await rpc.createDoc({ title: forkTitle })
+      const doc = response?.doc
+      if (!doc) {
+        throw new Error('Failed to create forked document')
+      }
+
+      set((prev) => ({
+        docs: [
+          doc,
+          ...prev.docs.filter((existing) => existing.key !== doc.key)
+        ],
+        error: null
+      }))
+
+      await get().selectDoc(doc.key)
+      await waitForDocActivation(doc.key, get)
+      await get().applySnapshot(doc.key, sourceSnapshot)
+    } catch (error) {
+      set({
+        error: error instanceof Error ? error.message : String(error)
+      })
+      throw error
+    }
   },
   loadInvites: async (key, options) => {
     if (!key) return []

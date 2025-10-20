@@ -14,7 +14,7 @@
 - Add `worker/doc-worker.js` apply/watch handlers that transform, commit, and acknowledge ops.
 - Stream snapshots + ops tail via watcher; hydrate renderer Zustand store with optimistic reconciliation.
 - Implement presence heartbeats and basic UI indicators (peer cursors optional).
-- Harden offline queue replay and conflict handling; add brittle coverage for OT convergence.
+- Harden offline queue replay and conflict handling (surface resync/fork UX backed by worker conflict hints); add brittle coverage for OT convergence.
 
 ## Phase 2 — Collaboration Polish
 

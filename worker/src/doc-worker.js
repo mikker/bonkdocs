@@ -370,6 +370,21 @@ export class DocWorker {
     const context = await this.manager.getDoc(request.key)
     if (!context) throw new Error('Doc not found')
 
+    if (!context._conflictListenerAttached) {
+      context.base.on('error', (error) => {
+        if (
+          error &&
+          typeof error.message === 'string' &&
+          error.message.startsWith('Conflicting operation revision')
+        ) {
+          return
+        }
+
+        context.emit('error', error)
+      })
+      context._conflictListenerAttached = true
+    }
+
     let currentRevision = await context.getLatestRevision()
     const accepted = []
     let latestDocJSON = null
@@ -457,14 +472,110 @@ export class DocWorker {
         ? rawOp.data
         : Buffer.from(rawOp.data)
 
-      await context.appendOperation({
-        rev: nextRevision,
-        baseRev,
-        clientId,
-        sessionId,
-        timestamp,
-        data: opBuffer
-      })
+      let duplicateAck = false
+
+      while (true) {
+        let latestBeforeAppend
+        try {
+          latestBeforeAppend = await context.getLatestRevision()
+        } catch {
+          latestBeforeAppend = currentRevision
+        }
+
+        if (latestBeforeAppend >= nextRevision) {
+          let existing = null
+          try {
+            existing = await context.base.view.get('@bonk-docs/operations', {
+              rev: nextRevision
+            })
+          } catch {}
+
+          if (existing) {
+            const existingClient = bufferToHex(existing.clientId)
+            const incomingClient = bufferToHex(clientId)
+            const sameClient = existingClient === incomingClient
+            const sameBase =
+              typeof existing.baseRev === 'number'
+                ? existing.baseRev === baseRev
+                : false
+            const existingData = Buffer.isBuffer(existing.data)
+              ? existing.data
+              : existing.data
+                ? Buffer.from(existing.data)
+                : Buffer.alloc(0)
+            const sameData = buffersEqual(existingData, opBuffer)
+
+            if (sameClient && sameBase && sameData) {
+              currentRevision = latestBeforeAppend
+              accepted.push({ rev: nextRevision })
+              duplicateAck = true
+              break
+            }
+          }
+
+          return {
+            accepted: accepted.length > 0,
+            applied: accepted.length,
+            revision: latestBeforeAppend,
+            reason: 'REVISION_CONFLICT',
+            conflict: {
+              message: `Conflicting operation revision ${nextRevision}: expected ${latestBeforeAppend + 1}`,
+              attemptedRevision: nextRevision,
+              baseRevision: baseRev,
+              existingRevision: latestBeforeAppend,
+              expectedRevision: latestBeforeAppend + 1,
+              clientId: bufferToHex(clientId),
+              sessionId: bufferToHex(sessionId),
+              timestamp
+            }
+          }
+        }
+
+        try {
+          await context.appendOperation({
+            rev: nextRevision,
+            baseRev,
+            clientId,
+            sessionId,
+            timestamp,
+            data: opBuffer
+          })
+          break
+        } catch (error) {
+          const err = error instanceof Error ? error : new Error(String(error))
+          const message = typeof err.message === 'string' ? err.message : ''
+
+          if (message.startsWith('Conflicting operation revision')) {
+            // re-evaluate with updated revision state
+            continue
+          }
+
+          if (message.startsWith('Invalid operation revision')) {
+            let latestRevision
+            try {
+              latestRevision = await context.getLatestRevision()
+            } catch {
+              latestRevision = currentRevision
+            }
+
+            return {
+              accepted: accepted.length > 0,
+              applied: accepted.length,
+              revision: latestRevision,
+              reason: 'REVISION_OUT_OF_ORDER',
+              expected: latestRevision + 1,
+              received: nextRevision,
+              message
+            }
+          }
+
+          throw err
+        }
+      }
+
+      if (duplicateAck) {
+        continue
+      }
 
       if (payload && payload.type === 'replace' && payload.doc) {
         const sanitized = sanitizeDocSnapshot(payload.doc)

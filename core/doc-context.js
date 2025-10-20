@@ -1,4 +1,5 @@
 import { Context } from 'autobonk'
+import b4a from 'b4a'
 import {
   DEFAULT_TITLE,
   METADATA_ID,
@@ -77,8 +78,6 @@ export class DocContext extends Context {
           throw new Error('operation-append requires data buffer')
         }
 
-        await this._assertNextOperationRevision(context.view, data.rev)
-
         const record = {
           rev: data.rev,
           baseRev: data.baseRev,
@@ -87,6 +86,13 @@ export class DocContext extends Context {
           timestamp: data.timestamp || Date.now(),
           data: data.data
         }
+
+        const shouldInsert = await this._assertNextOperationRevision(
+          context.view,
+          record
+        )
+
+        if (!shouldInsert) return
 
         await context.view.insert('@bonk-docs/operations', record)
       }
@@ -377,13 +383,45 @@ export class DocContext extends Context {
     )
   }
 
-  async _assertNextOperationRevision(view, rev) {
+  async _assertNextOperationRevision(view, record) {
     const latest = await getLatestEntry(view, '@bonk-docs/operations')
-    const expected = latest ? latest.rev + 1 : 1
-    if (rev !== expected) {
+    const latestRev = latest ? latest.rev : 0
+    const expected = latestRev + 1
+
+    if (record.rev === expected) return true
+
+    if (record.rev <= latestRev) {
+      const existing = await view.get('@bonk-docs/operations', {
+        rev: record.rev
+      })
+
+      if (existing && this._operationEquals(existing, record)) {
+        return false
+      }
+
       throw new Error(
-        `Invalid operation revision: expected ${expected}, got ${rev}`
+        `Conflicting operation revision ${record.rev}: expected ${expected}`
       )
     }
+
+    throw new Error(
+      `Invalid operation revision: expected ${expected}, got ${record.rev}`
+    )
+  }
+
+  _operationEquals(left = null, right = null) {
+    if (!left || !right) return false
+    if (left.rev !== right.rev) return false
+    if (left.baseRev !== right.baseRev) return false
+    if (left.clientId !== right.clientId) return false
+    if ((left.sessionId || null) !== (right.sessionId || null)) return false
+    if ((left.timestamp || null) !== (right.timestamp || null)) return false
+
+    const leftData = left.data
+    const rightData = right.data
+
+    if (!leftData || !rightData) return leftData === rightData
+
+    return b4a.equals(leftData, rightData)
   }
 }

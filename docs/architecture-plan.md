@@ -26,12 +26,14 @@
 ### Worker Layer (worker/)
 
 - `doc-worker.js`: HRPC handlers (`initialize`, `listDocs`, `createDoc`, `joinDoc`, `watchDoc`, `applyOp`, `updatePresence`, `issueInvite`, `revokeInvite`, `addComment` later).
+- Conflict guard: `doc-worker.js` now catches conflicting revisions, returning structured `REVISION_CONFLICT` payloads the renderer can use to drive resync or fork workflows.
 - `watchers/doc-watcher.js`: Emits consolidated doc snapshots (revision, optional snapshot blob, queued ops tail, presence, invites, permissions).
 - Local caches persist active doc metadata and pending ops to tolerate offline sessions.
 
 ### Renderer Layer (renderer/)
 
 - `state/doc-store.ts`: Zustand slices for docs list, active snapshot, pending ops, presence, comments, UI state (persisted via IndexedDB middleware).
+- `components/doc-conflict-view.tsx`: surfaces conflict recovery choices (retry vs fork) while `doc-store` coordinates resyncing the original doc or cloning the current snapshot into a fork.
 - `lib/editor-adapter.ts`: Bridges TipTap collaboration extension with OT queue, performs optimistic apply and reconciles server acknowledgements.
 - UI reflects Pear Jam layout patterns: doc list panel, share modal, TipTap editor surface, presence bar, comment drawer (Phase 2).
 
@@ -47,6 +49,7 @@
 - Pending ops queue persisted locally so edits made while disconnected replay once Autobonk regains writability.
 - Snapshot fallbacks ensure the editor can recover after crashes by rehydrating the last known document body plus tail ops.
 - Local metadata Hyperbee tables track joined docs, last-read rev, and invite cache for quick bootstrap.
+- Conflict recovery workflow offers users a guided choice between resyncing from the latest snapshot or forking their local state when divergent revisions are detected.
 
 ## Testing & Tooling
 
