@@ -63,20 +63,24 @@ export function DocInvitesDialog() {
   const createDocInvite = useDocStore((state) => state.createDocInvite)
   const revokeDocInvite = useDocStore((state) => state.revokeDocInvite)
   const capabilities = useDocStore((state) => state.currentUpdate?.capabilities)
+  const lockedAt = useDocStore((state) => state.currentUpdate?.lockedAt)
 
   const invites = useMemo(() => {
     if (!activeDoc) return undefined
     return invitesMap[activeDoc]
   }, [invitesMap, activeDoc])
 
-  const canManageInvites = capabilities?.canInvite === true
+  const isLocked = typeof lockedAt === 'number' && Number.isFinite(lockedAt)
+  const canManageInvites = capabilities?.canInvite === true && !isLocked
   const invitesReady = Array.isArray(invites)
   const inviteCount = invitesReady ? invites.length : 0
-  const badgeValue = canManageInvites
-    ? invitesReady
-      ? inviteCount.toString()
-      : '…'
-    : '–'
+  const badgeValue = isLocked
+    ? 'L'
+    : canManageInvites
+      ? invitesReady
+        ? inviteCount.toString()
+        : '…'
+      : '–'
 
   useEffect(() => {
     if (!open) {
@@ -119,6 +123,12 @@ export function DocInvitesDialog() {
     if (!activeDoc) {
       toast.error('Select a document first', {
         description: 'Choose a document and try again.'
+      })
+      return
+    }
+    if (isLocked) {
+      toast.error('Document locked', {
+        description: 'Unlock before creating new invites.'
       })
       return
     }
@@ -200,13 +210,15 @@ export function DocInvitesDialog() {
     }
   }
 
-  const statusMessage = !canManageInvites
-    ? 'You do not have permission to manage invites for this document.'
-    : invitesLoading
-      ? 'Loading invites…'
-      : inviteCount === 0
-        ? 'No invites yet. Create one to share this document.'
-        : `${inviteCount} active ${inviteCount === 1 ? 'invite' : 'invites'}.`
+  const statusMessage = isLocked
+    ? 'Invites are frozen because this document is locked.'
+    : !canManageInvites
+      ? 'You do not have permission to manage invites for this document.'
+      : invitesLoading
+        ? 'Loading invites…'
+        : inviteCount === 0
+          ? 'No invites yet. Create one to share this document.'
+          : `${inviteCount} active ${inviteCount === 1 ? 'invite' : 'invites'}.`
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -231,7 +243,9 @@ export function DocInvitesDialog() {
         </TooltipTrigger>
         {!canManageInvites ? (
           <TooltipContent>
-            Only document creators can manage invites.
+            {isLocked
+              ? 'Document is locked. Unlock before managing invites.'
+              : 'Only document creators can manage invites.'}
           </TooltipContent>
         ) : null}
       </Tooltip>
@@ -285,7 +299,7 @@ export function DocInvitesDialog() {
                     id='doc-invite-write'
                     checked={allowWrite}
                     onCheckedChange={(value) => setAllowWrite(value === true)}
-                    disabled={creating}
+                    disabled={creating || !canManageInvites}
                   />
                   <Label htmlFor='doc-invite-write'>Write access</Label>
                 </div>
@@ -294,7 +308,7 @@ export function DocInvitesDialog() {
                 <Button
                   type='submit'
                   size='sm'
-                  disabled={creating || !activeDoc}
+                  disabled={creating || !activeDoc || !canManageInvites}
                 >
                   {creating ? 'Creating…' : 'Create invite'}
                 </Button>

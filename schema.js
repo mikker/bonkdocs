@@ -27,7 +27,9 @@ docs.register({
     { name: 'createdAt', type: 'uint', required: true },
     { name: 'updatedAt', type: 'uint', required: false },
     { name: 'creatorKey', type: 'fixed32', required: false },
-    { name: 'rev', type: 'uint', required: true }
+    { name: 'rev', type: 'uint', required: true },
+    { name: 'lockedAt', type: 'uint', required: false },
+    { name: 'lockedBy', type: 'fixed32', required: false }
   ]
 })
 
@@ -92,7 +94,9 @@ local.register({
     { name: 'isCreator', type: 'bool', required: false },
     { name: 'title', type: 'string', required: false },
     { name: 'lastRevision', type: 'uint', required: false },
-    { name: 'lastOpenedAt', type: 'uint', required: false }
+    { name: 'lastOpenedAt', type: 'uint', required: false },
+    { name: 'lockedAt', type: 'uint', required: false },
+    { name: 'lockedBy', type: 'string', required: false }
   ]
 })
 
@@ -184,7 +188,9 @@ rpc.register({
       name: 'capabilities',
       type: '@bonk-docs-rpc/doc-capabilities',
       required: false
-    }
+    },
+    { name: 'lockedAt', type: 'uint', required: false },
+    { name: 'lockedBy', type: 'string', required: false }
   ]
 })
 
@@ -294,6 +300,23 @@ rpc.register({
     { name: 'key', type: 'string', required: true },
     { name: 'title', type: 'string', required: true },
     { name: 'updatedAt', type: 'uint', required: false },
+    { name: 'rev', type: 'uint', required: false }
+  ]
+})
+
+rpc.register({
+  name: 'lock-doc-request',
+  compact: false,
+  fields: [{ name: 'key', type: 'string', required: true }]
+})
+
+rpc.register({
+  name: 'lock-doc-response',
+  compact: false,
+  fields: [
+    { name: 'key', type: 'string', required: true },
+    { name: 'lockedAt', type: 'uint', required: true },
+    { name: 'lockedBy', type: 'string', required: true },
     { name: 'rev', type: 'uint', required: false }
   ]
 })
@@ -615,6 +638,12 @@ workerRpc.register({
   name: 'rename-doc',
   request: { name: '@bonk-docs-rpc/rename-doc-request' },
   response: { name: '@bonk-docs-rpc/rename-doc-response' }
+})
+
+workerRpc.register({
+  name: 'lock-doc',
+  request: { name: '@bonk-docs-rpc/lock-doc-request' },
+  response: { name: '@bonk-docs-rpc/lock-doc-response' }
 })
 
 HRPCBuilder.toDisk(hrpc)

@@ -1,5 +1,5 @@
 {
-  "version": 2,
+  "version": 3,
   "schema": [
     {
       "id": 0,
@@ -156,6 +156,17 @@
         "name": "@bonk-docs-rpc/rename-doc-response"
       },
       "version": 2
+    },
+    {
+      "id": 14,
+      "name": "@bonk-docs/lock-doc",
+      "request": {
+        "name": "@bonk-docs-rpc/lock-doc-request"
+      },
+      "response": {
+        "name": "@bonk-docs-rpc/lock-doc-response"
+      },
+      "version": 3
     }
   ]
 }

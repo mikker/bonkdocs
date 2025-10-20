@@ -96,6 +96,12 @@ export function createRpcServer(stream, worker) {
     })
   })
 
+  rpc.onLockDoc(async (request = {}) => {
+    console.log('[worker] lock-doc request', request?.key)
+    if (!request.key) throw new Error('Doc key is required to lock')
+    return await worker.lockDoc({ key: request.key })
+  })
+
   rpc.onJoinDoc(async (request = {}) => {
     console.log('[worker] join-doc request')
     return await worker.joinDoc({

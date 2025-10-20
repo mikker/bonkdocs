@@ -59,6 +59,8 @@ type RawDocUpdate = {
   ops?: unknown
   presence?: DocPresence[] | null
   capabilities?: DocCapabilities | null
+  lockedAt?: number | null
+  lockedBy?: string | null
   [key: string]: unknown
 }
 
@@ -71,6 +73,8 @@ type DocRecord = {
   title?: string | null
   lastRevision?: number | null
   lastOpenedAt?: number | null
+  lockedAt?: number | null
+  lockedBy?: string | null
 }
 
 type DocUpdate = {
@@ -85,6 +89,8 @@ type DocUpdate = {
   snapshotHash: string
   presence?: DocPresence[] | null
   capabilities?: DocCapabilities | null
+  lockedAt?: number | null
+  lockedBy?: string | null
 }
 
 type DocWatcher = {
@@ -145,12 +151,16 @@ type DocStore = {
   invitesError: string | null
   conflicts: Record<string, DocConflictState | null>
   creatingDoc: boolean
+  lockingDoc: boolean
+  abandoningDoc: boolean
   initialize: () => Promise<void>
   refresh: () => Promise<void>
   selectDoc: (key: string | null) => Promise<void>
   createDoc: (title?: string) => Promise<void>
   joinDoc: (invite: string, options?: JoinDocOptions) => Promise<void>
   renameDoc: (key: string, title: string) => Promise<void>
+  lockDoc: (key: string) => Promise<void>
+  abandonDoc: (key: string) => Promise<void>
   applySnapshot: (key: string, snapshot: DocSnapshot) => Promise<void>
   resyncDoc: (key: string) => Promise<void>
   forkDocFromConflict: (key: string) => Promise<void>
@@ -285,17 +295,17 @@ function toConflictState(
   const clientId =
     typeof value.clientId === 'string' && value.clientId.length > 0
       ? value.clientId
-      : fallback.clientId ?? null
+      : (fallback.clientId ?? null)
 
   const sessionId =
     typeof value.sessionId === 'string' && value.sessionId.length > 0
       ? value.sessionId
-      : fallback.sessionId ?? null
+      : (fallback.sessionId ?? null)
 
   const timestamp =
     typeof value.timestamp === 'number'
       ? value.timestamp
-      : fallback.timestamp ?? null
+      : (fallback.timestamp ?? null)
 
   return {
     message,
@@ -576,6 +586,45 @@ function normalizeDocUpdate(
         ? previous.capabilities
         : null
 
+  let lockedAt: number | null
+  if (typeof update.lockedAt === 'number' && Number.isFinite(update.lockedAt)) {
+    lockedAt = update.lockedAt
+  } else if (update.lockedAt === null) {
+    lockedAt = null
+  } else if (sameDoc && previous) {
+    lockedAt = previous.lockedAt ?? null
+  } else {
+    lockedAt = null
+  }
+  if (lockedAt !== null && lockedAt <= 0) {
+    lockedAt = null
+  }
+
+  let lockedBy: string | null
+  if (typeof update.lockedBy === 'string' && update.lockedBy.length > 0) {
+    lockedBy = update.lockedBy
+  } else if (update.lockedBy === null) {
+    lockedBy = null
+  } else if (sameDoc && previous) {
+    lockedBy = previous.lockedBy ?? null
+  } else {
+    lockedBy = null
+  }
+
+  if (lockedAt && !lockedBy) {
+    lockedBy = previous?.lockedBy ?? null
+  }
+
+  const effectiveCapabilities =
+    capabilities && lockedAt
+      ? {
+          ...capabilities,
+          canEdit: false,
+          canComment: false,
+          canInvite: false
+        }
+      : capabilities
+
   if (update.snapshot !== undefined && update.snapshot !== null) {
     const normalized = normalizeSnapshot(update.snapshot)
     snapshot = normalized.json
@@ -639,7 +688,9 @@ function normalizeDocUpdate(
     rawSnapshot,
     snapshotHash,
     presence,
-    capabilities
+    capabilities: effectiveCapabilities,
+    lockedAt,
+    lockedBy
   }
 }
 
@@ -689,6 +740,15 @@ function normalizePairStatus(value: unknown): DocPairStatus {
       lastOpenedAt:
         typeof candidate.lastOpenedAt === 'number'
           ? candidate.lastOpenedAt
+          : null,
+      lockedAt:
+        typeof candidate.lockedAt === 'number' &&
+        Number.isFinite(candidate.lockedAt)
+          ? candidate.lockedAt
+          : null,
+      lockedBy:
+        typeof candidate.lockedBy === 'string' && candidate.lockedBy.length > 0
+          ? candidate.lockedBy
           : null
     }
   }
@@ -716,6 +776,8 @@ export const useDocStore = create<DocStore>((set, get) => ({
   invitesError: null,
   conflicts: {},
   creatingDoc: false,
+  lockingDoc: false,
+  abandoningDoc: false,
   initialize: async () => {
     if (get().loading) return
 
@@ -796,13 +858,29 @@ export const useDocStore = create<DocStore>((set, get) => ({
 
       set((state) => {
         const existingDoc = state.docs.find((doc) => doc.key === key)
+        const lockedAt =
+          existingDoc?.lockedAt ?? state.currentUpdate?.lockedAt ?? null
+        const lockedBy =
+          existingDoc?.lockedBy ?? state.currentUpdate?.lockedBy ?? null
+        const capabilities = state.currentUpdate?.capabilities
+        const adjustedCapabilities =
+          capabilities && lockedAt
+            ? {
+                ...capabilities,
+                canEdit: false,
+                canComment: false,
+                canInvite: false
+              }
+            : capabilities
         const updatedDocs = state.docs.map((doc) =>
           doc.key === key
             ? {
                 ...doc,
                 title: cachedTitle ?? doc.title,
                 lastRevision: sinceRevision,
-                lastOpenedAt: cachedUpdatedAt
+                lastOpenedAt: cachedUpdatedAt,
+                lockedAt,
+                lockedBy
               }
             : doc
         )
@@ -824,7 +902,9 @@ export const useDocStore = create<DocStore>((set, get) => ({
             rawSnapshot: textEncoder.encode(fingerprint.text),
             snapshotHash: fingerprint.hash,
             presence: state.currentUpdate?.presence ?? null,
-            capabilities: state.currentUpdate?.capabilities ?? null
+            capabilities: adjustedCapabilities ?? null,
+            lockedAt,
+            lockedBy
           },
           pendingOps: {
             ...state.pendingOps,
@@ -888,7 +968,9 @@ export const useDocStore = create<DocStore>((set, get) => ({
                     ...doc,
                     title: update.title ?? doc.title,
                     lastRevision: update.revision,
-                    lastOpenedAt: update.updatedAt ?? Date.now()
+                    lastOpenedAt: update.updatedAt ?? Date.now(),
+                    lockedAt: update.lockedAt ?? null,
+                    lockedBy: update.lockedBy ?? null
                   }
                 : doc
             ),
@@ -1203,9 +1285,7 @@ export const useDocStore = create<DocStore>((set, get) => ({
             })
             .catch((error) => {
               const reason =
-                error instanceof Error
-                  ? error
-                  : new Error(String(error))
+                error instanceof Error ? error : new Error(String(error))
               fail(reason)
             })
         } else if (status.state === 'error') {
@@ -1234,6 +1314,120 @@ export const useDocStore = create<DocStore>((set, get) => ({
 
       refreshTimeout()
     })
+  },
+  lockDoc: async (key) => {
+    if (!key) return
+    if (get().lockingDoc) return
+
+    set({ lockingDoc: true })
+
+    try {
+      const rpc = getRpc()
+      const response = await rpc.lockDoc({ key })
+      const lockedAt =
+        typeof response?.lockedAt === 'number' &&
+        Number.isFinite(response.lockedAt)
+          ? response.lockedAt
+          : Date.now()
+      const lockedBy =
+        typeof response?.lockedBy === 'string' && response.lockedBy.length > 0
+          ? response.lockedBy
+          : null
+
+      set((state) => {
+        const docs = state.docs.map((doc) =>
+          doc.key === key
+            ? {
+                ...doc,
+                lockedAt,
+                lockedBy
+              }
+            : doc
+        )
+
+        const currentUpdate =
+          state.currentUpdate && state.currentUpdate.key === key
+            ? {
+                ...state.currentUpdate,
+                lockedAt,
+                lockedBy,
+                capabilities: state.currentUpdate.capabilities
+                  ? {
+                      ...state.currentUpdate.capabilities,
+                      canEdit: false,
+                      canComment: false,
+                      canInvite: false
+                    }
+                  : state.currentUpdate.capabilities
+              }
+            : state.currentUpdate
+
+        return {
+          ...state,
+          docs,
+          currentUpdate,
+          error: null
+        }
+      })
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Failed to lock document'
+      set({ error: message })
+      throw error instanceof Error ? error : new Error(message)
+    } finally {
+      set({ lockingDoc: false })
+    }
+  },
+  abandonDoc: async (key) => {
+    if (!key) return
+    if (get().abandoningDoc) return
+
+    set({ abandoningDoc: true })
+
+    try {
+      const wasActive = get().activeDoc === key
+      if (wasActive) {
+        await get().selectDoc(null)
+      }
+
+      const rpc = getRpc()
+      await rpc.removeDoc({ key })
+
+      set((state) => {
+        const docs = state.docs.filter((doc) => doc.key !== key)
+        const nextPending = { ...state.pendingOps }
+        delete nextPending[key]
+        const nextInvites = { ...state.invites }
+        delete nextInvites[key]
+        const nextConflicts = { ...state.conflicts }
+        delete nextConflicts[key]
+
+        return {
+          ...state,
+          docs,
+          activeDoc: state.activeDoc === key ? null : state.activeDoc,
+          watcher: state.activeDoc === key ? null : state.watcher,
+          currentUpdate:
+            state.currentUpdate && state.currentUpdate.key === key
+              ? null
+              : state.currentUpdate,
+          pendingOps: nextPending,
+          invites: nextInvites,
+          conflicts: nextConflicts,
+          error: null
+        }
+      })
+
+      clearDocState(key)
+      clearApplyQueue(key)
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Failed to abandon document'
+      set({ error: message })
+      throw error instanceof Error ? error : new Error(message)
+    } finally {
+      set({ abandoningDoc: false })
+    }
   },
   applySnapshot: async (key, snapshot) => {
     const state = get()

@@ -74,9 +74,7 @@ export function DocConflictView({
         </div>
       </div>
 
-      {error ? (
-        <p className='text-sm text-destructive'>{error}</p>
-      ) : null}
+      {error ? <p className='text-sm text-destructive'>{error}</p> : null}
 
       <div className='flex flex-wrap items-center justify-center gap-3'>
         <Button onClick={handleResync} disabled={resyncing || forking}>

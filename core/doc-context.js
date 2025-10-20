@@ -41,6 +41,14 @@ export class DocContext extends Context {
           createdAt: data.createdAt || Date.now(),
           updatedAt: data.updatedAt || Date.now(),
           creatorKey: data.creatorKey || context.writerKey,
+          lockedAt:
+            typeof data.lockedAt === 'number' && Number.isFinite(data.lockedAt)
+              ? data.lockedAt
+              : null,
+          lockedBy:
+            data.lockedBy && Buffer.isBuffer(data.lockedBy)
+              ? data.lockedBy
+              : null,
           rev: data.rev
         }
 
@@ -269,6 +277,52 @@ export class DocContext extends Context {
         patch.description === undefined
           ? existing.description || null
           : patch.description,
+      updatedAt: now,
+      rev: (existing.rev || 0) + 1
+    }
+
+    if (patch.lockedAt !== undefined) {
+      record.lockedAt = patch.lockedAt
+    }
+    if (patch.lockedBy !== undefined) {
+      record.lockedBy = patch.lockedBy
+    }
+
+    await this.base.append(
+      this.schema.dispatch.encode('@bonk-docs/metadata-upsert', record)
+    )
+
+    return record
+  }
+
+  async lockDoc(options = {}) {
+    await this.ensureDocRoles()
+    await this.requirePermission(this.writerKey, PERMISSIONS.DOC_EDIT)
+
+    const existing = await this.getMetadata()
+    if (!existing) {
+      throw new Error('Document metadata not found')
+    }
+
+    if (!this.writable) {
+      throw new Error('Cannot lock document from a read-only context')
+    }
+
+    if (existing.lockedAt && existing.lockedAt > 0) {
+      return existing
+    }
+
+    const now =
+      typeof options.lockedAt === 'number' ? options.lockedAt : Date.now()
+    const lockedBy =
+      options.lockedBy && Buffer.isBuffer(options.lockedBy)
+        ? options.lockedBy
+        : this.writerKey
+
+    const record = {
+      ...existing,
+      lockedAt: now,
+      lockedBy,
       updatedAt: now,
       rev: (existing.rev || 0) + 1
     }

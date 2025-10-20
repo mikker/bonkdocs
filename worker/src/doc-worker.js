@@ -318,6 +318,30 @@ export class DocWorker {
     }
   }
 
+  async lockDoc(request = {}) {
+    await this.ready()
+
+    if (!request.key) {
+      throw new Error('Doc key is required to lock')
+    }
+
+    const context = await this.manager.getDoc(request.key)
+    if (!context) {
+      throw new Error('Doc not found')
+    }
+
+    const metadata = await context.lockDoc({})
+
+    return {
+      key: request.key,
+      lockedAt: metadata?.lockedAt || Date.now(),
+      lockedBy: metadata?.lockedBy
+        ? bufferToHex(metadata.lockedBy)
+        : bufferToHex(context.writerKey),
+      rev: metadata?.rev || null
+    }
+  }
+
   async watchDoc(keyHex, options = {}, onUpdate) {
     await this.ready()
 
@@ -388,6 +412,15 @@ export class DocWorker {
 
     const context = await this.manager.getDoc(request.key)
     if (!context) throw new Error('Doc not found')
+
+    const metadata = await context.getMetadata()
+    if (
+      metadata &&
+      typeof metadata.lockedAt === 'number' &&
+      metadata.lockedAt > 0
+    ) {
+      throw new Error('Document is locked')
+    }
 
     if (!context._conflictListenerAttached) {
       context.base.on('error', (error) => {
@@ -932,6 +965,26 @@ export class DocWorker {
     const revision = await context.getLatestRevision()
     const presence = await this._listPresence(context)
     const roles = await this._listWriterRoles(context)
+    const lockedAt =
+      metadata && typeof metadata.lockedAt === 'number' && metadata.lockedAt > 0
+        ? metadata.lockedAt
+        : null
+    const lockedByHex =
+      metadata && metadata.lockedBy && lockedAt
+        ? bufferToHex(metadata.lockedBy)
+        : null
+    const canEditPermission = await context.hasPermission(
+      context.writerKey,
+      PERMISSIONS.DOC_EDIT
+    )
+    const canCommentPermission = await context.hasPermission(
+      context.writerKey,
+      PERMISSIONS.DOC_COMMENT
+    )
+    const canInvitePermission = await context.hasPermission(
+      context.writerKey,
+      PERMISSIONS.DOC_INVITE
+    )
     const sinceRevision =
       typeof options.sinceRevision === 'number' && options.sinceRevision >= 0
         ? options.sinceRevision
@@ -945,20 +998,13 @@ export class DocWorker {
       title: metadata?.title || DEFAULT_TITLE,
       presence,
       capabilities: {
-        canEdit: await context.hasPermission(
-          context.writerKey,
-          PERMISSIONS.DOC_EDIT
-        ),
-        canComment: await context.hasPermission(
-          context.writerKey,
-          PERMISSIONS.DOC_COMMENT
-        ),
-        canInvite: await context.hasPermission(
-          context.writerKey,
-          PERMISSIONS.DOC_INVITE
-        ),
+        canEdit: lockedAt ? false : canEditPermission,
+        canComment: lockedAt ? false : canCommentPermission,
+        canInvite: lockedAt ? false : canInvitePermission,
         roles
-      }
+      },
+      lockedAt,
+      lockedBy: lockedByHex
     }
 
     if (options.includeSnapshot === true) {
@@ -1019,6 +1065,20 @@ export class DocWorker {
   normalizeDocRecord(record = {}, metadata = null) {
     if (!record) return null
 
+    const lockedAt =
+      metadata && typeof metadata.lockedAt === 'number' && metadata.lockedAt > 0
+        ? metadata.lockedAt
+        : typeof record.lockedAt === 'number' && record.lockedAt > 0
+          ? record.lockedAt
+          : null
+
+    const lockedByBuffer =
+      metadata && metadata.lockedBy
+        ? metadata.lockedBy
+        : record.lockedBy && typeof record.lockedBy !== 'string'
+          ? record.lockedBy
+          : null
+
     const doc = {
       key: record.key,
       encryptionKey: record.encryptionKey,
@@ -1027,7 +1087,14 @@ export class DocWorker {
       isCreator: !!record.isCreator,
       title: metadata?.title || record.title || DEFAULT_TITLE,
       lastRevision: metadata?.rev || record.lastRevision || 0,
-      lastOpenedAt: record.lastOpenedAt || Date.now()
+      lastOpenedAt: record.lastOpenedAt || Date.now(),
+      lockedAt,
+      lockedBy:
+        lockedAt && lockedByBuffer
+          ? bufferToHex(lockedByBuffer)
+          : lockedAt && typeof record.lockedBy === 'string'
+            ? record.lockedBy
+            : null
     }
 
     return doc

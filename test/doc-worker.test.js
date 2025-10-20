@@ -475,7 +475,10 @@ test('DocWorker surfaces revision conflicts with recovery info', async (t) => {
     t.is(result.conflict.attemptedRevision, 1)
     t.is(result.conflict.existingRevision, 1)
     t.is(result.conflict.baseRevision, 0)
-    t.is(result.conflict.message.includes('Conflicting operation revision'), true)
+    t.is(
+      result.conflict.message.includes('Conflicting operation revision'),
+      true
+    )
   }
 
   await context.close?.()
