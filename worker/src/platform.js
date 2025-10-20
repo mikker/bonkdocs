@@ -1,31 +1,8 @@
-let pathModule
-let urlModule
-let eventsModule
-let fsPromises
-
-try {
-  pathModule = await import('bare-path')
-} catch {
-  pathModule = await import('path')
-}
-
-try {
-  urlModule = await import('bare-url')
-} catch {
-  urlModule = await import('url')
-}
-
-try {
-  eventsModule = await import('bare-events')
-} catch {
-  eventsModule = await import('events')
-}
-
-try {
-  fsPromises = await import('bare-fs/promises')
-} catch {
-  fsPromises = await import('fs/promises')
-}
+import * as pathModule from 'path'
+import * as urlModule from 'url'
+import * as eventsModule from 'events'
+import * as fsPromises from 'fs/promises'
+import * as osModule from 'os'
 
 const { dirname, join } = pathModule
 const { fileURLToPath } = urlModule
@@ -47,6 +24,32 @@ if (!rm && typeof fsPromises.rmdir === 'function') {
   }
 }
 
+const tmpdir =
+  osModule && typeof osModule.tmpdir === 'function'
+    ? () => osModule.tmpdir()
+    : () => '/tmp'
+
+const mkdtemp =
+  typeof fsPromises.mkdtemp === 'function'
+    ? async (prefix) => fsPromises.mkdtemp(prefix)
+    : async (prefix) => {
+        const base = prefix.endsWith('-') ? prefix : `${prefix}-`
+        const unique = `${Date.now()}-${Math.random().toString(16).slice(2)}`
+        const dir = `${base}${unique}`
+        await mkdir(dir, { recursive: true })
+        return dir
+      }
+
 const currentDirectory = typeof process !== 'undefined' ? process.cwd() : '/'
 
-export { dirname, join, fileURLToPath, once, mkdir, rm, currentDirectory }
+export {
+  dirname,
+  join,
+  fileURLToPath,
+  once,
+  mkdir,
+  mkdtemp,
+  tmpdir,
+  rm,
+  currentDirectory
+}

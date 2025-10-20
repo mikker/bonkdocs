@@ -19,21 +19,23 @@ root.render(
   </React.StrictMode>
 )
 
-// let reloading = false
+let reloading = false
 
-updates((update: { diff: Array<{ key: string }> }) => {
-  //   if (reloading) return
-  //
+updates(async (update: { diff: Array<{ key: string }> }) => {
+  if (reloading) return
+
+  // Only reload on client changes
   const paths = update.diff.map((entry: { key: string }) => entry.key)
-  //   if (paths.filter((path) => !path.match(/\/renderer\/src/)).length === 0)
-  //     return
-  //
-  //   reloading = true
-  //
-  //   // await teardownRpc()
-  //
+  console.log(paths)
+  if (paths.filter((path) => !path.match(/\/renderer\/src/)).length === 0)
+    return
+
+  reloading = true
+
+  // await teardownRpc()
+
   console.log('reloading due to update:', paths)
-  // Pear.refresh()
+  // Pear.reload()
 })
 //
 Pear.teardown(async () => {

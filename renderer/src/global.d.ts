@@ -1,7 +1,7 @@
 declare global {
   interface Window {
     Pear: {
-      refresh: () => void
+      reload: () => void
       teardown: (callback: () => void | Promise<void>) => void
       config: {
         [key: string]: any

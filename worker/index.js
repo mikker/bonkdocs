@@ -1,8 +1,9 @@
+import { join } from 'path'
+
 import FramedStream from 'framed-stream'
 import pearPipe from 'pear-pipe'
 import { DocWorker } from './src/doc-worker.js'
 import { createRpcServer } from './src/rpc-server.js'
-import { join, currentDirectory } from './src/platform.js'
 
 let workerInstance = null
 let rpcInstance = null
@@ -33,7 +34,11 @@ function resolveBaseDir() {
 
   if (pearStorage) return join(pearStorage, 'bonk-docs')
   if (envRoot) return join(envRoot, 'bonk-docs')
-  return join(currentDirectory, 'bonk-docs-data')
+  const cwd =
+    typeof process !== 'undefined' && typeof process.cwd === 'function'
+      ? process.cwd()
+      : '/'
+  return join(cwd, 'bonk-docs-data')
 }
 
 async function bootstrapWithPear() {

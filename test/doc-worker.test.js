@@ -1,15 +1,31 @@
+import { join } from 'path'
+import { tmpdir } from 'os'
+import * as fs from 'fs/promises'
+
 import test from 'brittle'
 import { DocManager } from '../core/doc-manager.js'
 import { DocWorker } from '../worker/src/doc-worker.js'
-import { join, mkdir, rm } from '../worker/src/platform.js'
 import { createDeltaPayload } from '../lib/snapshot-delta.js'
 
+const { mkdtemp } = fs
+const rm =
+  typeof fs.rm === 'function'
+    ? fs.rm
+    : async (target, opts = {}) => {
+        const recursive = opts.recursive ?? false
+        const force = opts.force ?? false
+        try {
+          await fs.rmdir(target, { recursive })
+        } catch (error) {
+          if (!force || (error && error.code !== 'ENOENT')) {
+            throw error
+          }
+        }
+      }
+
 async function createTempDir(prefix) {
-  const root = join(process.cwd(), 'test-tmp')
-  await mkdir(root, { recursive: true })
-  const unique = `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`
-  const dir = join(root, unique)
-  await mkdir(dir, { recursive: true })
+  const basePrefix = join(tmpdir(), `${prefix}-`)
+  const dir = await mkdtemp(basePrefix)
 
   const cleanup = async () => {
     if (typeof rm === 'function') {

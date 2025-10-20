@@ -1,4 +1,9 @@
+import { mkdir } from 'fs/promises'
+
 import { DocManager } from '../../core/doc-manager.js'
+import { ensurePear } from '../../lib/pear-env.js'
+
+ensurePear()
 import z32 from 'z32'
 import {
   DEFAULT_TITLE,
@@ -7,7 +12,6 @@ import {
   ROLE_EDITOR,
   ROLE_VIEWER
 } from '../../core/constants.js'
-import { mkdir } from './platform.js'
 import {
   decodeDeltaPayload,
   applyDeltaSteps,
