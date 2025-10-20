@@ -18,6 +18,19 @@ import Bonk from './illus-bonk'
 export function EditorEmptyState() {
   const [joinDialogOpen, setJoinDialogOpen] = useState(false)
   const createDoc = useDocStore((state) => state.createDoc)
+  const creatingDoc = useDocStore((state) => state.creatingDoc)
+
+  const handleCreateDoc = async () => {
+    if (creatingDoc) return
+
+    try {
+      await createDoc('Untitled')
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Failed to create document'
+      toast.error('Create doc failed', { description: message })
+    }
+  }
 
   return (
     <div className='flex items-center justify-center h-full p-8'>
@@ -34,9 +47,14 @@ export function EditorEmptyState() {
         </div>
 
         <div className='flex gap-3'>
-          <Button onClick={() => void createDoc('Untitled')} size='lg'>
+          <Button
+            onClick={() => void handleCreateDoc()}
+            size='lg'
+            disabled={creatingDoc}
+            aria-busy={creatingDoc}
+          >
             <FilePlus2 />
-            Create doc
+            {creatingDoc ? 'Creating…' : 'Create doc'}
           </Button>
           <Button
             variant='outline'

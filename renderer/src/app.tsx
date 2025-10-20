@@ -48,6 +48,7 @@ import {
   DialogTitle
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import { toast } from 'sonner'
 
 function useDocState<T>(
   selector: (state: ReturnType<typeof useDocStore.getState>) => T
@@ -266,6 +267,19 @@ function DocsSidebar({ ...props }) {
   const loading = useDocState((state) => state.loading)
   const selectDoc = useDocState((state) => state.selectDoc)
   const createDoc = useDocState((state) => state.createDoc)
+  const creatingDoc = useDocState((state) => state.creatingDoc)
+
+  const handleCreateDoc = async () => {
+    if (creatingDoc) return
+
+    try {
+      await createDoc('Untitled')
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Failed to create document'
+      toast.error('Create doc failed', { description: message })
+    }
+  }
 
   return (
     <Sidebar {...props}>
@@ -276,7 +290,9 @@ function DocsSidebar({ ...props }) {
             <Button
               size='icon-sm'
               variant='outline'
-              onClick={() => void createDoc('Untitled')}
+              onClick={() => void handleCreateDoc()}
+              disabled={creatingDoc}
+              aria-busy={creatingDoc}
             >
               <FilePlus2 />
             </Button>

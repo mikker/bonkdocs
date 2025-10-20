@@ -127,6 +127,7 @@ export type DocPairStatus = {
 type JoinDocOptions = {
   onStatus?: (status: DocPairStatus) => void
   signal?: AbortSignal
+  timeoutMs?: number
 }
 
 type DocStore = {
@@ -143,6 +144,7 @@ type DocStore = {
   invitesLoading: boolean
   invitesError: string | null
   conflicts: Record<string, DocConflictState | null>
+  creatingDoc: boolean
   initialize: () => Promise<void>
   refresh: () => Promise<void>
   selectDoc: (key: string | null) => Promise<void>
@@ -217,6 +219,7 @@ function clearApplyQueue(key: string | null | undefined) {
 }
 
 const DOC_VIEWER_ROLE = 'doc-viewer'
+const DEFAULT_JOIN_TIMEOUT = 15000
 
 const EMPTY_SNAPSHOT: DocSnapshot = {
   type: 'doc',
@@ -712,6 +715,7 @@ export const useDocStore = create<DocStore>((set, get) => ({
   invitesLoading: false,
   invitesError: null,
   conflicts: {},
+  creatingDoc: false,
   initialize: async () => {
     if (get().loading) return
 
@@ -922,21 +926,35 @@ export const useDocStore = create<DocStore>((set, get) => ({
     }
   },
   createDoc: async (title) => {
+    if (get().creatingDoc) return
+
+    set({ creatingDoc: true })
+
     try {
       const rpc = getRpc()
       const response = await rpc.createDoc({ title: title || null })
       const doc = response?.doc
-      if (doc) {
-        set((state) => ({
-          docs: [
-            doc,
-            ...state.docs.filter((existing) => existing.key !== doc.key)
-          ]
-        }))
-        await get().selectDoc(doc.key)
+      if (!doc) {
+        throw new Error('Create doc response missing document')
       }
+
+      set((state) => ({
+        docs: [
+          doc,
+          ...state.docs.filter((existing) => existing.key !== doc.key)
+        ],
+        error: null
+      }))
+
+      await get().selectDoc(doc.key)
     } catch (error) {
-      set({ error: error instanceof Error ? error.message : String(error) })
+      const message =
+        error instanceof Error ? error.message : 'Failed to create document'
+
+      set({ error: message })
+      throw error instanceof Error ? error : new Error(message)
+    } finally {
+      set({ creatingDoc: false })
     }
   },
   renameDoc: async (key, title) => {
@@ -1083,12 +1101,24 @@ export const useDocStore = create<DocStore>((set, get) => ({
 
     const onStatus = options?.onStatus
     const signal = options?.signal
+    const timeoutMs = Math.max(1000, options?.timeoutMs ?? DEFAULT_JOIN_TIMEOUT)
     const rpc = getRpc()
     const stream = rpc.pairInvite({ invite: trimmed })
 
     return await new Promise<void>((resolve, reject) => {
       let resolved = false
+      let finished = false
+      let timeoutId: ReturnType<typeof setTimeout> | null = null
+
+      const clearJoinTimeout = () => {
+        if (timeoutId != null) {
+          clearTimeout(timeoutId)
+          timeoutId = null
+        }
+      }
+
       const cleanup = () => {
+        clearJoinTimeout()
         if (signal) {
           signal.removeEventListener('abort', handleAbort)
         }
@@ -1104,9 +1134,36 @@ export const useDocStore = create<DocStore>((set, get) => ({
         }
       }
 
-      const handleAbort = () => {
+      const succeed = () => {
+        if (finished) return
+        finished = true
+        resolved = true
         cleanup()
-        reject(new Error('Join cancelled'))
+        resolve()
+      }
+
+      const fail = (reason: Error) => {
+        if (finished) return
+        finished = true
+        cleanup()
+        reject(reason)
+      }
+
+      const handleAbort = () => {
+        fail(new Error('Join cancelled'))
+      }
+
+      const handleTimeout = () => {
+        if (resolved || finished) return
+        const error = new Error('Timed out waiting for peers')
+        set({ error: error.message })
+        fail(error)
+      }
+
+      const refreshTimeout = () => {
+        if (timeoutMs <= 0 || finished) return
+        clearJoinTimeout()
+        timeoutId = setTimeout(handleTimeout, timeoutMs)
       }
 
       if (signal) {
@@ -1118,6 +1175,7 @@ export const useDocStore = create<DocStore>((set, get) => ({
       }
 
       const handleStatus = (payload: unknown) => {
+        refreshTimeout()
         const status = normalizePairStatus(payload)
         if (onStatus) {
           onStatus(status)
@@ -1126,8 +1184,7 @@ export const useDocStore = create<DocStore>((set, get) => ({
         if (status.state === 'joined') {
           const doc = status.doc
           if (!doc) {
-            cleanup()
-            reject(new Error('Join response missing document'))
+            fail(new Error('Join response missing document'))
             return
           }
 
@@ -1142,13 +1199,14 @@ export const useDocStore = create<DocStore>((set, get) => ({
           Promise.resolve()
             .then(() => get().selectDoc(doc.key))
             .then(() => {
-              resolved = true
-              cleanup()
-              resolve()
+              succeed()
             })
             .catch((error) => {
-              cleanup()
-              reject(error)
+              const reason =
+                error instanceof Error
+                  ? error
+                  : new Error(String(error))
+              fail(reason)
             })
         } else if (status.state === 'error') {
           const message =
@@ -1156,26 +1214,25 @@ export const useDocStore = create<DocStore>((set, get) => ({
               ? status.message
               : 'Failed to join document'
           set({ error: message })
-          cleanup()
-          reject(new Error(message))
+          fail(new Error(message))
         }
       }
 
       const handleError = (error: Error) => {
-        if (resolved) return
-        cleanup()
-        reject(error)
+        if (resolved || finished) return
+        fail(error)
       }
 
       const handleClose = () => {
-        if (resolved) return
-        cleanup()
-        reject(new Error('Join cancelled'))
+        if (resolved || finished) return
+        fail(new Error('Join cancelled'))
       }
 
       stream.on('data', handleStatus)
       stream.on('error', handleError)
       stream.on('close', handleClose)
+
+      refreshTimeout()
     })
   },
   applySnapshot: async (key, snapshot) => {
