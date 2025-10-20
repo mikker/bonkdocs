@@ -7,6 +7,7 @@ import { DocInvitesDialog } from '@/components/doc-invites-dialog'
 import { DocJoinDialog } from '@/components/doc-join-dialog'
 import { DocConflictView } from '@/components/doc-conflict-view'
 import { EditorEmptyState } from '@/components/editor-empty-state'
+import { EditorLoadingState } from '@/components/editor-loading-state'
 import { useDocStore } from './state/doc-store'
 import {
   Sidebar,
@@ -19,6 +20,7 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSkeleton,
   SidebarProvider,
   SidebarRail,
   SidebarTrigger,
@@ -57,6 +59,7 @@ export function App() {
   const initialize = useDocState((state) => state.initialize)
   const activeDoc = useDocState((state) => state.activeDoc)
   const currentUpdate = useDocState((state) => state.currentUpdate)
+  const loading = useDocState((state) => state.loading)
   const applySnapshot = useDocState((state) => state.applySnapshot)
   const conflict = useDocState((state) =>
     state.activeDoc ? state.conflicts[state.activeDoc] ?? null : null
@@ -100,6 +103,8 @@ export function App() {
                 }
               />
             </>
+          ) : loading ? (
+            <EditorLoadingState />
           ) : activeDoc ? (
             <StatusMessage>Waiting for snapshot…</StatusMessage>
           ) : (
@@ -258,6 +263,7 @@ function DocsTitleBar() {
 function DocsSidebar({ ...props }) {
   const activeDoc = useDocState((state) => state.activeDoc)
   const docs = useDocState((state) => state.docs)
+  const loading = useDocState((state) => state.loading)
   const selectDoc = useDocState((state) => state.selectDoc)
   const createDoc = useDocState((state) => state.createDoc)
 
@@ -296,7 +302,20 @@ function DocsSidebar({ ...props }) {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
-              {docs.length === 0 && (
+              {loading && docs.length === 0 && (
+                <>
+                  <SidebarMenuItem>
+                    <SidebarMenuSkeleton />
+                  </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <SidebarMenuSkeleton />
+                  </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <SidebarMenuSkeleton />
+                  </SidebarMenuItem>
+                </>
+              )}
+              {!loading && docs.length === 0 && (
                 <SidebarMenuItem className='text-muted-foreground italic'>
                   <SidebarMenuButton disabled>No docs yet</SidebarMenuButton>
                 </SidebarMenuItem>
