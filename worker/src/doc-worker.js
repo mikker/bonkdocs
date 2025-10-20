@@ -158,6 +158,17 @@ function decodeOperationPayload(data) {
   }
 }
 
+function isCoreClosingError(error) {
+  if (!error) return false
+  if (error.code === 'SESSION_CLOSED') return true
+  const message = typeof error.message === 'string' ? error.message : ''
+  return (
+    message.includes('Autobase is closing') ||
+    message.includes('core is closing') ||
+    message.includes('closing core')
+  )
+}
+
 export class DocWorker {
   constructor(options = {}) {
     this.baseDir = options.baseDir
@@ -341,6 +352,14 @@ export class DocWorker {
       Promise.resolve()
         .then(sendUpdate)
         .catch((error) => {
+          if (isCoreClosingError(error)) {
+            watcherEntry.closed = true
+            set.delete(watcherEntry)
+            try {
+              watcherEntry.unsubscribe?.()
+            } catch {}
+            return
+          }
           console.warn('[doc-worker] failed to emit doc update', error)
         })
 
