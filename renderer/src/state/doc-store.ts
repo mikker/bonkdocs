@@ -21,16 +21,6 @@ type DocSnapshot = {
   [key: string]: unknown
 }
 
-type DocPresence = {
-  id?: string | null
-  writerKey?: string | null
-  sessionId?: string | null
-  displayName?: string | null
-  color?: string | null
-  updatedAt?: number | null
-  payload?: unknown
-}
-
 type DocCapabilities = {
   canEdit?: boolean
   canComment?: boolean
@@ -57,7 +47,6 @@ type RawDocUpdate = {
   title?: string | null
   snapshot?: unknown
   ops?: unknown
-  presence?: DocPresence[] | null
   capabilities?: DocCapabilities | null
   lockedAt?: number | null
   lockedBy?: string | null
@@ -87,7 +76,6 @@ type DocUpdate = {
   snapshotText: string
   rawSnapshot: Uint8Array | null
   snapshotHash: string
-  presence?: DocPresence[] | null
   capabilities?: DocCapabilities | null
   lockedAt?: number | null
   lockedBy?: string | null
@@ -573,12 +561,6 @@ function normalizeDocUpdate(
     rawSnapshot = textEncoder.encode(snapshotText)
   }
 
-  const presence = Array.isArray(update.presence)
-    ? update.presence.map((entry) => ({ ...entry }))
-    : sameDoc && previous?.presence
-      ? previous.presence
-      : null
-
   const capabilities =
     update.capabilities && typeof update.capabilities === 'object'
       ? { ...update.capabilities }
@@ -687,7 +669,6 @@ function normalizeDocUpdate(
     snapshotText,
     rawSnapshot,
     snapshotHash,
-    presence,
     capabilities: effectiveCapabilities,
     lockedAt,
     lockedBy
@@ -901,7 +882,6 @@ export const useDocStore = create<DocStore>((set, get) => ({
             snapshotText: fingerprint.text,
             rawSnapshot: textEncoder.encode(fingerprint.text),
             snapshotHash: fingerprint.hash,
-            presence: state.currentUpdate?.presence ?? null,
             capabilities: adjustedCapabilities ?? null,
             lockedAt,
             lockedBy

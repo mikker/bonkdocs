@@ -19,6 +19,7 @@ const EMPTY_DOCUMENT = {
 }
 
 interface DocEditorProps {
+  docKey: string
   snapshot?: any
   className?: string
   readOnly?: boolean
@@ -26,6 +27,7 @@ interface DocEditorProps {
 }
 
 export function DocEditor({
+  docKey,
   snapshot,
   className,
   readOnly = true,
@@ -34,6 +36,7 @@ export function DocEditor({
   const applyRef = useRef(false)
   const [linkDialogOpen, setLinkDialogOpen] = useState(false)
   const [linkValue, setLinkValue] = useState('')
+  const prevReadOnlyRef = useRef(readOnly)
 
   const editor = useEditor({
     extensions: [
@@ -66,18 +69,16 @@ export function DocEditor({
     }
   })
 
-  const bubbleButtonClass = 'px-2 py-1 text-sm rounded-md transition-colors'
-
-  const bubbleActiveClass = 'bg-foreground text-background'
-  const bubbleInactiveClass =
-    'bg-popover text-foreground hover:bg-muted hover:text-foreground'
-
-  const handleToggleLink = () => {
+  useEffect(() => {
     if (!editor) return
-    const previous = editor.getAttributes('link')?.href || ''
-    setLinkValue(previous)
-    setLinkDialogOpen(true)
-  }
+    editor.setEditable(!readOnly)
+  }, [editor, readOnly])
+
+  useEffect(() => {
+    if (readOnly && linkDialogOpen) {
+      setLinkDialogOpen(false)
+    }
+  }, [readOnly, linkDialogOpen])
 
   useEffect(() => {
     if (!editor) return
@@ -131,10 +132,20 @@ export function DocEditor({
   }, [editor, snapshot, readOnly])
 
   useEffect(() => {
-    if (readOnly && linkDialogOpen) {
-      setLinkDialogOpen(false)
+    const previous = prevReadOnlyRef.current
+    prevReadOnlyRef.current = readOnly
+    if (!editor) return
+    if (readOnly && previous === false) {
+      editor.commands.blur()
     }
-  }, [readOnly, linkDialogOpen])
+  }, [readOnly, editor])
+
+  const handleToggleLink = () => {
+    if (!editor) return
+    const previous = editor.getAttributes('link')?.href || ''
+    setLinkValue(previous)
+    setLinkDialogOpen(true)
+  }
 
   const handleLinkSubmit = () => {
     if (!editor) return
@@ -165,7 +176,6 @@ export function DocEditor({
       {editor && !readOnly ? (
         <BubbleMenu
           editor={editor}
-          tippyOptions={{ duration: 150, zIndex: 2000 }}
           shouldShow={({ editor }) =>
             !readOnly &&
             !editor.isDestroyed &&
@@ -177,8 +187,10 @@ export function DocEditor({
           <button
             type='button'
             className={cn(
-              bubbleButtonClass,
-              editor.isActive('bold') ? bubbleActiveClass : bubbleInactiveClass
+              'px-2 py-1 text-sm rounded-md transition-colors',
+              editor.isActive('bold')
+                ? 'bg-foreground text-background'
+                : 'bg-popover text-foreground hover:bg-muted hover:text-foreground'
             )}
             onClick={() => editor.chain().focus().toggleBold().run()}
           >
@@ -187,10 +199,10 @@ export function DocEditor({
           <button
             type='button'
             className={cn(
-              bubbleButtonClass,
+              'px-2 py-1 text-sm rounded-md transition-colors',
               editor.isActive('italic')
-                ? bubbleActiveClass
-                : bubbleInactiveClass
+                ? 'bg-foreground text-background'
+                : 'bg-popover text-foreground hover:bg-muted hover:text-foreground'
             )}
             onClick={() => editor.chain().focus().toggleItalic().run()}
           >
@@ -199,22 +211,22 @@ export function DocEditor({
           <button
             type='button'
             className={cn(
-              bubbleButtonClass,
+              'px-2 py-1 text-sm rounded-md transition-colors',
               editor.isActive('underline')
-                ? bubbleActiveClass
-                : bubbleInactiveClass
+                ? 'bg-foreground text-background'
+                : 'bg-popover text-foreground hover:bg-muted hover:text-foreground'
             )}
-            onClick={() => editor.chain().focus().toggleUnderline().run()}
+            onClick={() => editor.chain().focus().toggleUnderline?.().run?.()}
           >
             U
           </button>
           <button
             type='button'
             className={cn(
-              bubbleButtonClass,
+              'px-2 py-1 text-sm rounded-md transition-colors',
               editor.isActive('strike')
-                ? bubbleActiveClass
-                : bubbleInactiveClass
+                ? 'bg-foreground text-background'
+                : 'bg-popover text-foreground hover:bg-muted hover:text-foreground'
             )}
             onClick={() => editor.chain().focus().toggleStrike().run()}
           >
@@ -223,8 +235,10 @@ export function DocEditor({
           <button
             type='button'
             className={cn(
-              bubbleButtonClass,
-              editor.isActive('link') ? bubbleActiveClass : bubbleInactiveClass
+              'px-2 py-1 text-sm rounded-md transition-colors',
+              editor.isActive('link')
+                ? 'bg-foreground text-background'
+                : 'bg-popover text-foreground hover:bg-muted hover:text-foreground'
             )}
             onClick={handleToggleLink}
           >
@@ -233,13 +247,7 @@ export function DocEditor({
         </BubbleMenu>
       ) : null}
 
-      <EditorContent
-        editor={editor}
-        className={cn(
-          'tiptap h-full *:h-full overflow-hidden [&>[class*=ProseMirror]]:overflow-auto',
-          readOnly && 'pointer-events-none'
-        )}
-      />
+      <EditorContent editor={editor} className='h-full' data-doc-key={docKey} />
 
       <Dialog open={linkDialogOpen} onOpenChange={setLinkDialogOpen}>
         <DialogContent className='max-w-sm'>
@@ -250,29 +258,11 @@ export function DocEditor({
           </DialogHeader>
           <div className='space-y-4'>
             <Input
-              autoFocus
-              placeholder='https://example.com'
               value={linkValue}
               onChange={(event) => setLinkValue(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter') {
-                  event.preventDefault()
-                  handleLinkSubmit()
-                }
-              }}
+              placeholder='https://example.com'
             />
-          </div>
-          <DialogFooter className='flex items-center justify-between'>
-            <Button
-              type='button'
-              variant='ghost'
-              size='sm'
-              onClick={handleLinkRemove}
-              disabled={!editor?.isActive('link')}
-            >
-              Remove link
-            </Button>
-            <div className='flex gap-2'>
+            <DialogFooter className='gap-2 flex justify-end'>
               <Button
                 type='button'
                 variant='outline'
@@ -281,11 +271,14 @@ export function DocEditor({
               >
                 Cancel
               </Button>
+              <Button type='button' size='sm' onClick={handleLinkRemove}>
+                Remove
+              </Button>
               <Button type='button' size='sm' onClick={handleLinkSubmit}>
                 Apply
               </Button>
-            </div>
-          </DialogFooter>
+            </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

@@ -1,5 +1,5 @@
 {
-  "version": 3,
+  "version": 1,
   "schema": [
     {
       "name": "writer",
@@ -249,18 +249,6 @@
           "required": true,
           "type": "uint",
           "version": 1
-        },
-        {
-          "name": "lockedAt",
-          "required": false,
-          "type": "uint",
-          "version": 3
-        },
-        {
-          "name": "lockedBy",
-          "required": false,
-          "type": "fixed32",
-          "version": 3
         }
       ]
     },
@@ -347,76 +335,6 @@
       ]
     },
     {
-      "name": "presence",
-      "namespace": "bonk-docs",
-      "compact": false,
-      "flagsPosition": 3,
-      "fields": [
-        {
-          "name": "id",
-          "required": true,
-          "type": "string",
-          "version": 1
-        },
-        {
-          "name": "writerKey",
-          "required": true,
-          "type": "fixed32",
-          "version": 1
-        },
-        {
-          "name": "sessionId",
-          "required": true,
-          "type": "fixed32",
-          "version": 1
-        },
-        {
-          "name": "displayName",
-          "required": false,
-          "type": "string",
-          "version": 1
-        },
-        {
-          "name": "color",
-          "required": false,
-          "type": "string",
-          "version": 1
-        },
-        {
-          "name": "updatedAt",
-          "required": true,
-          "type": "uint",
-          "version": 1
-        },
-        {
-          "name": "payload",
-          "required": false,
-          "type": "buffer",
-          "version": 1
-        }
-      ]
-    },
-    {
-      "name": "presence-remove",
-      "namespace": "bonk-docs",
-      "compact": false,
-      "flagsPosition": -1,
-      "fields": [
-        {
-          "name": "id",
-          "required": true,
-          "type": "string",
-          "version": 1
-        },
-        {
-          "name": "removedAt",
-          "required": true,
-          "type": "uint",
-          "version": 1
-        }
-      ]
-    },
-    {
       "name": "doc",
       "namespace": "local",
       "compact": false,
@@ -469,18 +387,6 @@
           "required": false,
           "type": "uint",
           "version": 1
-        },
-        {
-          "name": "lockedAt",
-          "required": false,
-          "type": "uint",
-          "version": 3
-        },
-        {
-          "name": "lockedBy",
-          "required": false,
-          "type": "string",
-          "version": 3
         }
       ]
     },
@@ -571,56 +477,6 @@
           "required": false,
           "array": true,
           "type": "string",
-          "version": 1
-        }
-      ]
-    },
-    {
-      "name": "doc-presence",
-      "namespace": "bonk-docs-rpc",
-      "compact": false,
-      "flagsPosition": 3,
-      "fields": [
-        {
-          "name": "id",
-          "required": true,
-          "type": "string",
-          "version": 1
-        },
-        {
-          "name": "writerKey",
-          "required": true,
-          "type": "string",
-          "version": 1
-        },
-        {
-          "name": "sessionId",
-          "required": true,
-          "type": "string",
-          "version": 1
-        },
-        {
-          "name": "displayName",
-          "required": false,
-          "type": "string",
-          "version": 1
-        },
-        {
-          "name": "color",
-          "required": false,
-          "type": "string",
-          "version": 1
-        },
-        {
-          "name": "updatedAt",
-          "required": true,
-          "type": "uint",
-          "version": 1
-        },
-        {
-          "name": "payload",
-          "required": false,
-          "type": "buffer",
           "version": 1
         }
       ]
@@ -725,29 +581,10 @@
           "version": 1
         },
         {
-          "name": "presence",
-          "required": false,
-          "array": true,
-          "type": "@bonk-docs-rpc/doc-presence",
-          "version": 1
-        },
-        {
           "name": "capabilities",
           "required": false,
           "type": "@bonk-docs-rpc/doc-capabilities",
           "version": 1
-        },
-        {
-          "name": "lockedAt",
-          "required": false,
-          "type": "uint",
-          "version": 3
-        },
-        {
-          "name": "lockedBy",
-          "required": false,
-          "type": "string",
-          "version": 3
         }
       ]
     },
@@ -976,6 +813,58 @@
           "name": "removed",
           "required": false,
           "type": "bool",
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "rename-doc-request",
+      "namespace": "bonk-docs-rpc",
+      "compact": false,
+      "flagsPosition": 1,
+      "fields": [
+        {
+          "name": "key",
+          "required": true,
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "title",
+          "required": false,
+          "type": "string",
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "rename-doc-response",
+      "namespace": "bonk-docs-rpc",
+      "compact": false,
+      "flagsPosition": 2,
+      "fields": [
+        {
+          "name": "key",
+          "required": true,
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "title",
+          "required": true,
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "updatedAt",
+          "required": false,
+          "type": "uint",
+          "version": 1
+        },
+        {
+          "name": "rev",
+          "required": false,
+          "type": "uint",
           "version": 1
         }
       ]
@@ -1316,104 +1205,6 @@
           "required": false,
           "type": "string",
           "version": 1
-        }
-      ]
-    },
-    {
-      "name": "rename-doc-request",
-      "namespace": "bonk-docs-rpc",
-      "compact": false,
-      "flagsPosition": 1,
-      "fields": [
-        {
-          "name": "key",
-          "required": true,
-          "type": "string",
-          "version": 2
-        },
-        {
-          "name": "title",
-          "required": false,
-          "type": "string",
-          "version": 2
-        }
-      ]
-    },
-    {
-      "name": "rename-doc-response",
-      "namespace": "bonk-docs-rpc",
-      "compact": false,
-      "flagsPosition": 2,
-      "fields": [
-        {
-          "name": "key",
-          "required": true,
-          "type": "string",
-          "version": 2
-        },
-        {
-          "name": "title",
-          "required": true,
-          "type": "string",
-          "version": 2
-        },
-        {
-          "name": "updatedAt",
-          "required": false,
-          "type": "uint",
-          "version": 2
-        },
-        {
-          "name": "rev",
-          "required": false,
-          "type": "uint",
-          "version": 2
-        }
-      ]
-    },
-    {
-      "name": "lock-doc-request",
-      "namespace": "bonk-docs-rpc",
-      "compact": false,
-      "flagsPosition": -1,
-      "fields": [
-        {
-          "name": "key",
-          "required": true,
-          "type": "string",
-          "version": 3
-        }
-      ]
-    },
-    {
-      "name": "lock-doc-response",
-      "namespace": "bonk-docs-rpc",
-      "compact": false,
-      "flagsPosition": 3,
-      "fields": [
-        {
-          "name": "key",
-          "required": true,
-          "type": "string",
-          "version": 3
-        },
-        {
-          "name": "lockedAt",
-          "required": true,
-          "type": "uint",
-          "version": 3
-        },
-        {
-          "name": "lockedBy",
-          "required": true,
-          "type": "string",
-          "version": 3
-        },
-        {
-          "name": "rev",
-          "required": false,
-          "type": "uint",
-          "version": 3
         }
       ]
     }

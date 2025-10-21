@@ -1,5 +1,5 @@
 {
-  "version": 3,
+  "version": 1,
   "schema": [
     {
       "id": 0,
@@ -104,17 +104,6 @@
     },
     {
       "id": 9,
-      "name": "@bonk-docs/update-presence",
-      "request": {
-        "name": "@bonk-docs-rpc/update-presence-request"
-      },
-      "response": {
-        "name": "@bonk-docs-rpc/update-presence-response"
-      },
-      "version": 1
-    },
-    {
-      "id": 10,
       "name": "@bonk-docs/list-invites",
       "request": {
         "name": "@bonk-docs-rpc/list-invites-request"
@@ -125,7 +114,7 @@
       "version": 1
     },
     {
-      "id": 11,
+      "id": 10,
       "name": "@bonk-docs/create-invite",
       "request": {
         "name": "@bonk-docs-rpc/create-invite-request"
@@ -136,7 +125,7 @@
       "version": 1
     },
     {
-      "id": 12,
+      "id": 11,
       "name": "@bonk-docs/revoke-invite",
       "request": {
         "name": "@bonk-docs-rpc/revoke-invite-request"
@@ -147,7 +136,7 @@
       "version": 1
     },
     {
-      "id": 13,
+      "id": 12,
       "name": "@bonk-docs/rename-doc",
       "request": {
         "name": "@bonk-docs-rpc/rename-doc-request"
@@ -155,18 +144,7 @@
       "response": {
         "name": "@bonk-docs-rpc/rename-doc-response"
       },
-      "version": 2
-    },
-    {
-      "id": 14,
-      "name": "@bonk-docs/lock-doc",
-      "request": {
-        "name": "@bonk-docs-rpc/lock-doc-request"
-      },
-      "response": {
-        "name": "@bonk-docs-rpc/lock-doc-response"
-      },
-      "version": 3
+      "version": 1
     }
   ]
 }

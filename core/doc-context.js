@@ -125,46 +125,6 @@ export class DocContext extends Context {
       })
     })
 
-    this.router.add(
-      '@bonk-docs/presence-upsert',
-      async (data = {}, context) => {
-        await this.requirePermission(
-          context.writerKey,
-          PERMISSIONS.PRESENCE_UPDATE
-        )
-
-        if (typeof data.id !== 'string' || data.id.length === 0) {
-          throw new Error('presence-upsert requires id')
-        }
-
-        await context.view.insert('@bonk-docs/presence', {
-          id: data.id,
-          writerKey: data.writerKey || context.writerKey,
-          sessionId: data.sessionId || data.id,
-          displayName: data.displayName || null,
-          color: data.color || null,
-          updatedAt: data.updatedAt || Date.now(),
-          payload: data.payload || null
-        })
-      }
-    )
-
-    this.router.add(
-      '@bonk-docs/presence-remove',
-      async (data = {}, context) => {
-        await this.requirePermission(
-          context.writerKey,
-          PERMISSIONS.PRESENCE_UPDATE
-        )
-
-        if (typeof data.id !== 'string' || data.id.length === 0) {
-          throw new Error('presence-remove requires id')
-        }
-
-        await context.view.delete('@bonk-docs/presence', { id: data.id })
-      }
-    )
-
     this.router.add('@local/doc-upsert', async () => {})
     this.router.add('@local/state-update', async () => {})
     this.router.add('@local/profile-upsert', async () => {})
@@ -396,45 +356,6 @@ export class DocContext extends Context {
     )
 
     return record
-  }
-
-  async updatePresence(presence = {}) {
-    await this.requirePermission(this.writerKey, PERMISSIONS.PRESENCE_UPDATE)
-
-    const record = {
-      id: presence.id,
-      writerKey: presence.writerKey || this.writerKey,
-      sessionId: presence.sessionId || presence.id || null,
-      displayName: presence.displayName || null,
-      color: presence.color || null,
-      updatedAt: presence.updatedAt || Date.now(),
-      payload: presence.payload || null
-    }
-
-    if (!record.id) {
-      throw new Error('updatePresence requires id')
-    }
-
-    await this.base.append(
-      this.schema.dispatch.encode('@bonk-docs/presence-upsert', record)
-    )
-
-    return record
-  }
-
-  async removePresence(id) {
-    await this.requirePermission(this.writerKey, PERMISSIONS.PRESENCE_UPDATE)
-
-    if (typeof id !== 'string' || id.length === 0) {
-      throw new Error('removePresence requires id')
-    }
-
-    await this.base.append(
-      this.schema.dispatch.encode('@bonk-docs/presence-remove', {
-        id,
-        removedAt: Date.now()
-      })
-    )
   }
 
   async _assertNextOperationRevision(view, record) {

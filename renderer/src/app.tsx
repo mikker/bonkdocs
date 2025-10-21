@@ -98,6 +98,7 @@ export function App() {
                 <DocLockedNotice lockedAt={currentUpdate.lockedAt} />
               ) : null}
               <DocEditor
+                docKey={currentUpdate.key}
                 snapshot={currentUpdate.snapshot}
                 readOnly={
                   currentUpdate.lockedAt != null ||
@@ -427,7 +428,7 @@ function DocsSidebar({ ...props }) {
       <SidebarHeader className='flex-row border-b h-(--header-height) flex items-center justify-end'>
         <DocJoinDialog />
         <Tooltip>
-          <TooltipTrigger>
+          <TooltipTrigger asChild>
             <Button
               size='icon-sm'
               variant='outline'

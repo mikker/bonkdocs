@@ -2,6 +2,7 @@ import { mkdir } from 'fs/promises'
 
 import { DocManager } from '../../core/doc-manager.js'
 import { ensurePear } from '../../lib/pear-env.js'
+import { randomBytes } from 'hypercore-crypto'
 
 ensurePear()
 import z32 from 'z32'
@@ -54,20 +55,6 @@ const EMPTY_DOC_TEXT = JSON.stringify(EMPTY_DOC_NODE)
 
 const TEXT_DECODER =
   typeof TextDecoder === 'function' ? new TextDecoder() : null
-
-function randomBytes(size) {
-  if (size <= 0) return Buffer.alloc(0)
-  if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
-    const array = new Uint8Array(size)
-    crypto.getRandomValues(array)
-    return Buffer.from(array)
-  }
-  const buf = Buffer.alloc(size)
-  for (let i = 0; i < size; i++) {
-    buf[i] = Math.floor(Math.random() * 256)
-  }
-  return buf
-}
 
 function bytesFromId(id) {
   if (!id) return randomBytes(32)
@@ -684,23 +671,6 @@ export class DocWorker {
     }
   }
 
-  async updatePresence(keyHex, request = {}) {
-    await this.ready()
-    const context = await this.manager.getDoc(keyHex)
-    if (!context) throw new Error('Doc not found')
-
-    await context.updatePresence({
-      id: request.sessionId || bufferToHex(context.writerKey),
-      sessionId: request.sessionId,
-      displayName: request.displayName,
-      color: request.color,
-      payload: request.payload,
-      updatedAt: request.updatedAt
-    })
-
-    return { status: 'ok' }
-  }
-
   async pairInvite(options = {}, emit, signal) {
     await this.ready()
 
@@ -963,7 +933,6 @@ export class DocWorker {
   async buildDocUpdate(context, options = {}) {
     const metadata = await context.getMetadata()
     const revision = await context.getLatestRevision()
-    const presence = await this._listPresence(context)
     const roles = await this._listWriterRoles(context)
     const lockedAt =
       metadata && typeof metadata.lockedAt === 'number' && metadata.lockedAt > 0
@@ -996,7 +965,6 @@ export class DocWorker {
       baseRevision: sinceRevision,
       updatedAt: metadata?.updatedAt || metadata?.createdAt || Date.now(),
       title: metadata?.title || DEFAULT_TITLE,
-      presence,
       capabilities: {
         canEdit: lockedAt ? false : canEditPermission,
         canComment: lockedAt ? false : canCommentPermission,
@@ -1098,21 +1066,6 @@ export class DocWorker {
     }
 
     return doc
-  }
-
-  async _listPresence(context) {
-    const cursor = context.base.view.find('@bonk-docs/presence', {})
-    const records = await cursor.toArray()
-
-    return records.map((entry) => ({
-      id: entry.id,
-      writerKey: bufferToHex(entry.writerKey),
-      sessionId: bufferToHex(entry.sessionId),
-      displayName: entry.displayName || null,
-      color: entry.color || null,
-      updatedAt: entry.updatedAt,
-      payload: entry.payload || null
-    }))
   }
 
   async _listWriterRoles(context) {

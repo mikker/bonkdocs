@@ -1,3 +1,4 @@
+import process from 'process'
 import * as pathModule from 'path'
 import * as urlModule from 'url'
 import * as eventsModule from 'events'

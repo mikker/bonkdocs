@@ -58,28 +58,6 @@ docs.register({
   ]
 })
 
-docs.register({
-  name: 'presence',
-  compact: false,
-  fields: [
-    { name: 'id', type: 'string', required: true },
-    { name: 'writerKey', type: 'fixed32', required: true },
-    { name: 'sessionId', type: 'fixed32', required: true },
-    { name: 'displayName', type: 'string', required: false },
-    { name: 'color', type: 'string', required: false },
-    { name: 'updatedAt', type: 'uint', required: true },
-    { name: 'payload', type: 'buffer', required: false }
-  ]
-})
-
-docs.register({
-  name: 'presence-remove',
-  compact: false,
-  fields: [
-    { name: 'id', type: 'string', required: true },
-    { name: 'removedAt', type: 'uint', required: true }
-  ]
-})
 
 const local = schema.namespace('local')
 
@@ -135,20 +113,6 @@ rpc.register({
 })
 
 rpc.register({
-  name: 'doc-presence',
-  compact: false,
-  fields: [
-    { name: 'id', type: 'string', required: true },
-    { name: 'writerKey', type: 'string', required: true },
-    { name: 'sessionId', type: 'string', required: true },
-    { name: 'displayName', type: 'string', required: false },
-    { name: 'color', type: 'string', required: false },
-    { name: 'updatedAt', type: 'uint', required: true },
-    { name: 'payload', type: 'buffer', required: false }
-  ]
-})
-
-rpc.register({
   name: 'doc-operation',
   compact: false,
   fields: [
@@ -175,12 +139,6 @@ rpc.register({
     {
       name: 'ops',
       type: '@bonk-docs-rpc/doc-operation',
-      array: true,
-      required: false
-    },
-    {
-      name: 'presence',
-      type: '@bonk-docs-rpc/doc-presence',
       array: true,
       required: false
     },
@@ -369,25 +327,6 @@ rpc.register({
 })
 
 rpc.register({
-  name: 'update-presence-request',
-  compact: false,
-  fields: [
-    { name: 'key', type: 'string', required: true },
-    { name: 'sessionId', type: 'string', required: true },
-    { name: 'displayName', type: 'string', required: false },
-    { name: 'color', type: 'string', required: false },
-    { name: 'payload', type: 'buffer', required: false },
-    { name: 'updatedAt', type: 'uint', required: false }
-  ]
-})
-
-rpc.register({
-  name: 'update-presence-response',
-  compact: false,
-  fields: [{ name: 'status', type: 'string', required: false }]
-})
-
-rpc.register({
   name: 'list-invites-request',
   compact: false,
   fields: [
@@ -487,12 +426,6 @@ docsDb.collections.register({
   schema: '@bonk-docs/snapshot',
   key: ['rev']
 })
-docsDb.collections.register({
-  name: 'presence',
-  schema: '@bonk-docs/presence',
-  key: ['id']
-})
-
 const localDb = dbBuilder.namespace('local')
 
 localDb.collections.register({
@@ -531,15 +464,6 @@ docDispatch.register({
   name: 'snapshot-save',
   requestType: '@bonk-docs/snapshot'
 })
-docDispatch.register({
-  name: 'presence-upsert',
-  requestType: '@bonk-docs/presence'
-})
-docDispatch.register({
-  name: 'presence-remove',
-  requestType: '@bonk-docs/presence-remove'
-})
-
 const localDispatch = dispatch.namespace('local')
 
 localDispatch.register({ name: 'doc-upsert', requestType: '@local/doc' })
@@ -608,12 +532,6 @@ workerRpc.register({
   name: 'apply-ops',
   request: { name: '@bonk-docs-rpc/apply-ops-request' },
   response: { name: '@bonk-docs-rpc/apply-ops-response' }
-})
-
-workerRpc.register({
-  name: 'update-presence',
-  request: { name: '@bonk-docs-rpc/update-presence-request' },
-  response: { name: '@bonk-docs-rpc/update-presence-response' }
 })
 
 workerRpc.register({

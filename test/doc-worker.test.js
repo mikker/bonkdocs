@@ -110,7 +110,6 @@ test('DocWorker watch emits initial update', async (t) => {
 
   const initialUpdate = updates[0]
   t.is(initialUpdate.key, doc.key)
-  t.ok(Array.isArray(initialUpdate.presence), 'presence array present')
   t.is(typeof initialUpdate.capabilities.canEdit, 'boolean')
 
   const pendingUpdate = waitForNextUpdate()

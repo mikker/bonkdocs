@@ -215,12 +215,6 @@ export function createRpcServer(stream, worker) {
     return await worker.applyOperations(request)
   })
 
-  rpc.onUpdatePresence(async (request = {}) => {
-    console.log('[worker] update-presence request')
-    if (!request.key) throw new Error('Doc key is required for updatePresence')
-    return await worker.updatePresence(request.key, request)
-  })
-
   rpc.onListInvites(async (request = {}) => {
     console.log('[worker] list-invites request', request?.key)
     if (!request.key) throw new Error('Doc key is required to list invites')

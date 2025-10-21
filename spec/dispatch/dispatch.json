@@ -70,30 +70,18 @@
     },
     {
       "id": 11,
-      "name": "@bonk-docs/presence-upsert",
-      "requestType": "@bonk-docs/presence",
-      "version": 1
-    },
-    {
-      "id": 12,
-      "name": "@bonk-docs/presence-remove",
-      "requestType": "@bonk-docs/presence-remove",
-      "version": 1
-    },
-    {
-      "id": 13,
       "name": "@local/doc-upsert",
       "requestType": "@local/doc",
       "version": 1
     },
     {
-      "id": 14,
+      "id": 12,
       "name": "@local/state-update",
       "requestType": "@local/state",
       "version": 1
     },
     {
-      "id": 15,
+      "id": 13,
       "name": "@local/profile-upsert",
       "requestType": "@local/profile",
       "version": 1

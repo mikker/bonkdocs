@@ -81,7 +81,7 @@ export function DocJoinDialog() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <Tooltip>
-        <TooltipTrigger>
+        <TooltipTrigger asChild>
           <DialogTrigger asChild>
             <Button size='sm' variant='outline' className='text-xs'>
               <FileKey2 />

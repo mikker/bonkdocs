@@ -46,6 +46,10 @@
       "bare": "bare-events",
       "default": "events"
     },
+    "process": {
+      "bare": "bare-process",
+      "default": "process"
+    },
     "url": {
       "bare": "bare-url",
       "default": "url"
@@ -64,6 +68,11 @@
     "@tiptap/react": "^3.7.2",
     "@tiptap/starter-kit": "^3.7.2",
     "autobonk": "github:mikker/autobonk",
+    "bare-fs": "^4.4.11",
+    "bare-os": "^3.6.2",
+    "bare-path": "^3.0.0",
+    "bare-process": "^4.2.2",
+    "bare-url": "^2.3.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "framed-stream": "^1.0.1",

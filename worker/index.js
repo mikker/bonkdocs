@@ -1,3 +1,4 @@
+import process from 'process'
 import { join } from 'path'
 
 import FramedStream from 'framed-stream'

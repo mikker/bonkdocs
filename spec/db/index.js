@@ -444,41 +444,41 @@ const collection7 = {
   indexes: []
 }
 
-// '@bonk-docs/presence' collection key
+// '@local/docs' collection key
 const collection8_key = new IndexEncoder([
   IndexEncoder.STRING
 ], { prefix: 8 })
 
 function collection8_indexify (record) {
-  const a = record.id
+  const a = record.key
   return a === undefined ? [] : [a]
 }
 
-// '@bonk-docs/presence' value encoding
-const collection8_enc = getEncoding('@bonk-docs/presence/hyperdb#8')
+// '@local/docs' value encoding
+const collection8_enc = getEncoding('@local/doc/hyperdb#8')
 
-// '@bonk-docs/presence' reconstruction function
+// '@local/docs' reconstruction function
 function collection8_reconstruct (version, keyBuf, valueBuf) {
   const key = collection8_key.decode(keyBuf)
   setVersion(version)
   const record = c.decode(collection8_enc, valueBuf)
-  record.id = key[0]
+  record.key = key[0]
   return record
 }
-// '@bonk-docs/presence' key reconstruction function
+// '@local/docs' key reconstruction function
 function collection8_reconstruct_key (keyBuf) {
   const key = collection8_key.decode(keyBuf)
   return {
-    id: key[0]
+    key: key[0]
   }
 }
 
-// '@bonk-docs/presence'
+// '@local/docs'
 const collection8 = {
-  name: '@bonk-docs/presence',
+  name: '@local/docs',
   id: 8,
   encodeKey (record) {
-    const key = [record.id]
+    const key = [record.key]
     return collection8_key.encode(key)
   },
   encodeKeyRange ({ gt, lt, gte, lte } = {}) {
@@ -499,41 +499,41 @@ const collection8 = {
   indexes: []
 }
 
-// '@local/docs' collection key
+// '@local/state' collection key
 const collection9_key = new IndexEncoder([
   IndexEncoder.STRING
 ], { prefix: 9 })
 
 function collection9_indexify (record) {
-  const a = record.key
+  const a = record.id
   return a === undefined ? [] : [a]
 }
 
-// '@local/docs' value encoding
-const collection9_enc = getEncoding('@local/doc/hyperdb#9')
+// '@local/state' value encoding
+const collection9_enc = getEncoding('@local/state/hyperdb#9')
 
-// '@local/docs' reconstruction function
+// '@local/state' reconstruction function
 function collection9_reconstruct (version, keyBuf, valueBuf) {
   const key = collection9_key.decode(keyBuf)
   setVersion(version)
   const record = c.decode(collection9_enc, valueBuf)
-  record.key = key[0]
+  record.id = key[0]
   return record
 }
-// '@local/docs' key reconstruction function
+// '@local/state' key reconstruction function
 function collection9_reconstruct_key (keyBuf) {
   const key = collection9_key.decode(keyBuf)
   return {
-    key: key[0]
+    id: key[0]
   }
 }
 
-// '@local/docs'
+// '@local/state'
 const collection9 = {
-  name: '@local/docs',
+  name: '@local/state',
   id: 9,
   encodeKey (record) {
-    const key = [record.key]
+    const key = [record.id]
     return collection9_key.encode(key)
   },
   encodeKeyRange ({ gt, lt, gte, lte } = {}) {
@@ -554,7 +554,7 @@ const collection9 = {
   indexes: []
 }
 
-// '@local/state' collection key
+// '@local/profile' collection key
 const collection10_key = new IndexEncoder([
   IndexEncoder.STRING
 ], { prefix: 10 })
@@ -564,10 +564,10 @@ function collection10_indexify (record) {
   return a === undefined ? [] : [a]
 }
 
-// '@local/state' value encoding
-const collection10_enc = getEncoding('@local/state/hyperdb#10')
+// '@local/profile' value encoding
+const collection10_enc = getEncoding('@local/profile/hyperdb#10')
 
-// '@local/state' reconstruction function
+// '@local/profile' reconstruction function
 function collection10_reconstruct (version, keyBuf, valueBuf) {
   const key = collection10_key.decode(keyBuf)
   setVersion(version)
@@ -575,7 +575,7 @@ function collection10_reconstruct (version, keyBuf, valueBuf) {
   record.id = key[0]
   return record
 }
-// '@local/state' key reconstruction function
+// '@local/profile' key reconstruction function
 function collection10_reconstruct_key (keyBuf) {
   const key = collection10_key.decode(keyBuf)
   return {
@@ -583,9 +583,9 @@ function collection10_reconstruct_key (keyBuf) {
   }
 }
 
-// '@local/state'
+// '@local/profile'
 const collection10 = {
-  name: '@local/state',
+  name: '@local/profile',
   id: 10,
   encodeKey (record) {
     const key = [record.id]
@@ -609,61 +609,6 @@ const collection10 = {
   indexes: []
 }
 
-// '@local/profile' collection key
-const collection11_key = new IndexEncoder([
-  IndexEncoder.STRING
-], { prefix: 11 })
-
-function collection11_indexify (record) {
-  const a = record.id
-  return a === undefined ? [] : [a]
-}
-
-// '@local/profile' value encoding
-const collection11_enc = getEncoding('@local/profile/hyperdb#11')
-
-// '@local/profile' reconstruction function
-function collection11_reconstruct (version, keyBuf, valueBuf) {
-  const key = collection11_key.decode(keyBuf)
-  setVersion(version)
-  const record = c.decode(collection11_enc, valueBuf)
-  record.id = key[0]
-  return record
-}
-// '@local/profile' key reconstruction function
-function collection11_reconstruct_key (keyBuf) {
-  const key = collection11_key.decode(keyBuf)
-  return {
-    id: key[0]
-  }
-}
-
-// '@local/profile'
-const collection11 = {
-  name: '@local/profile',
-  id: 11,
-  encodeKey (record) {
-    const key = [record.id]
-    return collection11_key.encode(key)
-  },
-  encodeKeyRange ({ gt, lt, gte, lte } = {}) {
-    return collection11_key.encodeRange({
-      gt: gt ? collection11_indexify(gt) : null,
-      lt: lt ? collection11_indexify(lt) : null,
-      gte: gte ? collection11_indexify(gte) : null,
-      lte: lte ? collection11_indexify(lte) : null
-    })
-  },
-  encodeValue (version, record) {
-    setVersion(version)
-    return c.encode(collection11_enc, record)
-  },
-  trigger: null,
-  reconstruct: collection11_reconstruct,
-  reconstructKey: collection11_reconstruct_key,
-  indexes: []
-}
-
 const collections = [
   collection0,
   collection1,
@@ -675,8 +620,7 @@ const collections = [
   collection7,
   collection8,
   collection9,
-  collection10,
-  collection11
+  collection10
 ]
 
 const indexes = [
@@ -694,10 +638,9 @@ function resolveCollection (name) {
     case '@bonk-docs/metadata': return collection5
     case '@bonk-docs/operations': return collection6
     case '@bonk-docs/snapshots': return collection7
-    case '@bonk-docs/presence': return collection8
-    case '@local/docs': return collection9
-    case '@local/state': return collection10
-    case '@local/profile': return collection11
+    case '@local/docs': return collection8
+    case '@local/state': return collection9
+    case '@local/profile': return collection10
     default: return null
   }
 }
