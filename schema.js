@@ -58,7 +58,6 @@ docs.register({
   ]
 })
 
-
 const local = schema.namespace('local')
 
 local.register({
