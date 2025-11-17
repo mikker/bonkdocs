@@ -50,6 +50,7 @@ function createRpcMock({ docs = [], activeDoc = null } = {}) {
     return { doc, writerKey: 'writer-key' }
   }
   let joinDocCalls = 0
+  let pairInviteCalls = 0
   let pairInviteHandler = (request = {}, stream) => {
     pairInviteCalls++
     const now = Date.now()
@@ -76,7 +77,6 @@ function createRpcMock({ docs = [], activeDoc = null } = {}) {
     })
     stream.emit('close')
   }
-  let pairInviteCalls = 0
   const renameDocCalls = []
   let renameDocHandler = async (request = {}) => ({
     key: request.key,

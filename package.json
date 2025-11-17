@@ -91,7 +91,7 @@
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.1.17",
-    "@types/react": "^19.2.4",
+    "@types/react": "^19.2.5",
     "@vitejs/plugin-react": "^5.1.1",
     "bare-events": "^2.8.2",
     "brittle": "^3.19.1",

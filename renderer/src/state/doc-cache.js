@@ -4,6 +4,10 @@ function isFiniteNumber(value) {
   return typeof value === 'number' && Number.isFinite(value)
 }
 
+function isNil(value) {
+  return value === null || value === undefined
+}
+
 export function mergeDocsWithCachedMetadata(docs) {
   if (!Array.isArray(docs)) return []
 
@@ -24,14 +28,14 @@ export function mergeDocsWithCachedMetadata(docs) {
 
     if (
       isFiniteNumber(cached.revision) &&
-      (next.lastRevision == null || cached.revision > next.lastRevision)
+      (isNil(next.lastRevision) || cached.revision > next.lastRevision)
     ) {
       next.lastRevision = cached.revision
     }
 
     if (
       isFiniteNumber(cached.updatedAt) &&
-      (next.lastOpenedAt == null || cached.updatedAt > next.lastOpenedAt)
+      (isNil(next.lastOpenedAt) || cached.updatedAt > next.lastOpenedAt)
     ) {
       next.lastOpenedAt = cached.updatedAt
     }
