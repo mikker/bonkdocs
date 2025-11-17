@@ -31,7 +31,9 @@ const methods = new Map([
   ['@bonk-docs/revoke-invite', 11],
   [11, '@bonk-docs/revoke-invite'],
   ['@bonk-docs/rename-doc', 12],
-  [12, '@bonk-docs/rename-doc']
+  [12, '@bonk-docs/rename-doc'],
+  ['@bonk-docs/lock-doc', 13],
+  [13, '@bonk-docs/lock-doc']
 ])
 
 class HRPC {
@@ -51,7 +53,8 @@ class HRPC {
       ['@bonk-docs/list-invites', getEncoding('@bonk-docs-rpc/list-invites-request')],
       ['@bonk-docs/create-invite', getEncoding('@bonk-docs-rpc/create-invite-request')],
       ['@bonk-docs/revoke-invite', getEncoding('@bonk-docs-rpc/revoke-invite-request')],
-      ['@bonk-docs/rename-doc', getEncoding('@bonk-docs-rpc/rename-doc-request')]
+      ['@bonk-docs/rename-doc', getEncoding('@bonk-docs-rpc/rename-doc-request')],
+      ['@bonk-docs/lock-doc', getEncoding('@bonk-docs-rpc/lock-doc-request')]
     ])
     this._responseEncodings = new Map([
       ['@bonk-docs/initialize', getEncoding('@bonk-docs-rpc/initialize-response')],
@@ -66,7 +69,8 @@ class HRPC {
       ['@bonk-docs/list-invites', getEncoding('@bonk-docs-rpc/list-invites-response')],
       ['@bonk-docs/create-invite', getEncoding('@bonk-docs-rpc/create-invite-response')],
       ['@bonk-docs/revoke-invite', getEncoding('@bonk-docs-rpc/revoke-invite-response')],
-      ['@bonk-docs/rename-doc', getEncoding('@bonk-docs-rpc/rename-doc-response')]
+      ['@bonk-docs/rename-doc', getEncoding('@bonk-docs-rpc/rename-doc-response')],
+      ['@bonk-docs/lock-doc', getEncoding('@bonk-docs-rpc/lock-doc-response')]
     ])
     this._rpc = new RPC(stream, async (req) => {
       const command = methods.get(req.command)
@@ -213,6 +217,10 @@ class HRPC {
     return this._call('@bonk-docs/rename-doc', args)
   }
 
+  async lockDoc(args) {
+    return this._call('@bonk-docs/lock-doc', args)
+  }
+
   onInitialize(responseFn) {
     this._handlers['@bonk-docs/initialize'] = responseFn
   }
@@ -263,6 +271,10 @@ class HRPC {
 
   onRenameDoc(responseFn) {
     this._handlers['@bonk-docs/rename-doc'] = responseFn
+  }
+
+  onLockDoc(responseFn) {
+    this._handlers['@bonk-docs/lock-doc'] = responseFn
   }
 
   _requestIsStream(command) {
