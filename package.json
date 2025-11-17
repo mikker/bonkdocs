@@ -20,6 +20,7 @@
     "dev:pear": "pear run -d .",
     "build": "vite build --config renderer/vite.config.js",
     "test": "brittle test/*.test.js",
+    "sim:typing": "node scripts/typing-sim.js",
     "schema:build": "node schema.js",
     "lint": "prettier --check . && lunte .",
     "format": "prettier --write .",

@@ -801,6 +801,14 @@ export const useDocStore = create<DocStore>((set, get) => ({
   },
   selectDoc: async (key) => {
     const currentWatcher = get().watcher
+    const previousState = get()
+    const shouldPreserveState = Boolean(
+      key && previousState.activeDoc === key && previousState.currentUpdate
+    )
+    const preservedUpdate = shouldPreserveState
+      ? previousState.currentUpdate
+      : null
+
     if (currentWatcher?.stop) {
       const stopPromise = currentWatcher.stop()
       if (stopPromise) {
@@ -810,7 +818,7 @@ export const useDocStore = create<DocStore>((set, get) => ({
 
     set({
       activeDoc: key,
-      currentUpdate: null,
+      currentUpdate: preservedUpdate,
       watcher: null,
       invitesError: null
     })

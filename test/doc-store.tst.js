@@ -1,245 +1,15 @@
 import test from 'brittle'
-import { EventEmitter } from 'events'
 import { useDocStore } from '../renderer/src/state/doc-store.ts'
 import { setRpcClient } from '../renderer/src/lib/rpc.ts'
 import {
   saveDocState,
   clearDocState
 } from '../renderer/src/state/doc-persistence.js'
-
-function createMockStream() {
-  const emitter = new EventEmitter()
-  emitter.destroyed = false
-  emitter.destroy = () => {
-    if (emitter.destroyed) return
-    emitter.destroyed = true
-    emitter.emit('close')
-  }
-  return emitter
-}
-
-function createRpcMock({ docs = [], activeDoc = null } = {}) {
-  let docsResponse = docs
-  let activeDocKey = activeDoc
-  let applyOpsHandler = async () => ({ accepted: true })
-  const applyOpsCalls = []
-  let watchDocCalls = 0
-  const watchers = new Map()
-  const invitesByKey = new Map()
-  let listInvitesCalls = 0
-  let joinDocHandler = async (request = {}) => {
-    if (!request?.invite) {
-      throw new Error('Invite required')
-    }
-    const key = `joined-${request.invite}`
-    const now = Date.now()
-    const doc = {
-      key,
-      title: `Joined ${request.invite}`,
-      encryptionKey: `enc-${key}`,
-      createdAt: now,
-      joinedAt: now,
-      isCreator: false,
-      lastRevision: 0,
-      lastOpenedAt: now
-    }
-    docsResponse = [
-      doc,
-      ...docsResponse.filter((entry) => entry.key !== doc.key)
-    ]
-    return { doc, writerKey: 'writer-key' }
-  }
-  let joinDocCalls = 0
-  let pairInviteCalls = 0
-  let pairInviteHandler = (request = {}, stream) => {
-    pairInviteCalls++
-    const now = Date.now()
-    const doc = {
-      key: `paired-${request.invite ?? 'unknown'}`,
-      encryptionKey: 'enc-paired',
-      createdAt: now,
-      joinedAt: now,
-      isCreator: false,
-      title: `Paired ${request.invite ?? ''}`,
-      lastRevision: 0,
-      lastOpenedAt: now
-    }
-    stream.emit('data', {
-      state: 'pairing',
-      message: 'Resolving invite',
-      progress: 10
-    })
-    stream.emit('data', {
-      state: 'joined',
-      message: 'Joined document',
-      progress: 100,
-      doc
-    })
-    stream.emit('close')
-  }
-  const renameDocCalls = []
-  let renameDocHandler = async (request = {}) => ({
-    key: request.key,
-    title: request.title || 'Untitled document',
-    updatedAt: Date.now()
-  })
-
-  function rememberWatcher(key, stream) {
-    if (!watchers.has(key)) {
-      watchers.set(key, [])
-    }
-    watchers.get(key).push(stream)
-  }
-
-  const rpc = {
-    async initialize() {
-      return { docs: docsResponse, activeDoc: activeDocKey }
-    },
-    async listDocs() {
-      return { docs: docsResponse }
-    },
-    watchDoc(request = {}) {
-      watchDocCalls++
-      const stream = createMockStream()
-      rememberWatcher(request.key, stream)
-      return stream
-    },
-    async applyOps(request = {}) {
-      applyOpsCalls.push(request)
-      return await applyOpsHandler(request)
-    },
-    async renameDoc(request = {}) {
-      renameDocCalls.push(request)
-      return await renameDocHandler(request)
-    },
-    async joinDoc(request = {}) {
-      joinDocCalls++
-      return await joinDocHandler(request)
-    },
-    pairInvite(request = {}) {
-      const stream = createMockStream()
-      setImmediate(() => {
-        pairInviteHandler(request, stream)
-      })
-      return stream
-    },
-    async listInvites(request = {}) {
-      if (!request?.key) {
-        throw new Error('Doc key is required to list invites')
-      }
-      listInvitesCalls++
-      return { invites: invitesByKey.get(request.key) ?? [] }
-    },
-    async createInvite(request = {}) {
-      if (!request?.key) {
-        throw new Error('Doc key is required to create invite')
-      }
-      const roles = Array.isArray(request.roles) ? request.roles : []
-      const inviteId = `invite-${Math.random().toString(16).slice(2)}`
-      const inviteCode = `code-${inviteId}`
-      const record = {
-        id: inviteId,
-        invite: inviteCode,
-        roles,
-        createdAt: Date.now()
-      }
-      const existing = invitesByKey.get(request.key) ?? []
-      invitesByKey.set(request.key, [...existing, record])
-      return { invite: inviteCode, inviteId }
-    },
-    async revokeInvite(request = {}) {
-      if (!request?.key) {
-        throw new Error('Doc key is required to revoke invite')
-      }
-      if (!request?.inviteId) {
-        throw new Error('Invite id is required to revoke invite')
-      }
-      const existing = invitesByKey.get(request.key) ?? []
-      const next = existing.filter((entry) => entry.id !== request.inviteId)
-      const revoked = next.length !== existing.length
-      invitesByKey.set(request.key, next)
-      return { revoked }
-    }
-  }
-
-  return {
-    rpc,
-    setDocs(nextDocs, nextActive = activeDocKey) {
-      docsResponse = nextDocs
-      activeDocKey = nextActive
-    },
-    setApplyOpsHandler(fn) {
-      applyOpsHandler = fn
-    },
-    emitUpdate(key, payload) {
-      const streams = watchers.get(key) || []
-      for (const stream of streams) {
-        if (!stream.destroyed) {
-          stream.emit('data', payload)
-        }
-      }
-    },
-    getWatchCount() {
-      return watchDocCalls
-    },
-    getApplyOpsCalls() {
-      return applyOpsCalls
-    },
-    setJoinDocHandler(fn) {
-      joinDocHandler = fn
-    },
-    setPairInviteHandler(fn) {
-      pairInviteHandler = fn
-    },
-    getJoinDocCalls() {
-      return joinDocCalls
-    },
-    getPairInviteCalls() {
-      return pairInviteCalls
-    },
-    getRenameDocCalls() {
-      return renameDocCalls
-    },
-    setInvites(key, invites = []) {
-      invitesByKey.set(key, invites)
-    },
-    getInvites(key) {
-      return invitesByKey.get(key) ?? []
-    },
-    getListInvitesCalls() {
-      return listInvitesCalls
-    },
-    setRenameDocHandler(fn) {
-      renameDocHandler = fn
-    },
-    destroyAll() {
-      for (const streams of watchers.values()) {
-        for (const stream of streams) {
-          stream.destroy()
-        }
-      }
-    }
-  }
-}
-
-async function flushMicrotasks() {
-  await new Promise((resolve) => setTimeout(resolve, 0))
-}
-
-function resetStoreState() {
-  useDocStore.setState({
-    docs: [],
-    activeDoc: null,
-    currentUpdate: null,
-    loading: false,
-    error: null,
-    watcher: null,
-    pendingOps: {},
-    invites: {},
-    invitesLoading: false,
-    invitesError: null
-  })
-}
+import {
+  createRpcMock,
+  flushMicrotasks,
+  resetDocStoreState
+} from './helpers/doc-store-mock.js'
 
 test('doc store reselects doc after applyOps mismatch', async (t) => {
   const doc = {
@@ -263,7 +33,7 @@ test('doc store reselects doc after applyOps mismatch', async (t) => {
   t.teardown(() => {
     setRpcClient(null)
   })
-  resetStoreState()
+  resetDocStoreState()
 
   await useDocStore.getState().initialize()
 
@@ -309,7 +79,7 @@ test('doc store reselects doc after applyOps mismatch', async (t) => {
   t.is(useDocStore.getState().error, 'SNAPSHOT_MISMATCH')
 
   mock.destroyAll()
-  resetStoreState()
+  resetDocStoreState()
 })
 
 test('doc store queues applyOps requests per document', async (t) => {
@@ -346,7 +116,7 @@ test('doc store queues applyOps requests per document', async (t) => {
   t.teardown(() => {
     setRpcClient(null)
   })
-  resetStoreState()
+  resetDocStoreState()
 
   await useDocStore.getState().initialize()
   mock.emitUpdate(doc.key, {
@@ -406,7 +176,168 @@ test('doc store queues applyOps requests per document', async (t) => {
   t.is(calls[1].ops[0].baseRev, 2, 'second call chains from first revision')
 
   mock.destroyAll()
-  resetStoreState()
+  resetDocStoreState()
+})
+
+test('doc store keeps up with rapid local snapshots', async (t) => {
+  const doc = {
+    key: 'doc-burst',
+    title: 'Burst Doc',
+    lastRevision: 1,
+    lastOpenedAt: Date.now()
+  }
+
+  const mock = createRpcMock({
+    docs: [doc],
+    activeDoc: doc.key
+  })
+
+  setRpcClient(mock.rpc)
+  t.teardown(() => {
+    setRpcClient(null)
+  })
+  resetDocStoreState()
+
+  await useDocStore.getState().initialize()
+  mock.emitUpdate(doc.key, {
+    key: doc.key,
+    revision: 1,
+    snapshotRevision: 1,
+    snapshot: {
+      type: 'doc',
+      content: [
+        {
+          type: 'paragraph',
+          content: [{ type: 'text', text: 'seed' }]
+        }
+      ]
+    },
+    updatedAt: Date.now()
+  })
+
+  const burstCount = 50
+  const applyPromises = []
+  for (let i = 0; i < burstCount; i++) {
+    const text = `burst-${i + 1}`
+    applyPromises.push(
+      useDocStore.getState().applySnapshot(doc.key, {
+        type: 'doc',
+        content: [
+          {
+            type: 'paragraph',
+            content: [{ type: 'text', text }]
+          }
+        ]
+      })
+    )
+  }
+
+  await Promise.all(applyPromises)
+
+  const calls = mock.getApplyOpsCalls()
+  const flattened = calls.flatMap((entry) =>
+    Array.isArray(entry?.ops) ? entry.ops : []
+  )
+  const revs = flattened.map((op) => op.rev)
+  const startRev = 1
+  t.is(revs.length, burstCount, 'sent all revisions')
+  const expectedRevs = Array.from(
+    { length: burstCount },
+    (_, index) => startRev + index + 1
+  )
+  t.alike(revs, expectedRevs, 'revisions remain contiguous')
+
+  const state = useDocStore.getState()
+  t.is(
+    state.pendingOps[doc.key]?.length ?? 0,
+    0,
+    'pending operations drained after burst'
+  )
+  const latest =
+    state.currentUpdate?.snapshot?.content?.[0]?.content?.[0]?.text ?? ''
+  t.is(latest, `burst-${burstCount}`, 'latest snapshot available locally')
+
+  mock.destroyAll()
+  resetDocStoreState()
+})
+
+test('reselecting the same doc preserves current snapshot until refresh lands', async (t) => {
+  const doc = {
+    key: 'doc-reselect',
+    title: 'Reselect Doc',
+    lastRevision: 2,
+    lastOpenedAt: Date.now()
+  }
+
+  const mock = createRpcMock({
+    docs: [doc],
+    activeDoc: doc.key
+  })
+
+  setRpcClient(mock.rpc)
+  t.teardown(() => {
+    setRpcClient(null)
+  })
+  resetDocStoreState()
+
+  await useDocStore.getState().initialize()
+  mock.emitUpdate(doc.key, {
+    key: doc.key,
+    revision: 2,
+    snapshotRevision: 2,
+    snapshot: {
+      type: 'doc',
+      content: [
+        {
+          type: 'paragraph',
+          content: [{ type: 'text', text: 'keep-me' }]
+        }
+      ]
+    },
+    updatedAt: Date.now()
+  })
+
+  const before = useDocStore.getState().currentUpdate
+  t.ok(before, 'currentUpdate set after initial watch')
+  t.is(before?.snapshot?.content?.[0]?.content?.[0]?.text, 'keep-me')
+
+  await useDocStore.getState().selectDoc(doc.key)
+  t.is(mock.getWatchCount(), 2, 'watchDoc reattached')
+
+  const during = useDocStore.getState().currentUpdate
+  t.ok(during, 'currentUpdate preserved while reselecting same doc')
+  t.is(
+    during?.snapshot?.content?.[0]?.content?.[0]?.text,
+    'keep-me',
+    'snapshot kept while waiting for refresh'
+  )
+
+  mock.emitUpdate(doc.key, {
+    key: doc.key,
+    revision: 3,
+    snapshotRevision: 3,
+    snapshot: {
+      type: 'doc',
+      content: [
+        {
+          type: 'paragraph',
+          content: [{ type: 'text', text: 'next' }]
+        }
+      ]
+    },
+    updatedAt: Date.now()
+  })
+
+  const after = useDocStore.getState().currentUpdate
+  t.is(after?.revision, 3, 'snapshot updated after refresh lands')
+  t.is(
+    after?.snapshot?.content?.[0]?.content?.[0]?.text,
+    'next',
+    'snapshot replaced with new server state'
+  )
+
+  mock.destroyAll()
+  resetDocStoreState()
 })
 
 test('renameDoc updates title and calls rpc rename', async (t) => {
@@ -434,7 +365,7 @@ test('renameDoc updates title and calls rpc rename', async (t) => {
   t.teardown(() => {
     setRpcClient(null)
   })
-  resetStoreState()
+  resetDocStoreState()
 
   await useDocStore.getState().initialize()
   mock.emitUpdate(doc.key, {
@@ -464,7 +395,7 @@ test('renameDoc updates title and calls rpc rename', async (t) => {
   t.is(state.currentUpdate?.updatedAt, renamedAt)
 
   mock.destroyAll()
-  resetStoreState()
+  resetDocStoreState()
 })
 
 test('doc store drops pending ops once revision is confirmed', async (t) => {
@@ -490,7 +421,7 @@ test('doc store drops pending ops once revision is confirmed', async (t) => {
   t.teardown(() => {
     setRpcClient(null)
   })
-  resetStoreState()
+  resetDocStoreState()
 
   await useDocStore.getState().initialize()
   mock.emitUpdate(doc.key, {
@@ -554,7 +485,7 @@ test('doc store drops pending ops once revision is confirmed', async (t) => {
   t.is(useDocStore.getState().currentUpdate?.revision, 2)
 
   mock.destroyAll()
-  resetStoreState()
+  resetDocStoreState()
 })
 
 test('selectDoc preloads cached title immediately', async (t) => {
@@ -590,7 +521,7 @@ test('selectDoc preloads cached title immediately', async (t) => {
   t.teardown(() => {
     setRpcClient(null)
   })
-  resetStoreState()
+  resetDocStoreState()
 
   await useDocStore.getState().initialize()
 
@@ -602,7 +533,7 @@ test('selectDoc preloads cached title immediately', async (t) => {
 
   mock.destroyAll()
   clearDocState(key)
-  resetStoreState()
+  resetDocStoreState()
 })
 
 test('loadInvites stores active doc invites', async (t) => {
@@ -633,7 +564,7 @@ test('loadInvites stores active doc invites', async (t) => {
   t.teardown(() => {
     setRpcClient(null)
   })
-  resetStoreState()
+  resetDocStoreState()
 
   useDocStore.setState({ docs: [doc], activeDoc: docKey })
 
@@ -645,7 +576,7 @@ test('loadInvites stores active doc invites', async (t) => {
   t.ok(invites[0].roles.includes('doc-viewer'))
 
   mock.destroyAll()
-  resetStoreState()
+  resetDocStoreState()
 })
 
 test('createDocInvite ensures read role is always included', async (t) => {
@@ -666,7 +597,7 @@ test('createDocInvite ensures read role is always included', async (t) => {
   t.teardown(() => {
     setRpcClient(null)
   })
-  resetStoreState()
+  resetDocStoreState()
 
   useDocStore.setState({ docs: [doc], activeDoc: docKey })
 
@@ -678,7 +609,7 @@ test('createDocInvite ensures read role is always included', async (t) => {
   t.ok(stored[0].roles.includes('doc-editor'))
 
   mock.destroyAll()
-  resetStoreState()
+  resetDocStoreState()
 })
 
 test('revokeDocInvite refreshes invites list', async (t) => {
@@ -715,7 +646,7 @@ test('revokeDocInvite refreshes invites list', async (t) => {
   t.teardown(() => {
     setRpcClient(null)
   })
-  resetStoreState()
+  resetDocStoreState()
 
   useDocStore.setState({ docs: [doc], activeDoc: docKey })
 
@@ -727,7 +658,7 @@ test('revokeDocInvite refreshes invites list', async (t) => {
   t.is(invites[0].id, 'invite-2')
 
   mock.destroyAll()
-  resetStoreState()
+  resetDocStoreState()
 })
 
 test('joinDoc adds the new document and selects it', async (t) => {
@@ -763,7 +694,7 @@ test('joinDoc adds the new document and selects it', async (t) => {
   t.teardown(() => {
     setRpcClient(null)
   })
-  resetStoreState()
+  resetDocStoreState()
 
   await useDocStore.getState().joinDoc('invite-code-123')
 
@@ -773,5 +704,5 @@ test('joinDoc adds the new document and selects it', async (t) => {
   t.ok(state.docs.some((doc) => doc.key === joinedDoc.key))
 
   mock.destroyAll()
-  resetStoreState()
+  resetDocStoreState()
 })
