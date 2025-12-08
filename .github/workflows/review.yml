@@ -1,0 +1,8 @@
+name: PR Review Request
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  auto-review:
+    uses: holepunch/actions/.github/workflows/auto-review-request.yml@auto-req-review
