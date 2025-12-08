@@ -5,4 +5,4 @@ on:
 
 jobs:
   auto-review:
-    uses: holepunch/actions/.github/workflows/auto-review-request.yml@auto-req-review
+    uses: holepunchto/actions/.github/workflows/auto-review-request.yml@auto-req-review
