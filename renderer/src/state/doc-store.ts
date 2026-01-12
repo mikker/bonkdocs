@@ -242,10 +242,7 @@ function attachSession(
     if (origin === REMOTE_ORIGIN) return
     const changed = [...added, ...updated, ...removed]
     if (changed.length === 0) return
-    session.pendingAwareness = encodeAwarenessUpdate(
-      session.awareness,
-      changed
-    )
+    session.pendingAwareness = encodeAwarenessUpdate(session.awareness, changed)
     if (session.awarenessTimer) return
     session.awarenessTimer = setTimeout(() => {
       session.awarenessTimer = null
@@ -342,11 +339,12 @@ function normalizeDocMeta(
   session: DocSession,
   previous?: DocUpdate | null
 ): DocUpdate {
-  const key = typeof payload.key === 'string' ? payload.key : previous?.key || ''
+  const key =
+    typeof payload.key === 'string' ? payload.key : previous?.key || ''
   const revision =
     typeof payload.revision === 'number'
       ? payload.revision
-      : previous?.revision ?? 0
+      : (previous?.revision ?? 0)
   const updatedAt =
     typeof payload.updatedAt === 'number'
       ? payload.updatedAt
@@ -360,10 +358,13 @@ function normalizeDocMeta(
   const capabilities =
     payload.capabilities && typeof payload.capabilities === 'object'
       ? { ...payload.capabilities }
-      : previous?.capabilities ?? null
+      : (previous?.capabilities ?? null)
 
   let lockedAt: number | null
-  if (typeof payload.lockedAt === 'number' && Number.isFinite(payload.lockedAt)) {
+  if (
+    typeof payload.lockedAt === 'number' &&
+    Number.isFinite(payload.lockedAt)
+  ) {
     lockedAt = payload.lockedAt
   } else if (payload.lockedAt === null) {
     lockedAt = null
@@ -533,8 +534,7 @@ export const useDocStore = create<DocStore>((set, get) => ({
       set({ watcher })
 
       stream.on('data', (payload: RawDocUpdate) => {
-        const updateKey =
-          typeof payload.key === 'string' ? payload.key : key
+        const updateKey = typeof payload.key === 'string' ? payload.key : key
         const targetSession = getSession(updateKey)
         applyIncoming(targetSession, payload)
 
@@ -744,7 +744,7 @@ export const useDocStore = create<DocStore>((set, get) => ({
       let timeoutId: ReturnType<typeof setTimeout> | null = null
 
       const clearJoinTimeout = () => {
-        if (timeoutId != null) {
+        if (timeoutId !== null) {
           clearTimeout(timeoutId)
           timeoutId = null
         }
@@ -1123,7 +1123,9 @@ function normalizePairStatus(value: unknown): DocPairStatus {
           ? candidate.title
           : null,
       lastRevision:
-        typeof candidate.lastRevision === 'number' ? candidate.lastRevision : null,
+        typeof candidate.lastRevision === 'number'
+          ? candidate.lastRevision
+          : null,
       lastOpenedAt:
         typeof candidate.lastOpenedAt === 'number'
           ? candidate.lastOpenedAt

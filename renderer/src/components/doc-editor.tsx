@@ -45,37 +45,40 @@ export function DocEditor({
 
   const cursorUser = user ?? { name: 'You', color: '#111827' }
 
-  const editor = useEditor({
-    extensions: [
-      StarterKit.configure({
-        link: {
-          openOnClick: false,
-          linkOnPaste: true,
-          autolink: true
-        },
-        history: false,
-        undoRedo: false
-      }),
-      Collaboration.configure({
-        document: doc
-      }),
-      ...(awareness
-        ? [
-            CollaborationCursor.configure({
-              provider: { awareness },
-              user: cursorUser
-            })
-          ]
-        : [])
-    ],
-    editable: !readOnly,
-    autofocus: true,
-    editorProps: {
-      attributes: {
-        class: 'p-5 focus:outline-none'
+  const editor = useEditor(
+    {
+      extensions: [
+        StarterKit.configure({
+          link: {
+            openOnClick: false,
+            linkOnPaste: true,
+            autolink: true
+          },
+          history: false,
+          undoRedo: false
+        }),
+        Collaboration.configure({
+          document: doc
+        }),
+        ...(awareness
+          ? [
+              CollaborationCursor.configure({
+                provider: { awareness },
+                user: cursorUser
+              })
+            ]
+          : [])
+      ],
+      editable: !readOnly,
+      autofocus: true,
+      editorProps: {
+        attributes: {
+          class: 'p-5 focus:outline-none'
+        }
       }
-    }
-  }, [doc, awareness])
+    },
+    [doc, awareness]
+  )
 
   useEffect(() => {
     if (!editor || !awareness) return

@@ -94,13 +94,15 @@ export const CollaborationCursor = Extension.create<
 
         return true
       },
-      user: (attributes) => ({ editor }) => {
-        console.warn(
-          '[tiptap warn]: DEPRECATED: The "user" command is deprecated. Please use "updateUser" instead.'
-        )
+      user:
+        (attributes) =>
+        ({ editor }) => {
+          console.warn(
+            '[tiptap warn]: DEPRECATED: The "user" command is deprecated. Please use "updateUser" instead.'
+          )
 
-        return editor.commands.updateUser(attributes)
-      }
+          return editor.commands.updateUser(attributes)
+        }
     }
   },
 

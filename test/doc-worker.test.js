@@ -93,9 +93,7 @@ test('DocWorker watch emits initial sync update', async (t) => {
   })
 
   const payload = await new Promise((resolve, reject) => {
-    worker
-      .watchDoc(doc.key, {}, (update) => resolve(update))
-      .catch(reject)
+    worker.watchDoc(doc.key, {}, (update) => resolve(update)).catch(reject)
   })
 
   t.is(payload.key, doc.key)

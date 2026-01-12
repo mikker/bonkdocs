@@ -67,35 +67,32 @@ export class DocContext extends Context {
       }
     )
 
-    this.router.add(
-      '@bonk-docs/update-append',
-      async (data = {}, context) => {
-        await this.requirePermission(context.writerKey, PERMISSIONS.DOC_EDIT)
+    this.router.add('@bonk-docs/update-append', async (data = {}, context) => {
+      await this.requirePermission(context.writerKey, PERMISSIONS.DOC_EDIT)
 
-        if (typeof data.clientId !== 'string' || data.clientId.length === 0) {
-          throw new Error('update-append requires clientId')
-        }
-        if (!data.data) {
-          throw new Error('update-append requires data buffer')
-        }
-
-        const latest = await getLatestEntry(context.view, '@bonk-docs/updates')
-        const nextRev = latest ? latest.rev + 1 : 1
-
-        const record = {
-          clientId: data.clientId,
-          timestamp: data.timestamp || Date.now(),
-          data: data.data,
-          rev: nextRev
-        }
-
-        if (typeof data.sessionId === 'string' && data.sessionId.length > 0) {
-          record.sessionId = data.sessionId
-        }
-
-        await context.view.insert('@bonk-docs/updates', record)
+      if (typeof data.clientId !== 'string' || data.clientId.length === 0) {
+        throw new Error('update-append requires clientId')
       }
-    )
+      if (!data.data) {
+        throw new Error('update-append requires data buffer')
+      }
+
+      const latest = await getLatestEntry(context.view, '@bonk-docs/updates')
+      const nextRev = latest ? latest.rev + 1 : 1
+
+      const record = {
+        clientId: data.clientId,
+        timestamp: data.timestamp || Date.now(),
+        data: data.data,
+        rev: nextRev
+      }
+
+      if (typeof data.sessionId === 'string' && data.sessionId.length > 0) {
+        record.sessionId = data.sessionId
+      }
+
+      await context.view.insert('@bonk-docs/updates', record)
+    })
 
     this.router.add('@bonk-docs/snapshot-save', async (data = {}, context) => {
       await this.requirePermission(context.writerKey, PERMISSIONS.DOC_SNAPSHOT)

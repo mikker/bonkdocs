@@ -158,7 +158,7 @@ function JoinDialog({
             {error ? <p className='text-sm text-destructive'>{error}</p> : null}
             {!error && status?.message ? (
               <p className='text-sm text-muted-foreground'>
-                {status.progress != null
+                {status.progress !== null && status.progress !== undefined
                   ? `${status.message} (${Math.min(100, Math.max(0, Math.round(status.progress)))}%)`
                   : status.message}
               </p>

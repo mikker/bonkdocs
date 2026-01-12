@@ -90,7 +90,8 @@ export function App() {
                 awareness={currentUpdate.awareness}
                 user={localUser}
                 readOnly={
-                  currentUpdate.lockedAt != null ||
+                  (currentUpdate.lockedAt !== null &&
+                    currentUpdate.lockedAt !== undefined) ||
                   currentUpdate.capabilities?.canEdit === false
                 }
               />
