@@ -15,8 +15,9 @@ function createMockStream() {
 export function createRpcMock({ docs = [], activeDoc = null } = {}) {
   let docsResponse = docs
   let activeDocKey = activeDoc
-  let applyOpsHandler = async () => ({ accepted: true })
-  const applyOpsCalls = []
+  let applyUpdatesHandler = async () => ({ accepted: true })
+  const applyUpdatesCalls = []
+  let applyAwarenessHandler = async () => ({ accepted: true })
   let watchDocCalls = 0
   const watchers = new Map()
   const invitesByKey = new Map()
@@ -98,9 +99,12 @@ export function createRpcMock({ docs = [], activeDoc = null } = {}) {
       rememberWatcher(request.key, stream)
       return stream
     },
-    async applyOps(request = {}) {
-      applyOpsCalls.push(request)
-      return await applyOpsHandler(request)
+    async applyUpdates(request = {}) {
+      applyUpdatesCalls.push(request)
+      return await applyUpdatesHandler(request)
+    },
+    async applyAwareness(request = {}) {
+      return await applyAwarenessHandler(request)
     },
     async renameDoc(request = {}) {
       renameDocCalls.push(request)
@@ -162,8 +166,8 @@ export function createRpcMock({ docs = [], activeDoc = null } = {}) {
       docsResponse = nextDocs
       activeDocKey = nextActive
     },
-    setApplyOpsHandler(fn) {
-      applyOpsHandler = fn
+    setApplyUpdatesHandler(fn) {
+      applyUpdatesHandler = fn
     },
     emitUpdate(key, payload) {
       const streams = watchers.get(key) || []
@@ -176,8 +180,11 @@ export function createRpcMock({ docs = [], activeDoc = null } = {}) {
     getWatchCount() {
       return watchDocCalls
     },
-    getApplyOpsCalls() {
-      return applyOpsCalls
+    getApplyUpdatesCalls() {
+      return applyUpdatesCalls
+    },
+    setApplyAwarenessHandler(fn) {
+      applyAwarenessHandler = fn
     },
     setJoinDocHandler(fn) {
       joinDocHandler = fn
@@ -228,7 +235,6 @@ export function resetDocStoreState(overrides = {}) {
     loading: false,
     error: null,
     watcher: null,
-    pendingOps: {},
     invites: {},
     invitesLoading: false,
     invitesError: null,

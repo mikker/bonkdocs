@@ -609,6 +609,61 @@ const collection10 = {
   indexes: []
 }
 
+// '@bonk-docs/updates' collection key
+const collection11_key = new IndexEncoder([
+  IndexEncoder.UINT
+], { prefix: 11 })
+
+function collection11_indexify (record) {
+  const a = record.rev
+  return a === undefined ? [] : [a]
+}
+
+// '@bonk-docs/updates' value encoding
+const collection11_enc = getEncoding('@bonk-docs/update/hyperdb#11')
+
+// '@bonk-docs/updates' reconstruction function
+function collection11_reconstruct (version, keyBuf, valueBuf) {
+  const key = collection11_key.decode(keyBuf)
+  setVersion(version)
+  const record = c.decode(collection11_enc, valueBuf)
+  record.rev = key[0]
+  return record
+}
+// '@bonk-docs/updates' key reconstruction function
+function collection11_reconstruct_key (keyBuf) {
+  const key = collection11_key.decode(keyBuf)
+  return {
+    rev: key[0]
+  }
+}
+
+// '@bonk-docs/updates'
+const collection11 = {
+  name: '@bonk-docs/updates',
+  id: 11,
+  encodeKey (record) {
+    const key = [record.rev]
+    return collection11_key.encode(key)
+  },
+  encodeKeyRange ({ gt, lt, gte, lte } = {}) {
+    return collection11_key.encodeRange({
+      gt: gt ? collection11_indexify(gt) : null,
+      lt: lt ? collection11_indexify(lt) : null,
+      gte: gte ? collection11_indexify(gte) : null,
+      lte: lte ? collection11_indexify(lte) : null
+    })
+  },
+  encodeValue (version, record) {
+    setVersion(version)
+    return c.encode(collection11_enc, record)
+  },
+  trigger: null,
+  reconstruct: collection11_reconstruct,
+  reconstructKey: collection11_reconstruct_key,
+  indexes: []
+}
+
 const collections = [
   collection0,
   collection1,
@@ -620,7 +675,8 @@ const collections = [
   collection7,
   collection8,
   collection9,
-  collection10
+  collection10,
+  collection11
 ]
 
 const indexes = [
@@ -641,6 +697,7 @@ function resolveCollection (name) {
     case '@local/docs': return collection8
     case '@local/state': return collection9
     case '@local/profile': return collection10
+    case '@bonk-docs/updates': return collection11
     default: return null
   }
 }

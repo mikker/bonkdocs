@@ -34,15 +34,25 @@ docs.register({
 })
 
 docs.register({
-  name: 'operation',
+  name: 'update',
   compact: false,
   fields: [
     { name: 'rev', type: 'uint', required: true },
-    { name: 'baseRev', type: 'uint', required: true },
-    { name: 'clientId', type: 'fixed32', required: true },
-    { name: 'sessionId', type: 'fixed32', required: false },
+    { name: 'clientId', type: 'string', required: true },
     { name: 'timestamp', type: 'uint', required: true },
-    { name: 'data', type: 'buffer', required: true }
+    { name: 'data', type: 'buffer', required: true },
+    { name: 'sessionId', type: 'string', required: false }
+  ]
+})
+
+docs.register({
+  name: 'update-entry',
+  compact: false,
+  fields: [
+    { name: 'clientId', type: 'string', required: true },
+    { name: 'timestamp', type: 'uint', required: true },
+    { name: 'data', type: 'buffer', required: true },
+    { name: 'sessionId', type: 'string', required: false }
   ]
 })
 
@@ -54,7 +64,8 @@ docs.register({
     { name: 'createdAt', type: 'uint', required: true },
     { name: 'compression', type: 'string', required: false },
     { name: 'data', type: 'buffer', required: true },
-    { name: 'hash', type: 'buffer', required: false }
+    { name: 'hash', type: 'buffer', required: false },
+    { name: 'stateVector', type: 'buffer', required: false }
   ]
 })
 
@@ -112,6 +123,17 @@ rpc.register({
 })
 
 rpc.register({
+  name: 'doc-update-entry',
+  compact: false,
+  fields: [
+    { name: 'rev', type: 'uint', required: false },
+    { name: 'clientId', type: 'string', required: true },
+    { name: 'timestamp', type: 'uint', required: false },
+    { name: 'data', type: 'buffer', required: true }
+  ]
+})
+
+rpc.register({
   name: 'doc-operation',
   compact: false,
   fields: [
@@ -147,7 +169,15 @@ rpc.register({
       required: false
     },
     { name: 'lockedAt', type: 'uint', required: false },
-    { name: 'lockedBy', type: 'string', required: false }
+    { name: 'lockedBy', type: 'string', required: false },
+    { name: 'syncUpdate', type: 'buffer', required: false },
+    {
+      name: 'updates',
+      type: '@bonk-docs-rpc/doc-update-entry',
+      array: true,
+      required: false
+    },
+    { name: 'awareness', type: 'buffer', required: false }
   ]
 })
 
@@ -296,18 +326,19 @@ rpc.register({
   fields: [
     { name: 'key', type: 'string', required: true },
     { name: 'sinceRevision', type: 'uint', required: false },
-    { name: 'includeSnapshot', type: 'bool', required: false }
+    { name: 'includeSnapshot', type: 'bool', required: false },
+    { name: 'stateVector', type: 'buffer', required: false }
   ]
 })
 
 rpc.register({
-  name: 'apply-ops-request',
+  name: 'apply-updates-request',
   compact: false,
   fields: [
     { name: 'key', type: 'string', required: true },
     {
-      name: 'ops',
-      type: '@bonk-docs-rpc/doc-operation',
+      name: 'updates',
+      type: '@bonk-docs-rpc/doc-update-entry',
       array: true,
       required: true
     },
@@ -316,13 +347,28 @@ rpc.register({
 })
 
 rpc.register({
-  name: 'apply-ops-response',
+  name: 'apply-updates-response',
   compact: false,
   fields: [
     { name: 'accepted', type: 'bool', required: true },
     { name: 'revision', type: 'uint', required: false },
     { name: 'error', type: 'string', required: false }
   ]
+})
+
+rpc.register({
+  name: 'apply-awareness-request',
+  compact: false,
+  fields: [
+    { name: 'key', type: 'string', required: true },
+    { name: 'update', type: 'buffer', required: true }
+  ]
+})
+
+rpc.register({
+  name: 'apply-awareness-response',
+  compact: false,
+  fields: [{ name: 'accepted', type: 'bool', required: true }]
 })
 
 rpc.register({
@@ -416,8 +462,8 @@ docsDb.collections.register({
   key: ['id']
 })
 docsDb.collections.register({
-  name: 'operations',
-  schema: '@bonk-docs/operation',
+  name: 'updates',
+  schema: '@bonk-docs/update',
   key: ['rev']
 })
 docsDb.collections.register({
@@ -456,8 +502,8 @@ docDispatch.register({
   requestType: '@bonk-docs/metadata'
 })
 docDispatch.register({
-  name: 'operation-append',
-  requestType: '@bonk-docs/operation'
+  name: 'update-append',
+  requestType: '@bonk-docs/update-entry'
 })
 docDispatch.register({
   name: 'snapshot-save',
@@ -528,9 +574,15 @@ workerRpc.register({
 })
 
 workerRpc.register({
-  name: 'apply-ops',
-  request: { name: '@bonk-docs-rpc/apply-ops-request' },
-  response: { name: '@bonk-docs-rpc/apply-ops-response' }
+  name: 'apply-updates',
+  request: { name: '@bonk-docs-rpc/apply-updates-request' },
+  response: { name: '@bonk-docs-rpc/apply-updates-response' }
+})
+
+workerRpc.register({
+  name: 'apply-awareness',
+  request: { name: '@bonk-docs-rpc/apply-awareness-request' },
+  response: { name: '@bonk-docs-rpc/apply-awareness-response' }
 })
 
 workerRpc.register({

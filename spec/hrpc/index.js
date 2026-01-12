@@ -33,7 +33,11 @@ const methods = new Map([
   ['@bonk-docs/rename-doc', 12],
   [12, '@bonk-docs/rename-doc'],
   ['@bonk-docs/lock-doc', 13],
-  [13, '@bonk-docs/lock-doc']
+  [13, '@bonk-docs/lock-doc'],
+  ['@bonk-docs/apply-updates', 14],
+  [14, '@bonk-docs/apply-updates'],
+  ['@bonk-docs/apply-awareness', 15],
+  [15, '@bonk-docs/apply-awareness']
 ])
 
 class HRPC {
@@ -54,7 +58,9 @@ class HRPC {
       ['@bonk-docs/create-invite', getEncoding('@bonk-docs-rpc/create-invite-request')],
       ['@bonk-docs/revoke-invite', getEncoding('@bonk-docs-rpc/revoke-invite-request')],
       ['@bonk-docs/rename-doc', getEncoding('@bonk-docs-rpc/rename-doc-request')],
-      ['@bonk-docs/lock-doc', getEncoding('@bonk-docs-rpc/lock-doc-request')]
+      ['@bonk-docs/lock-doc', getEncoding('@bonk-docs-rpc/lock-doc-request')],
+      ['@bonk-docs/apply-updates', getEncoding('@bonk-docs-rpc/apply-updates-request')],
+      ['@bonk-docs/apply-awareness', getEncoding('@bonk-docs-rpc/apply-awareness-request')]
     ])
     this._responseEncodings = new Map([
       ['@bonk-docs/initialize', getEncoding('@bonk-docs-rpc/initialize-response')],
@@ -70,7 +76,9 @@ class HRPC {
       ['@bonk-docs/create-invite', getEncoding('@bonk-docs-rpc/create-invite-response')],
       ['@bonk-docs/revoke-invite', getEncoding('@bonk-docs-rpc/revoke-invite-response')],
       ['@bonk-docs/rename-doc', getEncoding('@bonk-docs-rpc/rename-doc-response')],
-      ['@bonk-docs/lock-doc', getEncoding('@bonk-docs-rpc/lock-doc-response')]
+      ['@bonk-docs/lock-doc', getEncoding('@bonk-docs-rpc/lock-doc-response')],
+      ['@bonk-docs/apply-updates', getEncoding('@bonk-docs-rpc/apply-updates-response')],
+      ['@bonk-docs/apply-awareness', getEncoding('@bonk-docs-rpc/apply-awareness-response')]
     ])
     this._rpc = new RPC(stream, async (req) => {
       const command = methods.get(req.command)
@@ -221,6 +229,14 @@ class HRPC {
     return this._call('@bonk-docs/lock-doc', args)
   }
 
+  async applyUpdates(args) {
+    return this._call('@bonk-docs/apply-updates', args)
+  }
+
+  async applyAwareness(args) {
+    return this._call('@bonk-docs/apply-awareness', args)
+  }
+
   onInitialize(responseFn) {
     this._handlers['@bonk-docs/initialize'] = responseFn
   }
@@ -275,6 +291,14 @@ class HRPC {
 
   onLockDoc(responseFn) {
     this._handlers['@bonk-docs/lock-doc'] = responseFn
+  }
+
+  onApplyUpdates(responseFn) {
+    this._handlers['@bonk-docs/apply-updates'] = responseFn
+  }
+
+  onApplyAwareness(responseFn) {
+    this._handlers['@bonk-docs/apply-awareness'] = responseFn
   }
 
   _requestIsStream(command) {

@@ -2,10 +2,14 @@ import { mkdir } from 'fs/promises'
 
 import { DocManager } from '../../core/doc-manager.js'
 import { ensurePear } from '../../lib/pear-env.js'
-import { randomBytes } from 'hypercore-crypto'
-
 ensurePear()
 import z32 from 'z32'
+import * as Y from 'yjs'
+import {
+  Awareness,
+  applyAwarenessUpdate,
+  encodeAwarenessUpdate
+} from 'y-protocols/awareness'
 import {
   DEFAULT_TITLE,
   PERMISSIONS,
@@ -13,11 +17,6 @@ import {
   ROLE_EDITOR,
   ROLE_VIEWER
 } from '../../core/constants.js'
-import {
-  decodeDeltaPayload,
-  applyDeltaSteps,
-  fingerprintText
-} from '../../lib/snapshot-delta.js'
 
 const APP_STATE_KEY = 'state/app'
 
@@ -45,104 +44,15 @@ function buffersEqual(a, b) {
   return true
 }
 
-const EMPTY_DOC_NODE = Object.freeze({
-  type: 'doc',
-  content: [{ type: 'paragraph' }]
-})
+const SNAPSHOT_OPS_INTERVAL = 50
+const SNAPSHOT_TIME_INTERVAL = 60_000
+const REMOTE_ORIGIN = 'remote'
 
-const EMPTY_DOC_SNAPSHOT = Buffer.from(JSON.stringify(EMPTY_DOC_NODE))
-const EMPTY_DOC_TEXT = JSON.stringify(EMPTY_DOC_NODE)
-
-const TEXT_DECODER =
-  typeof TextDecoder === 'function' ? new TextDecoder() : null
-
-function bytesFromId(id) {
-  if (!id) return randomBytes(32)
-  if (Buffer.isBuffer(id)) {
-    if (id.length === 32) return id
-    if (id.length > 32) return id.subarray(0, 32)
-    const out = Buffer.alloc(32)
-    id.copy(out)
-    return out
-  }
-  if (typeof id === 'string') {
-    const normalized = id.trim()
-    try {
-      if (/^[0-9a-fA-F]{64}$/.test(normalized)) {
-        return Buffer.from(normalized, 'hex')
-      }
-      if (/^[0-9a-fA-F]{32}$/.test(normalized)) {
-        return Buffer.from(normalized.repeat(2), 'hex')
-      }
-    } catch {}
-    try {
-      const decoded = Buffer.from(normalized, 'base64')
-      if (decoded.length === 32) return decoded
-      if (decoded.length > 32) return decoded.subarray(0, 32)
-      const out = Buffer.alloc(32)
-      decoded.copy(out)
-      return out
-    } catch {}
-  }
-  return randomBytes(32)
-}
-
-function sanitizeDocNode(node) {
-  if (!node || typeof node !== 'object') return null
-  const type = typeof node.type === 'string' ? node.type : null
-  if (!type) return null
-
-  if (type === 'text') {
-    const text = typeof node.text === 'string' ? node.text : ''
-    if (!text) return null
-    const clean = { ...node, type, text }
-    return clean
-  }
-
-  const clean = { ...node, type }
-
-  if (Array.isArray(node.content)) {
-    const children = node.content
-      .map((child) => sanitizeDocNode(child))
-      .filter((child) => child !== null)
-    if (children.length > 0) clean.content = children
-    else delete clean.content
-  } else if (node.content !== undefined) {
-    delete clean.content
-  }
-
-  return clean
-}
-
-function sanitizeDocSnapshot(doc) {
-  if (!doc || typeof doc !== 'object') return EMPTY_DOC_NODE
-  const type = typeof doc.type === 'string' ? doc.type : null
-  if (type !== 'doc') return EMPTY_DOC_NODE
-
-  const content = Array.isArray(doc.content) ? doc.content : []
-  const cleaned = content
-    .map((node) => sanitizeDocNode(node))
-    .filter((node) => node !== null)
-
-  if (cleaned.length === 0) cleaned.push({ type: 'paragraph' })
-
-  return { type: 'doc', content: cleaned }
-}
-
-function decodeOperationPayload(data) {
-  if (!data || data.length === 0) return null
-  try {
-    const str = Buffer.isBuffer(data)
-      ? data.toString()
-      : TEXT_DECODER
-        ? TEXT_DECODER.decode(data)
-        : Buffer.from(data).toString()
-    const parsed = JSON.parse(str)
-    if (!parsed || typeof parsed !== 'object') return null
-    return parsed
-  } catch {
-    return null
-  }
+function toUint8Array(value) {
+  if (!value) return null
+  if (value instanceof Uint8Array) return value
+  if (Buffer.isBuffer(value)) return new Uint8Array(value)
+  return null
 }
 
 function isCoreClosingError(error) {
@@ -160,6 +70,9 @@ export class DocWorker {
   constructor(options = {}) {
     this.baseDir = options.baseDir
     this.watchers = new Map()
+    this.syncs = new Map()
+    this.syncQueues = new Map()
+    this.subscriptions = new Map()
 
     if (options.ensureStorage !== false) {
       void mkdir(this.baseDir, { recursive: true }).catch(() => {})
@@ -185,6 +98,14 @@ export class DocWorker {
       }
     }
     this.watchers.clear()
+    for (const unsubscribe of this.subscriptions.values()) {
+      try {
+        unsubscribe()
+      } catch {}
+    }
+    this.subscriptions.clear()
+    this.syncs.clear()
+    this.syncQueues.clear()
     await this.manager.close()
   }
 
@@ -214,10 +135,8 @@ export class DocWorker {
     const docRecord = this.normalizeDocRecord(fallback, metadata)
 
     try {
-      await context.recordSnapshot({
-        rev: metadata?.rev || 1,
-        data: Buffer.from(EMPTY_DOC_SNAPSHOT)
-      })
+      const sync = await this._ensureSync(context)
+      await this._persistSnapshot(context, sync, { force: true })
     } catch (error) {
       console.warn('[doc-worker] failed to record initial snapshot', error)
     }
@@ -335,64 +254,65 @@ export class DocWorker {
     const context = await this.manager.getDoc(keyHex)
     if (!context) throw new Error('Doc not found')
 
+    const sync = await this._ensureSync(context)
+    await this._refreshSync(context, sync)
+
     const watcherEntry = {
       closed: false,
-      unsubscribe: null,
-      sinceRevision:
-        typeof options.sinceRevision === 'number' && options.sinceRevision >= 0
-          ? options.sinceRevision
-          : 0,
-      includeSnapshot: options.includeSnapshot === true
+      emit: onUpdate
     }
 
     const set = this._getWatcherSet(keyHex)
     set.add(watcherEntry)
 
-    const sendUpdate = async () => {
-      if (watcherEntry.closed) return
-      const update = await this.buildDocUpdate(context, {
-        includeSnapshot: watcherEntry.includeSnapshot,
-        sinceRevision: watcherEntry.sinceRevision
+    if (!this.subscriptions.has(keyHex)) {
+      const unsubscribe = context.subscribe(() => {
+        this._queueBroadcast(context)
       })
-      watcherEntry.includeSnapshot = false
-      watcherEntry.sinceRevision = update.revision
-      await onUpdate(update)
+      this.subscriptions.set(keyHex, unsubscribe)
     }
 
-    const queueUpdate = () =>
-      Promise.resolve()
-        .then(sendUpdate)
-        .catch((error) => {
-          if (isCoreClosingError(error)) {
-            watcherEntry.closed = true
-            set.delete(watcherEntry)
-            try {
-              watcherEntry.unsubscribe?.()
-            } catch {}
-            return
-          }
-          console.warn('[doc-worker] failed to emit doc update', error)
-        })
+    const stateVector = toUint8Array(options.stateVector)
+    const rawSyncUpdate =
+      stateVector && stateVector.length > 0
+        ? Y.encodeStateAsUpdate(sync.doc, stateVector)
+        : Y.encodeStateAsUpdate(sync.doc)
+    const syncUpdate =
+      rawSyncUpdate && rawSyncUpdate.length > 0 ? rawSyncUpdate : null
 
-    queueUpdate()
+    const awarenessUpdate = encodeAwarenessUpdate(
+      sync.awareness,
+      Array.from(sync.awareness.getStates().keys())
+    )
 
-    watcherEntry.unsubscribe = context.subscribe(queueUpdate)
+    const update = await this.buildDocUpdate(context, sync, {
+      syncUpdate,
+      awareness: awarenessUpdate
+    })
+    await onUpdate(update)
 
     return async () => {
       if (watcherEntry.closed) return
       watcherEntry.closed = true
       set.delete(watcherEntry)
-      try {
-        watcherEntry.unsubscribe?.()
-      } catch {}
+
+      if (set.size === 0) {
+        const unsubscribe = this.subscriptions.get(keyHex)
+        if (unsubscribe) {
+          try {
+            unsubscribe()
+          } catch {}
+        }
+        this.subscriptions.delete(keyHex)
+      }
     }
   }
 
-  async applyOperations(request = {}) {
+  async applyUpdates(request = {}) {
     if (!request.key) throw new Error('Doc key is required')
-    const ops = Array.isArray(request.ops) ? request.ops : []
-    if (ops.length === 0) {
-      return { accepted: false, applied: 0, revision: null, reason: 'NO_OPS' }
+    const updates = Array.isArray(request.updates) ? request.updates : []
+    if (updates.length === 0) {
+      return { accepted: false, revision: null, error: 'NO_UPDATES' }
     }
 
     await this.ready()
@@ -409,266 +329,53 @@ export class DocWorker {
       throw new Error('Document is locked')
     }
 
-    if (!context._conflictListenerAttached) {
-      context.base.on('error', (error) => {
-        if (
-          error &&
-          typeof error.message === 'string' &&
-          error.message.startsWith('Conflicting operation revision')
-        ) {
-          return
-        }
+    let accepted = false
 
-        context.emit('error', error)
-      })
-      context._conflictListenerAttached = true
-    }
-
-    let currentRevision = await context.getLatestRevision()
-    const accepted = []
-    let latestDocJSON = null
-    let latestDocText = null
-    let latestDocHash = null
-
-    const ensureLatestSnapshot = async () => {
-      if (latestDocText !== null) return
-      let snapshotRecord = null
-      try {
-        snapshotRecord = await context.base.view.findOne(
-          '@bonk-docs/snapshots',
-          { reverse: true, limit: 1 }
-        )
-      } catch {}
-
-      if (snapshotRecord?.data) {
-        try {
-          const str = snapshotRecord.data.toString()
-          const parsed = JSON.parse(str)
-          const sanitized = sanitizeDocSnapshot(parsed)
-          latestDocJSON = sanitized
-          latestDocText = JSON.stringify(sanitized)
-        } catch {
-          latestDocJSON = EMPTY_DOC_NODE
-          latestDocText = EMPTY_DOC_TEXT
-        }
-      } else {
-        latestDocJSON = EMPTY_DOC_NODE
-        latestDocText = EMPTY_DOC_TEXT
-      }
-
-      latestDocHash = fingerprintText(latestDocText)
-    }
-
-    const persistSnapshot = async (doc, rev, timestamp) => {
-      latestDocJSON = doc
-      latestDocText = JSON.stringify(doc)
-      latestDocHash = fingerprintText(latestDocText)
-      const snapshotBuffer = Buffer.from(latestDocText)
-      await context.recordSnapshot({
-        rev,
-        createdAt: timestamp,
-        data: snapshotBuffer
-      })
-    }
-
-    for (const rawOp of ops) {
-      if (!rawOp || typeof rawOp !== 'object') continue
-
-      const payload = decodeOperationPayload(rawOp.data)
-      if (!payload) continue
-
-      const baseRev =
-        typeof rawOp.baseRev === 'number' && rawOp.baseRev >= 0
-          ? rawOp.baseRev
-          : currentRevision
-
-      if (baseRev !== currentRevision) {
-        return {
-          accepted: accepted.length > 0,
-          applied: accepted.length,
-          revision: currentRevision,
-          reason: 'REVISION_MISMATCH',
-          expected: currentRevision,
-          received: baseRev
-        }
-      }
-
-      const nextRevision =
-        typeof rawOp.rev === 'number' && rawOp.rev > currentRevision
-          ? rawOp.rev
-          : currentRevision + 1
-
-      const clientId = bytesFromId(rawOp.clientId)
-      const sessionId = rawOp.sessionId
-        ? bytesFromId(rawOp.sessionId)
-        : clientId
+    for (const entry of updates) {
+      if (!entry || typeof entry !== 'object') continue
+      const clientId =
+        typeof entry.clientId === 'string' && entry.clientId.length > 0
+          ? entry.clientId
+          : 'unknown'
       const timestamp =
-        typeof rawOp.timestamp === 'number' && rawOp.timestamp > 0
-          ? rawOp.timestamp
+        typeof entry.timestamp === 'number' && entry.timestamp > 0
+          ? entry.timestamp
           : Date.now()
-
-      const opBuffer = Buffer.isBuffer(rawOp.data)
-        ? rawOp.data
-        : Buffer.from(rawOp.data)
-
-      let duplicateAck = false
-
-      while (true) {
-        let latestBeforeAppend
-        try {
-          latestBeforeAppend = await context.getLatestRevision()
-        } catch {
-          latestBeforeAppend = currentRevision
-        }
-
-        if (latestBeforeAppend >= nextRevision) {
-          let existing = null
-          try {
-            existing = await context.base.view.get('@bonk-docs/operations', {
-              rev: nextRevision
-            })
-          } catch {}
-
-          if (existing) {
-            const existingClient = bufferToHex(existing.clientId)
-            const incomingClient = bufferToHex(clientId)
-            const sameClient = existingClient === incomingClient
-            const sameBase =
-              typeof existing.baseRev === 'number'
-                ? existing.baseRev === baseRev
-                : false
-            const existingData = Buffer.isBuffer(existing.data)
-              ? existing.data
-              : existing.data
-                ? Buffer.from(existing.data)
-                : Buffer.alloc(0)
-            const sameData = buffersEqual(existingData, opBuffer)
-
-            if (sameClient && sameBase && sameData) {
-              currentRevision = latestBeforeAppend
-              accepted.push({ rev: nextRevision })
-              duplicateAck = true
-              break
-            }
-          }
-
-          return {
-            accepted: accepted.length > 0,
-            applied: accepted.length,
-            revision: latestBeforeAppend,
-            reason: 'REVISION_CONFLICT',
-            conflict: {
-              message: `Conflicting operation revision ${nextRevision}: expected ${latestBeforeAppend + 1}`,
-              attemptedRevision: nextRevision,
-              baseRevision: baseRev,
-              existingRevision: latestBeforeAppend,
-              expectedRevision: latestBeforeAppend + 1,
-              clientId: bufferToHex(clientId),
-              sessionId: bufferToHex(sessionId),
-              timestamp
-            }
-          }
-        }
-
-        try {
-          await context.appendOperation({
-            rev: nextRevision,
-            baseRev,
-            clientId,
-            sessionId,
-            timestamp,
-            data: opBuffer
-          })
-          break
-        } catch (error) {
-          const err = error instanceof Error ? error : new Error(String(error))
-          const message = typeof err.message === 'string' ? err.message : ''
-
-          if (message.startsWith('Conflicting operation revision')) {
-            // re-evaluate with updated revision state
-            continue
-          }
-
-          if (message.startsWith('Invalid operation revision')) {
-            let latestRevision
-            try {
-              latestRevision = await context.getLatestRevision()
-            } catch {
-              latestRevision = currentRevision
-            }
-
-            return {
-              accepted: accepted.length > 0,
-              applied: accepted.length,
-              revision: latestRevision,
-              reason: 'REVISION_OUT_OF_ORDER',
-              expected: latestRevision + 1,
-              received: nextRevision,
-              message
-            }
-          }
-
-          throw err
-        }
-      }
-
-      if (duplicateAck) {
-        continue
-      }
-
-      if (payload && payload.type === 'replace' && payload.doc) {
-        const sanitized = sanitizeDocSnapshot(payload.doc)
-        await persistSnapshot(sanitized, nextRevision, timestamp)
-      } else if (payload && payload.type === 'delta') {
-        const delta = decodeDeltaPayload(payload)
-        if (!delta) {
-          return {
-            accepted: accepted.length > 0,
-            applied: accepted.length,
-            revision: currentRevision,
-            reason: 'INVALID_DELTA'
-          }
-        }
-
-        await ensureLatestSnapshot()
-
-        if (delta.baseHash && delta.baseHash !== latestDocHash) {
-          return {
-            accepted: accepted.length > 0,
-            applied: accepted.length,
-            revision: currentRevision,
-            reason: 'SNAPSHOT_MISMATCH',
-            expected: latestDocHash,
-            received: delta.baseHash
-          }
-        }
-
-        const nextText = applyDeltaSteps(latestDocText, delta.steps)
-        let parsed = null
-        try {
-          parsed = JSON.parse(nextText)
-        } catch {
-          return {
-            accepted: accepted.length > 0,
-            applied: accepted.length,
-            revision: currentRevision,
-            reason: 'DELTA_APPLY_FAILED'
-          }
-        }
-
-        const sanitized = sanitizeDocSnapshot(parsed)
-        await persistSnapshot(sanitized, nextRevision, timestamp)
-      }
-
-      currentRevision = nextRevision
-      accepted.push({ rev: nextRevision })
+      const data = entry.data
+      if (!data) continue
+      const buffer = Buffer.isBuffer(data) ? data : Buffer.from(data)
+      await context.appendUpdate({
+        clientId,
+        timestamp,
+        data: buffer
+      })
+      accepted = true
     }
 
+    const latest = await context.getLatestRevision()
     return {
-      accepted: accepted.length > 0,
-      applied: accepted.length,
-      revision: currentRevision
+      accepted,
+      revision: latest || 0
     }
+  }
+
+  async applyAwareness(request = {}) {
+    if (!request.key) throw new Error('Doc key is required')
+    if (!request.update) return { accepted: false }
+
+    await this.ready()
+
+    const context = await this.manager.getDoc(request.key)
+    if (!context) throw new Error('Doc not found')
+
+    const sync = await this._ensureSync(context)
+    const update = toUint8Array(request.update)
+    if (!update) return { accepted: false }
+
+    applyAwarenessUpdate(sync.awareness, update, REMOTE_ORIGIN)
+    await this._broadcastAwareness(context, sync, update)
+
+    return { accepted: true }
   }
 
   async pairInvite(options = {}, emit, signal) {
@@ -930,9 +637,200 @@ export class DocWorker {
     }
   }
 
-  async buildDocUpdate(context, options = {}) {
+  async _ensureSync(context) {
+    const keyHex = bufferToHex(context.key)
+    const existing = this.syncs.get(keyHex)
+    if (existing && existing.ready) return existing
+    if (existing && existing.loading) {
+      return await existing.loading
+    }
+
+    const sync = {
+      doc: new Y.Doc(),
+      awareness: null,
+      lastRev: 0,
+      lastUpdateAt: 0,
+      lastSnapshotAt: 0,
+      updatesSinceSnapshot: 0,
+      loading: null,
+      ready: false
+    }
+    sync.awareness = new Awareness(sync.doc)
+
+    sync.loading = (async () => {
+      let snapshotRecord = null
+      try {
+        snapshotRecord = await context.base.view.findOne(
+          '@bonk-docs/snapshots',
+          { reverse: true, limit: 1 }
+        )
+      } catch {}
+
+      if (snapshotRecord?.data) {
+        const snapshotUpdate = toUint8Array(snapshotRecord.data)
+        if (snapshotUpdate) {
+          Y.applyUpdate(sync.doc, snapshotUpdate, REMOTE_ORIGIN)
+        }
+        if (typeof snapshotRecord.rev === 'number') {
+          sync.lastRev = snapshotRecord.rev
+        }
+        if (typeof snapshotRecord.createdAt === 'number') {
+          sync.lastSnapshotAt = snapshotRecord.createdAt
+        }
+      }
+
+      const cursor = context.base.view.find('@bonk-docs/updates', {
+        gt: { rev: sync.lastRev }
+      })
+      const records = await cursor.toArray()
+      for (const record of records) {
+        const update = toUint8Array(record?.data)
+        if (update) {
+          Y.applyUpdate(sync.doc, update, REMOTE_ORIGIN)
+        }
+        if (typeof record.rev === 'number') {
+          sync.lastRev = record.rev
+        }
+        if (typeof record.timestamp === 'number') {
+          sync.lastUpdateAt = Math.max(sync.lastUpdateAt, record.timestamp)
+        }
+      }
+
+      if (!snapshotRecord) {
+        sync.updatesSinceSnapshot = records.length
+      }
+
+      sync.ready = true
+      sync.loading = null
+      return sync
+    })()
+
+    this.syncs.set(keyHex, sync)
+    return await sync.loading
+  }
+
+  async _refreshSync(context, sync) {
+    const latest = await context.base.view.findOne('@bonk-docs/updates', {
+      reverse: true,
+      limit: 1
+    })
+    const latestRev = typeof latest?.rev === 'number' ? latest.rev : 0
+    if (latestRev <= sync.lastRev) {
+      return []
+    }
+
+    const cursor = context.base.view.find('@bonk-docs/updates', {
+      gt: { rev: sync.lastRev },
+      lte: { rev: latestRev }
+    })
+    const records = await cursor.toArray()
+
+    for (const record of records) {
+      const update = toUint8Array(record?.data)
+      if (update) {
+        Y.applyUpdate(sync.doc, update, REMOTE_ORIGIN)
+      }
+      if (typeof record.timestamp === 'number') {
+        sync.lastUpdateAt = Math.max(sync.lastUpdateAt, record.timestamp)
+      }
+    }
+
+    if (records.length > 0) {
+      sync.lastRev = records[records.length - 1].rev
+      sync.updatesSinceSnapshot += records.length
+      await this._persistSnapshot(context, sync)
+    }
+
+    return records
+  }
+
+  async _persistSnapshot(context, sync, options = {}) {
+    const force = options.force === true
+    const now = Date.now()
+    const shouldSnapshot =
+      force ||
+      sync.updatesSinceSnapshot >= SNAPSHOT_OPS_INTERVAL ||
+      (sync.lastSnapshotAt > 0 &&
+        now - sync.lastSnapshotAt >= SNAPSHOT_TIME_INTERVAL)
+
+    if (!shouldSnapshot) return
+
+    try {
+      const update = Y.encodeStateAsUpdate(sync.doc)
+      const vector = Y.encodeStateVector(sync.doc)
+      await context.recordSnapshot({
+        rev: sync.lastRev,
+        createdAt: now,
+        data: Buffer.from(update),
+        stateVector: Buffer.from(vector)
+      })
+      sync.lastSnapshotAt = now
+      sync.updatesSinceSnapshot = 0
+    } catch (error) {
+      console.warn('[doc-worker] failed to persist snapshot', error)
+    }
+  }
+
+  _queueBroadcast(context) {
+    const keyHex = bufferToHex(context.key)
+    const previous = this.syncQueues.get(keyHex) ?? Promise.resolve()
+    const next = previous
+      .catch(() => {})
+      .then(() => this._broadcastUpdates(context))
+    this.syncQueues.set(keyHex, next)
+  }
+
+  async _broadcastUpdates(context) {
+    const keyHex = bufferToHex(context.key)
+    const watchers = this.watchers.get(keyHex)
+    if (!watchers || watchers.size === 0) return
+
+    const sync = await this._ensureSync(context)
+    const updates = await this._refreshSync(context, sync)
+    const payload = await this.buildDocUpdate(context, sync, {
+      updates: updates.length > 0 ? updates : null
+    })
+
+    for (const watcher of watchers) {
+      if (watcher.closed) continue
+      try {
+        await watcher.emit(payload)
+      } catch (error) {
+        if (isCoreClosingError(error)) {
+          watcher.closed = true
+        } else {
+          console.warn('[doc-worker] failed to emit doc update', error)
+        }
+      }
+    }
+  }
+
+  async _broadcastAwareness(context, sync, awarenessUpdate) {
+    const keyHex = bufferToHex(context.key)
+    const watchers = this.watchers.get(keyHex)
+    if (!watchers || watchers.size === 0) return
+
+    const payload = await this.buildDocUpdate(context, sync, {
+      awareness: awarenessUpdate
+    })
+
+    for (const watcher of watchers) {
+      if (watcher.closed) continue
+      try {
+        await watcher.emit(payload)
+      } catch (error) {
+        if (isCoreClosingError(error)) {
+          watcher.closed = true
+        } else {
+          console.warn('[doc-worker] failed to emit awareness update', error)
+        }
+      }
+    }
+  }
+
+  async buildDocUpdate(context, sync, options = {}) {
     const metadata = await context.getMetadata()
-    const revision = await context.getLatestRevision()
+    const revision = typeof sync.lastRev === 'number' ? sync.lastRev : 0
     const roles = await this._listWriterRoles(context)
     const lockedAt =
       metadata && typeof metadata.lockedAt === 'number' && metadata.lockedAt > 0
@@ -954,16 +852,16 @@ export class DocWorker {
       context.writerKey,
       PERMISSIONS.DOC_INVITE
     )
-    const sinceRevision =
-      typeof options.sinceRevision === 'number' && options.sinceRevision >= 0
-        ? options.sinceRevision
-        : revision
+
+    let updatedAt = metadata?.updatedAt || metadata?.createdAt || Date.now()
+    if (sync.lastUpdateAt && sync.lastUpdateAt > updatedAt) {
+      updatedAt = sync.lastUpdateAt
+    }
 
     const update = {
       key: bufferToHex(context.key),
       revision,
-      baseRevision: sinceRevision,
-      updatedAt: metadata?.updatedAt || metadata?.createdAt || Date.now(),
+      updatedAt,
       title: metadata?.title || DEFAULT_TITLE,
       capabilities: {
         canEdit: lockedAt ? false : canEditPermission,
@@ -975,56 +873,21 @@ export class DocWorker {
       lockedBy: lockedByHex
     }
 
-    if (options.includeSnapshot === true) {
-      update.snapshotRevision = revision
+    if (options.syncUpdate && options.syncUpdate.length > 0) {
+      update.syncUpdate = Buffer.from(options.syncUpdate)
     }
 
-    if (options.includeSnapshot === true) {
-      let snapshotRecord = null
-      try {
-        snapshotRecord = await context.base.view.findOne(
-          '@bonk-docs/snapshots',
-          { reverse: true, limit: 1 }
-        )
-      } catch {}
-
-      if (snapshotRecord?.data) {
-        update.snapshot = snapshotRecord.data
-        update.snapshotRevision = snapshotRecord.rev ?? revision
-      } else {
-        update.snapshot = Buffer.from(EMPTY_DOC_SNAPSHOT)
-        update.snapshotRevision = revision
-      }
+    if (Array.isArray(options.updates) && options.updates.length > 0) {
+      update.updates = options.updates.map((record) => ({
+        rev: record.rev,
+        clientId: record.clientId,
+        timestamp: record.timestamp,
+        data: record.data
+      }))
     }
 
-    if (revision > sinceRevision) {
-      const opsCursor = context.base.view.find('@bonk-docs/operations', {
-        gt: { rev: sinceRevision },
-        lte: { rev: revision }
-      })
-      const records = await opsCursor.toArray()
-      if (records.length > 0) {
-        update.ops = records.map((record) => {
-          const op = {
-            rev: record.rev,
-            baseRev: record.baseRev,
-            clientId: bufferToHex(record.clientId),
-            sessionId: record.sessionId ? bufferToHex(record.sessionId) : null,
-            timestamp: record.timestamp,
-            data: record.data
-          }
-          return op
-        })
-
-        const latestTimestamp = records.reduce((acc, record) => {
-          return record.timestamp && record.timestamp > acc
-            ? record.timestamp
-            : acc
-        }, update.updatedAt || 0)
-        if (!update.updatedAt || latestTimestamp > update.updatedAt) {
-          update.updatedAt = latestTimestamp
-        }
-      }
+    if (options.awareness && options.awareness.length > 0) {
+      update.awareness = Buffer.from(options.awareness)
     }
 
     return update
@@ -1054,7 +917,8 @@ export class DocWorker {
       joinedAt: record.joinedAt || record.createdAt,
       isCreator: !!record.isCreator,
       title: metadata?.title || record.title || DEFAULT_TITLE,
-      lastRevision: metadata?.rev || record.lastRevision || 0,
+      lastRevision:
+        typeof record.lastRevision === 'number' ? record.lastRevision : 0,
       lastOpenedAt: record.lastOpenedAt || Date.now(),
       lockedAt,
       lockedBy:

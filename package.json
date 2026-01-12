@@ -24,6 +24,7 @@
     "schema:build": "node schema.js",
     "lint": "prettier --check . && lunte .",
     "format": "prettier --write .",
+    "postinstall": "patch-package",
     "stage:dev": "npm run build && pear stage dev"
   },
   "imports": {
@@ -51,6 +52,14 @@
       "bare": "bare-process",
       "default": "process"
     },
+    "crypto": {
+      "bare": "bare-crypto",
+      "default": "crypto"
+    },
+    "node:crypto": {
+      "bare": "bare-crypto",
+      "default": "node:crypto"
+    },
     "url": {
       "bare": "bare-url",
       "default": "url"
@@ -68,7 +77,11 @@
     "@tiptap/pm": "^3.10.7",
     "@tiptap/react": "^3.10.7",
     "@tiptap/starter-kit": "^3.10.7",
+    "@tiptap/extension-collaboration": "^3.10.7",
+    "@tiptap/extension-collaboration-cursor": "^3.0.0",
+    "@tiptap/y-tiptap": "^3.0.0",
     "autobonk": "github:mikker/autobonk",
+    "bare-crypto": "^1.13.0",
     "bare-fs": "^4.5.1",
     "bare-os": "^3.6.2",
     "bare-path": "^3.0.0",
@@ -88,7 +101,9 @@
     "protomux-wakeup": "^2.9.0",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.4.0",
-    "zustand": "^5.0.8"
+    "zustand": "^5.0.8",
+    "y-protocols": "^1.0.6",
+    "yjs": "^13.6.27"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.1.17",
@@ -99,6 +114,7 @@
     "concurrently": "^9.2.1",
     "lunte": "^1.3.0",
     "pear-interface": "^1.1.0",
+    "patch-package": "^8.0.1",
     "prettier": "^3.6.2",
     "prettier-config-holepunch": "^2.0.0",
     "prettier-config-standard": "^7.0.0",

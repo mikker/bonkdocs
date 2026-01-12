@@ -17,11 +17,11 @@ class Router {
     this._handler6 = null
     this._handler7 = null
     this._handler8 = null
-    this._handler9 = null
     this._handler10 = null
     this._handler11 = null
     this._handler12 = null
     this._handler13 = null
+    this._handler9 = null
 
     this._missing = 14
   }
@@ -55,9 +55,6 @@ class Router {
       case '@bonk-docs/metadata-upsert':
         this._handler8 = handler
         break
-      case '@bonk-docs/operation-append':
-        this._handler9 = handler
-        break
       case '@bonk-docs/snapshot-save':
         this._handler10 = handler
         break
@@ -69,6 +66,9 @@ class Router {
         break
       case '@local/profile-upsert':
         this._handler13 = handler
+        break
+      case '@bonk-docs/update-append':
+        this._handler9 = handler
         break
       default:
         throw new Error('Cannot register a handler for a nonexistent route: ' + name)
@@ -86,11 +86,11 @@ class Router {
     assert(this._handler6 !== null, 'Missing handler for "@autobonk/grant-roles"')
     assert(this._handler7 !== null, 'Missing handler for "@autobonk/revoke-roles"')
     assert(this._handler8 !== null, 'Missing handler for "@bonk-docs/metadata-upsert"')
-    assert(this._handler9 !== null, 'Missing handler for "@bonk-docs/operation-append"')
     assert(this._handler10 !== null, 'Missing handler for "@bonk-docs/snapshot-save"')
     assert(this._handler11 !== null, 'Missing handler for "@local/doc-upsert"')
     assert(this._handler12 !== null, 'Missing handler for "@local/state-update"')
     assert(this._handler13 !== null, 'Missing handler for "@local/profile-upsert"')
+    assert(this._handler9 !== null, 'Missing handler for "@bonk-docs/update-append"')
   }
 
   async dispatch (message, context) {
@@ -121,8 +121,6 @@ class Router {
         return this._handler7(op.value, context)
       case 8:
         return this._handler8(op.value, context)
-      case 9:
-        return this._handler9(op.value, context)
       case 10:
         return this._handler10(op.value, context)
       case 11:
@@ -131,6 +129,8 @@ class Router {
         return this._handler12(op.value, context)
       case 13:
         return this._handler13(op.value, context)
+      case 9:
+        return this._handler9(op.value, context)
       default:
         throw new Error('Handler not found for ID:' + op.id)
     }
@@ -218,12 +218,6 @@ const route8 = {
   enc: getEncoding('@bonk-docs/metadata')
 }
 
-const route9 = {
-  name: '@bonk-docs/operation-append',
-  id: 9,
-  enc: getEncoding('@bonk-docs/operation')
-}
-
 const route10 = {
   name: '@bonk-docs/snapshot-save',
   id: 10,
@@ -248,6 +242,12 @@ const route13 = {
   enc: getEncoding('@local/profile')
 }
 
+const route9 = {
+  name: '@bonk-docs/update-append',
+  id: 9,
+  enc: getEncoding('@bonk-docs/update-entry')
+}
+
 function getRouteByName (name) {
   switch (name) {
     case '@autobonk/remove-writer':
@@ -268,8 +268,6 @@ function getRouteByName (name) {
       return route7
     case '@bonk-docs/metadata-upsert':
       return route8
-    case '@bonk-docs/operation-append':
-      return route9
     case '@bonk-docs/snapshot-save':
       return route10
     case '@local/doc-upsert':
@@ -278,6 +276,8 @@ function getRouteByName (name) {
       return route12
     case '@local/profile-upsert':
       return route13
+    case '@bonk-docs/update-append':
+      return route9
     default:
       throw new Error('Handler not found for name: ' + name)
   }
@@ -303,8 +303,6 @@ function getRouteById (id) {
       return route7
     case 8:
       return route8
-    case 9:
-      return route9
     case 10:
       return route10
     case 11:
@@ -313,6 +311,8 @@ function getRouteById (id) {
       return route12
     case 13:
       return route13
+    case 9:
+      return route9
     default:
       throw new Error('Handler not found for ID: ' + id)
   }

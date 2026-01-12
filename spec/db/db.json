@@ -144,6 +144,19 @@
         "id"
       ],
       "trigger": null
+    },
+    {
+      "name": "updates",
+      "namespace": "bonk-docs",
+      "id": 11,
+      "type": 1,
+      "indexes": [],
+      "schema": "@bonk-docs/update",
+      "derived": false,
+      "key": [
+        "rev"
+      ],
+      "trigger": null
     }
   ]
 }

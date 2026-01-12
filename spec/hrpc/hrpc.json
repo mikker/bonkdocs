@@ -1,5 +1,5 @@
 {
-  "version": 2,
+  "version": 3,
   "schema": [
     {
       "id": 0,
@@ -156,6 +156,28 @@
         "name": "@bonk-docs-rpc/lock-doc-response"
       },
       "version": 2
+    },
+    {
+      "id": 8,
+      "name": "@bonk-docs/apply-updates",
+      "request": {
+        "name": "@bonk-docs-rpc/apply-updates-request"
+      },
+      "response": {
+        "name": "@bonk-docs-rpc/apply-updates-response"
+      },
+      "version": 3
+    },
+    {
+      "id": 9,
+      "name": "@bonk-docs/apply-awareness",
+      "request": {
+        "name": "@bonk-docs-rpc/apply-awareness-request"
+      },
+      "response": {
+        "name": "@bonk-docs-rpc/apply-awareness-response"
+      },
+      "version": 3
     }
   ]
 }

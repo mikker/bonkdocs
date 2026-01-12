@@ -1,25 +1,13 @@
 import { create } from 'zustand'
 import { getRpc } from '../lib/rpc.ts'
-import {
-  fingerprintText,
-  createDeltaPayload,
-  decodeDeltaPayload,
-  applyDeltaSteps
-} from '../../../lib/snapshot-delta.js'
-import {
-  loadDocState,
-  saveDocState,
-  clearDocState,
-  loadLastDocKey,
-  saveLastDocKey
-} from './doc-persistence.js'
 import { mergeDocsWithCachedMetadata } from './doc-cache.js'
-
-type DocSnapshot = {
-  type: string
-  content?: unknown[]
-  [key: string]: unknown
-}
+import { loadLastDocKey, saveLastDocKey } from './doc-persistence.js'
+import * as Y from 'yjs'
+import {
+  Awareness,
+  applyAwarenessUpdate,
+  encodeAwarenessUpdate
+} from 'y-protocols/awareness'
 
 type DocCapabilities = {
   canEdit?: boolean
@@ -41,12 +29,11 @@ type DocInvite = {
 type RawDocUpdate = {
   key?: string
   revision?: number
-  baseRevision?: number
-  snapshotRevision?: number
   updatedAt?: number
   title?: string | null
-  snapshot?: unknown
-  ops?: unknown
+  syncUpdate?: unknown
+  updates?: Array<Record<string, unknown>>
+  awareness?: unknown
   capabilities?: DocCapabilities | null
   lockedAt?: number | null
   lockedBy?: string | null
@@ -71,11 +58,8 @@ type DocUpdate = {
   revision: number
   updatedAt?: number
   title?: string | null
-  snapshotRevision?: number | null
-  snapshot: DocSnapshot
-  snapshotText: string
-  rawSnapshot: Uint8Array | null
-  snapshotHash: string
+  doc: Y.Doc
+  awareness: Awareness
   capabilities?: DocCapabilities | null
   lockedAt?: number | null
   lockedBy?: string | null
@@ -83,32 +67,6 @@ type DocUpdate = {
 
 type DocWatcher = {
   stop: (() => Promise<void> | void) | null
-}
-
-type DeltaPayload = {
-  type: 'delta'
-  version: number
-  baseHash: string
-  nextHash: string
-  steps: Array<Record<string, unknown>>
-}
-
-type PendingOp = {
-  rev: number
-  baseRev: number
-  timestamp: number
-  delta: DeltaPayload
-}
-
-export type DocConflictState = {
-  message: string
-  baseRevision: number
-  attemptedRevision: number
-  existingRevision: number
-  expectedRevision: number
-  clientId?: string | null
-  sessionId?: string | null
-  timestamp?: number | null
 }
 
 export type DocPairStatus = {
@@ -124,6 +82,22 @@ type JoinDocOptions = {
   timeoutMs?: number
 }
 
+type LocalUser = {
+  name: string
+  color: string
+}
+
+type DocSession = {
+  key: string
+  doc: Y.Doc
+  awareness: Awareness
+  pendingUpdates: Uint8Array[]
+  pendingAwareness: Uint8Array | null
+  flushTimer: ReturnType<typeof setTimeout> | null
+  awarenessTimer: ReturnType<typeof setTimeout> | null
+  attached: boolean
+}
+
 type DocStore = {
   docs: DocRecord[]
   activeDoc: string | null
@@ -132,12 +106,10 @@ type DocStore = {
   error: string | null
   watcher: DocWatcher | null
   clientId: string
-  sessionId: string
-  pendingOps: Record<string, PendingOp[]>
+  localUser: LocalUser
   invites: Record<string, DocInvite[]>
   invitesLoading: boolean
   invitesError: string | null
-  conflicts: Record<string, DocConflictState | null>
   creatingDoc: boolean
   lockingDoc: boolean
   abandoningDoc: boolean
@@ -149,9 +121,6 @@ type DocStore = {
   renameDoc: (key: string, title: string) => Promise<void>
   lockDoc: (key: string) => Promise<void>
   abandonDoc: (key: string) => Promise<void>
-  applySnapshot: (key: string, snapshot: DocSnapshot) => Promise<void>
-  resyncDoc: (key: string) => Promise<void>
-  forkDocFromConflict: (key: string) => Promise<void>
   loadInvites: (
     key: string,
     options?: { includeRevoked?: boolean }
@@ -166,198 +135,23 @@ type DocStore = {
   revokeDocInvite: (options: { inviteId: string }) => Promise<void>
 }
 
-async function waitForDocActivation(
-  key: string,
-  getState: () => DocStore,
-  timeout = 4000
-): Promise<DocUpdate> {
-  const startedAt = Date.now()
-  while (Date.now() - startedAt < timeout) {
-    const current = getState().currentUpdate
-    if (current && current.key === key) {
-      return current
-    }
-    await sleep(50)
-  }
-  throw new Error('Timed out waiting for document snapshot')
-}
-
-const textDecoder = new TextDecoder()
-const textEncoder = new TextEncoder()
-
-const applyQueuePromises = new Map<string, Promise<void>>()
-const applyQueueTokens = new Map<string, number>()
-
-function enqueueApplyTask(
-  key: string,
-  task: () => Promise<void>
-): Promise<void> {
-  const token = applyQueueTokens.get(key) ?? 0
-  const previous = applyQueuePromises.get(key) ?? Promise.resolve()
-  const next = previous
-    .catch(() => {})
-    .then(async () => {
-      if ((applyQueueTokens.get(key) ?? 0) !== token) return
-      await task()
-    })
-  const tracked = next.finally(() => {
-    if (applyQueuePromises.get(key) === tracked) {
-      applyQueuePromises.delete(key)
-    }
-  })
-  applyQueuePromises.set(key, tracked)
-  return tracked
-}
-
-function clearApplyQueue(key: string | null | undefined) {
-  if (!key) return
-  const current = applyQueueTokens.get(key) ?? 0
-  applyQueueTokens.set(key, current + 1)
-  applyQueuePromises.delete(key)
-}
-
-const DOC_VIEWER_ROLE = 'doc-viewer'
+const REMOTE_ORIGIN = 'remote'
 const DEFAULT_JOIN_TIMEOUT = 15000
+const UPDATE_FLUSH_MS = 50
+const AWARENESS_FLUSH_MS = 120
 
-const EMPTY_SNAPSHOT: DocSnapshot = {
-  type: 'doc',
-  content: [{ type: 'paragraph' }]
-}
+const sessions = new Map<string, DocSession>()
+const applyQueues = new Map<string, Promise<void>>()
 
-function isPlainObject(
-  value: unknown
-): value is Record<string | number | symbol, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
-}
-
-const DEFAULT_CONFLICT_MESSAGE = 'Sync conflict detected'
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => {
-    setTimeout(resolve, ms)
-  })
-}
-
-function toConflictState(
-  value: unknown,
-  fallback: DocConflictState
-): DocConflictState {
-  if (!isPlainObject(value)) {
-    return {
-      message: fallback.message,
-      baseRevision: fallback.baseRevision,
-      attemptedRevision: fallback.attemptedRevision,
-      existingRevision: fallback.existingRevision,
-      expectedRevision: fallback.expectedRevision,
-      clientId: fallback.clientId ?? null,
-      sessionId: fallback.sessionId ?? null,
-      timestamp: fallback.timestamp ?? null
-    }
-  }
-
-  const message =
-    typeof value.message === 'string' && value.message.length > 0
-      ? value.message
-      : fallback.message
-
-  const baseRevision =
-    typeof value.baseRevision === 'number'
-      ? value.baseRevision
-      : fallback.baseRevision
-
-  const attemptedRevision =
-    typeof value.attemptedRevision === 'number'
-      ? value.attemptedRevision
-      : fallback.attemptedRevision
-
-  const existingRevision =
-    typeof value.existingRevision === 'number'
-      ? value.existingRevision
-      : fallback.existingRevision
-
-  const expectedRevision =
-    typeof value.expectedRevision === 'number'
-      ? value.expectedRevision
-      : fallback.expectedRevision
-
-  const clientId =
-    typeof value.clientId === 'string' && value.clientId.length > 0
-      ? value.clientId
-      : (fallback.clientId ?? null)
-
-  const sessionId =
-    typeof value.sessionId === 'string' && value.sessionId.length > 0
-      ? value.sessionId
-      : (fallback.sessionId ?? null)
-
-  const timestamp =
-    typeof value.timestamp === 'number'
-      ? value.timestamp
-      : (fallback.timestamp ?? null)
-
-  return {
-    message,
-    baseRevision,
-    attemptedRevision,
-    existingRevision,
-    expectedRevision,
-    clientId,
-    sessionId,
-    timestamp
-  }
-}
-
-function sanitizeDocSnapshot(value: unknown): DocSnapshot {
-  if (!isPlainObject(value)) {
-    return EMPTY_SNAPSHOT
-  }
-
-  const type = typeof value.type === 'string' ? value.type : null
-  if (type !== 'doc') {
-    return EMPTY_SNAPSHOT
-  }
-
-  const content = Array.isArray(value.content) ? value.content : []
-  const cleaned = content
-    .map((node) => sanitizeNode(node))
-    .filter((node): node is Record<string, unknown> => node !== null)
-
-  if (cleaned.length === 0) {
-    cleaned.push({ type: 'paragraph' })
-  }
-
-  return { type: 'doc', content: cleaned }
-}
-
-function sanitizeNode(node: unknown): Record<string, unknown> | null {
-  if (!isPlainObject(node)) return null
-
-  const type = typeof node.type === 'string' ? node.type : null
-  if (!type) return null
-
-  if (type === 'text') {
-    const text = typeof node.text === 'string' ? node.text : ''
-    if (!text) return null
-    return { ...node, type, text }
-  }
-
-  const next: Record<string, unknown> = { ...node, type }
-
-  if (Array.isArray(node.content)) {
-    const children = node.content
-      .map((child) => sanitizeNode(child))
-      .filter((child): child is Record<string, unknown> => child !== null)
-    if (children.length > 0) {
-      next.content = children
-    } else {
-      delete next.content
-    }
-  } else if (node.content !== undefined) {
-    delete next.content
-  }
-
-  return next
-}
+const USER_COLORS = [
+  '#2563eb',
+  '#dc2626',
+  '#16a34a',
+  '#9333ea',
+  '#ea580c',
+  '#0f766e',
+  '#0f172a'
+]
 
 function randomId(length = 32) {
   if (length <= 0) return ''
@@ -376,204 +170,204 @@ function randomId(length = 32) {
   return chunks.join('')
 }
 
-const DEFAULT_CLIENT_ID = randomId(32)
-const DEFAULT_SESSION_ID = randomId(32)
-
-function snapshotToText(doc: DocSnapshot): string {
-  return JSON.stringify(doc)
-}
-
-function snapshotFingerprint(doc: DocSnapshot): {
-  text: string
-  hash: string
-} {
-  const text = snapshotToText(doc)
-  return { text, hash: fingerprintText(text) }
-}
-
-function parseSnapshotText(text: string): DocSnapshot {
-  try {
-    const parsed = JSON.parse(text)
-    return sanitizeDocSnapshot(parsed)
-  } catch {
-    return EMPTY_SNAPSHOT
+function colorFromId(id: string) {
+  let hash = 0
+  for (let i = 0; i < id.length; i++) {
+    hash = (hash + id.charCodeAt(i) * 17) % 9973
   }
+  return USER_COLORS[hash % USER_COLORS.length]
 }
 
-function normalizePendingEntries(entries: unknown): PendingOp[] {
-  if (!Array.isArray(entries)) return []
-  const normalized: PendingOp[] = []
-  for (const entry of entries) {
-    if (!entry || typeof entry !== 'object') continue
-    const rev = Number.isFinite(entry.rev) ? Number(entry.rev) : null
-    const baseRev = Number.isFinite(entry.baseRev)
-      ? Number(entry.baseRev)
-      : null
-    const timestamp = Number.isFinite(entry.timestamp)
-      ? Number(entry.timestamp)
-      : Date.now()
-    const delta = entry.delta
-    if (
-      rev === null ||
-      baseRev === null ||
-      !delta ||
-      typeof delta !== 'object' ||
-      delta.type !== 'delta'
-    ) {
-      continue
-    }
-    const payload: DeltaPayload = {
-      type: 'delta',
-      version:
-        Number.isFinite(delta.version) && Number(delta.version) > 0
-          ? Number(delta.version)
-          : 1,
-      baseHash: typeof delta.baseHash === 'string' ? delta.baseHash : '',
-      nextHash: typeof delta.nextHash === 'string' ? delta.nextHash : '',
-      steps: Array.isArray(delta.steps) ? [...delta.steps] : []
-    }
-    if (!payload.baseHash || !payload.nextHash || payload.steps.length === 0) {
-      continue
-    }
-    normalized.push({ rev, baseRev, timestamp, delta: payload })
+const LOCAL_CLIENT_ID = randomId(16)
+const LOCAL_USER: LocalUser = {
+  name: 'You',
+  color: colorFromId(LOCAL_CLIENT_ID)
+}
+
+function toUint8Array(value: unknown): Uint8Array | null {
+  if (!value) return null
+  if (value instanceof Uint8Array) return value
+  if (value instanceof ArrayBuffer) return new Uint8Array(value)
+  return null
+}
+
+function enqueueSend(key: string, task: () => Promise<void>) {
+  const previous = applyQueues.get(key) ?? Promise.resolve()
+  const next = previous
+    .catch(() => {})
+    .then(task)
+    .catch(() => {})
+  applyQueues.set(key, next)
+  return next
+}
+
+function getSession(key: string): DocSession {
+  const existing = sessions.get(key)
+  if (existing) return existing
+
+  const doc = new Y.Doc()
+  const awareness = new Awareness(doc)
+  awareness.setLocalStateField('user', LOCAL_USER)
+
+  const session: DocSession = {
+    key,
+    doc,
+    awareness,
+    pendingUpdates: [],
+    pendingAwareness: null,
+    flushTimer: null,
+    awarenessTimer: null,
+    attached: false
   }
-  return normalized
+
+  sessions.set(key, session)
+  return session
 }
 
-function persistDocStateEntry(
-  key: string,
-  update: DocUpdate | null,
-  pending: PendingOp[]
+function attachSession(
+  session: DocSession,
+  getState: () => DocStore,
+  set: (next: Partial<DocStore>) => void
 ) {
-  if (!key) return
-  if (!update) {
-    clearDocState(key)
-    return
-  }
-  saveDocState(key, {
-    revision: update.revision,
-    snapshotText: update.snapshotText,
-    snapshotHash: update.snapshotHash,
-    pending,
-    title:
-      typeof update.title === 'string' && update.title.length > 0
-        ? update.title
-        : null,
-    updatedAt:
-      typeof update.updatedAt === 'number' && Number.isFinite(update.updatedAt)
-        ? update.updatedAt
-        : Date.now()
+  if (session.attached) return
+  session.attached = true
+
+  session.doc.on('update', (update, origin) => {
+    if (origin === REMOTE_ORIGIN) return
+    session.pendingUpdates.push(update)
+    scheduleFlush(session, getState, set, UPDATE_FLUSH_MS)
+  })
+
+  session.awareness.on('update', ({ added, updated, removed }, origin) => {
+    if (origin === REMOTE_ORIGIN) return
+    const changed = [...added, ...updated, ...removed]
+    if (changed.length === 0) return
+    session.pendingAwareness = encodeAwarenessUpdate(
+      session.awareness,
+      changed
+    )
+    if (session.awarenessTimer) return
+    session.awarenessTimer = setTimeout(() => {
+      session.awarenessTimer = null
+      const update = session.pendingAwareness
+      session.pendingAwareness = null
+      if (!update) return
+      void enqueueSend(session.key, async () => {
+        try {
+          const rpc = getRpc()
+          await rpc.applyAwareness({
+            key: session.key,
+            update
+          })
+        } catch {
+          // Awareness is ephemeral; ignore failures.
+        }
+      })
+    }, AWARENESS_FLUSH_MS)
   })
 }
 
-function normalizeSnapshot(value: unknown): {
-  json: DocSnapshot
-  buffer: Uint8Array | null
-  text: string
-  hash: string
-} {
-  let json: DocSnapshot = EMPTY_SNAPSHOT
-  let buffer: Uint8Array | null = null
+function scheduleFlush(
+  session: DocSession,
+  getState: () => DocStore,
+  set: (next: Partial<DocStore>) => void,
+  delay: number
+) {
+  if (session.flushTimer) return
+  session.flushTimer = setTimeout(() => {
+    session.flushTimer = null
+    void flushUpdates(session, getState, set, delay * 4)
+  }, delay)
+}
 
-  if (value instanceof Uint8Array) {
-    buffer = value
+async function flushUpdates(
+  session: DocSession,
+  getState: () => DocStore,
+  set: (next: Partial<DocStore>) => void,
+  retryDelay: number
+) {
+  const queued = session.pendingUpdates.splice(0)
+  if (queued.length === 0) return
+  const merged = queued.length === 1 ? queued[0] : Y.mergeUpdates(queued)
+  await enqueueSend(session.key, async () => {
     try {
-      const decoded = textDecoder.decode(value)
-      const parsed = JSON.parse(decoded)
-      if (parsed && typeof parsed === 'object') {
-        json = sanitizeDocSnapshot(parsed)
-      }
-    } catch {}
-  } else if (typeof value === 'string') {
-    try {
-      const parsed = JSON.parse(value)
-      if (parsed && typeof parsed === 'object') {
-        json = sanitizeDocSnapshot(parsed)
-      }
-    } catch {}
-  } else if (typeof value === 'object' && value !== null) {
-    if (isPlainObject(value) && typeof value.type === 'string') {
-      json = sanitizeDocSnapshot(value)
+      const rpc = getRpc()
+      await rpc.applyUpdates({
+        key: session.key,
+        updates: [
+          {
+            clientId: getState().clientId,
+            timestamp: Date.now(),
+            data: merged
+          }
+        ]
+      })
+    } catch (error) {
+      session.pendingUpdates.unshift(merged)
+      scheduleFlush(session, getState, set, retryDelay)
+      const message =
+        error instanceof Error ? error.message : 'Failed to sync changes'
+      set({ error: message })
+    }
+  })
+}
+
+function applyIncoming(session: DocSession, payload: RawDocUpdate) {
+  if (payload.syncUpdate) {
+    const update = toUint8Array(payload.syncUpdate)
+    if (update) {
+      Y.applyUpdate(session.doc, update, REMOTE_ORIGIN)
     }
   }
 
-  const { text, hash } = snapshotFingerprint(json)
-  if (!buffer) {
-    buffer = textEncoder.encode(text)
+  if (Array.isArray(payload.updates)) {
+    for (const entry of payload.updates) {
+      const update = toUint8Array(entry?.data)
+      if (update) {
+        Y.applyUpdate(session.doc, update, REMOTE_ORIGIN)
+      }
+    }
   }
 
-  return { json, buffer, text, hash }
+  if (payload.awareness) {
+    const update = toUint8Array(payload.awareness)
+    if (update) {
+      applyAwarenessUpdate(session.awareness, update, REMOTE_ORIGIN)
+    }
+  }
 }
 
-function normalizeDocUpdate(
-  update: RawDocUpdate,
+function normalizeDocMeta(
+  payload: RawDocUpdate,
+  session: DocSession,
   previous?: DocUpdate | null
 ): DocUpdate {
-  const key = typeof update.key === 'string' ? update.key : previous?.key || ''
-  const sameDoc = Boolean(previous && previous.key === key)
-  const incomingRevision =
-    typeof update.revision === 'number'
-      ? update.revision
-      : Number(update.revision || 0) || 0
-
-  let revision = incomingRevision
-  let updatedAt =
-    typeof update.updatedAt === 'number'
-      ? update.updatedAt
-      : update.updatedAt != null
-        ? Number(update.updatedAt)
-        : sameDoc
-          ? previous?.updatedAt
-          : undefined
+  const key = typeof payload.key === 'string' ? payload.key : previous?.key || ''
+  const revision =
+    typeof payload.revision === 'number'
+      ? payload.revision
+      : previous?.revision ?? 0
+  const updatedAt =
+    typeof payload.updatedAt === 'number'
+      ? payload.updatedAt
+      : previous?.updatedAt
   const title =
-    typeof update.title === 'string'
-      ? update.title
-      : update.title === null
+    typeof payload.title === 'string'
+      ? payload.title
+      : payload.title === null
         ? null
-        : sameDoc
-          ? previous?.title
-          : undefined
-
-  let snapshotRevision: number | null =
-    typeof update.snapshotRevision === 'number'
-      ? update.snapshotRevision
-      : update.snapshotRevision != null
-        ? Number(update.snapshotRevision)
-        : sameDoc && previous?.snapshotRevision != null
-          ? previous.snapshotRevision
-          : null
-
-  let snapshot: DocSnapshot
-  let snapshotText: string
-  let snapshotHash: string
-  let rawSnapshot: Uint8Array | null
-
-  if (sameDoc && previous) {
-    snapshot = previous.snapshot
-    snapshotText = previous.snapshotText
-    snapshotHash = previous.snapshotHash
-    rawSnapshot = previous.rawSnapshot
-  } else {
-    snapshot = EMPTY_SNAPSHOT
-    const fingerprint = snapshotFingerprint(snapshot)
-    snapshotText = fingerprint.text
-    snapshotHash = fingerprint.hash
-    rawSnapshot = textEncoder.encode(snapshotText)
-  }
-
+        : previous?.title
   const capabilities =
-    update.capabilities && typeof update.capabilities === 'object'
-      ? { ...update.capabilities }
-      : sameDoc && previous?.capabilities
-        ? previous.capabilities
-        : null
+    payload.capabilities && typeof payload.capabilities === 'object'
+      ? { ...payload.capabilities }
+      : previous?.capabilities ?? null
 
   let lockedAt: number | null
-  if (typeof update.lockedAt === 'number' && Number.isFinite(update.lockedAt)) {
-    lockedAt = update.lockedAt
-  } else if (update.lockedAt === null) {
+  if (typeof payload.lockedAt === 'number' && Number.isFinite(payload.lockedAt)) {
+    lockedAt = payload.lockedAt
+  } else if (payload.lockedAt === null) {
     lockedAt = null
-  } else if (sameDoc && previous) {
+  } else if (previous) {
     lockedAt = previous.lockedAt ?? null
   } else {
     lockedAt = null
@@ -583,18 +377,14 @@ function normalizeDocUpdate(
   }
 
   let lockedBy: string | null
-  if (typeof update.lockedBy === 'string' && update.lockedBy.length > 0) {
-    lockedBy = update.lockedBy
-  } else if (update.lockedBy === null) {
+  if (typeof payload.lockedBy === 'string' && payload.lockedBy.length > 0) {
+    lockedBy = payload.lockedBy
+  } else if (payload.lockedBy === null) {
     lockedBy = null
-  } else if (sameDoc && previous) {
+  } else if (previous) {
     lockedBy = previous.lockedBy ?? null
   } else {
     lockedBy = null
-  }
-
-  if (lockedAt && !lockedBy) {
-    lockedBy = previous?.lockedBy ?? null
   }
 
   const effectiveCapabilities =
@@ -607,138 +397,16 @@ function normalizeDocUpdate(
         }
       : capabilities
 
-  if (update.snapshot !== undefined && update.snapshot !== null) {
-    const normalized = normalizeSnapshot(update.snapshot)
-    snapshot = normalized.json
-    snapshotText = normalized.text
-    snapshotHash = normalized.hash
-    rawSnapshot = normalized.buffer
-    snapshotRevision =
-      typeof update.snapshotRevision === 'number'
-        ? update.snapshotRevision
-        : incomingRevision
-  }
-
-  const ops = Array.isArray(update.ops) ? update.ops : []
-  if (ops.length > 0) {
-    for (const entry of ops) {
-      if (!entry || typeof entry !== 'object') continue
-      const op = entry as Record<string, unknown>
-      const payload = decodeDeltaPayload(op.data as unknown)
-      if (!payload) continue
-      if (payload.baseHash && payload.baseHash !== snapshotHash) {
-        break
-      }
-
-      const nextText = applyDeltaSteps(snapshotText, payload.steps)
-      let parsed: unknown = null
-      try {
-        parsed = JSON.parse(nextText)
-      } catch {
-        break
-      }
-
-      const sanitized = sanitizeDocSnapshot(parsed)
-      const fingerprint = snapshotFingerprint(sanitized)
-      snapshot = sanitized
-      snapshotText = fingerprint.text
-      snapshotHash = fingerprint.hash
-      rawSnapshot = textEncoder.encode(snapshotText)
-
-      const opRev = typeof op.rev === 'number' ? op.rev : null
-      if (opRev && opRev > revision) {
-        revision = opRev
-      }
-      if (opRev && !snapshotRevision) {
-        snapshotRevision = opRev
-      }
-      const opTimestamp = typeof op.timestamp === 'number' ? op.timestamp : null
-      if (opTimestamp && (!updatedAt || opTimestamp > updatedAt)) {
-        updatedAt = opTimestamp
-      }
-    }
-  }
-
   return {
     key,
     revision,
     updatedAt,
     title,
-    snapshotRevision,
-    snapshot,
-    snapshotText,
-    rawSnapshot,
-    snapshotHash,
+    doc: session.doc,
+    awareness: session.awareness,
     capabilities: effectiveCapabilities,
     lockedAt,
     lockedBy
-  }
-}
-
-function normalizePairStatus(value: unknown): DocPairStatus {
-  if (!isPlainObject(value)) {
-    return { state: 'unknown', message: null, progress: null, doc: null }
-  }
-
-  const state = typeof value.state === 'string' ? value.state : 'unknown'
-  const message =
-    typeof value.message === 'string' && value.message.length > 0
-      ? value.message
-      : null
-  const progress =
-    typeof value.progress === 'number' && Number.isFinite(value.progress)
-      ? value.progress
-      : null
-
-  let doc: DocRecord | null = null
-  const candidate = value.doc
-  if (isPlainObject(candidate) && typeof candidate.key === 'string') {
-    doc = {
-      key: candidate.key,
-      encryptionKey:
-        typeof candidate.encryptionKey === 'string'
-          ? candidate.encryptionKey
-          : '',
-      createdAt:
-        typeof candidate.createdAt === 'number'
-          ? candidate.createdAt
-          : Date.now(),
-      joinedAt:
-        typeof candidate.joinedAt === 'number'
-          ? candidate.joinedAt
-          : candidate.createdAt && Number.isFinite(candidate.createdAt)
-            ? Number(candidate.createdAt)
-            : null,
-      isCreator: candidate.isCreator === true,
-      title:
-        typeof candidate.title === 'string' && candidate.title.length > 0
-          ? candidate.title
-          : null,
-      lastRevision:
-        typeof candidate.lastRevision === 'number'
-          ? candidate.lastRevision
-          : null,
-      lastOpenedAt:
-        typeof candidate.lastOpenedAt === 'number'
-          ? candidate.lastOpenedAt
-          : null,
-      lockedAt:
-        typeof candidate.lockedAt === 'number' &&
-        Number.isFinite(candidate.lockedAt)
-          ? candidate.lockedAt
-          : null,
-      lockedBy:
-        typeof candidate.lockedBy === 'string' && candidate.lockedBy.length > 0
-          ? candidate.lockedBy
-          : null
-    }
-  }
-
-  return {
-    state,
-    message,
-    progress,
-    doc
   }
 }
 
@@ -749,13 +417,11 @@ export const useDocStore = create<DocStore>((set, get) => ({
   loading: false,
   error: null,
   watcher: null,
-  clientId: DEFAULT_CLIENT_ID,
-  sessionId: DEFAULT_SESSION_ID,
-  pendingOps: {},
+  clientId: LOCAL_CLIENT_ID,
+  localUser: LOCAL_USER,
   invites: {},
   invitesLoading: false,
   invitesError: null,
-  conflicts: {},
   creatingDoc: false,
   lockingDoc: false,
   abandoningDoc: false,
@@ -801,13 +467,9 @@ export const useDocStore = create<DocStore>((set, get) => ({
   },
   selectDoc: async (key) => {
     const currentWatcher = get().watcher
-    const previousState = get()
-    const shouldPreserveState = Boolean(
-      key && previousState.activeDoc === key && previousState.currentUpdate
-    )
-    const preservedUpdate = shouldPreserveState
-      ? previousState.currentUpdate
-      : null
+    const previous = get()
+    const preserve =
+      key && previous.activeDoc === key && previous.currentUpdate !== null
 
     if (currentWatcher?.stop) {
       const stopPromise = currentWatcher.stop()
@@ -816,113 +478,50 @@ export const useDocStore = create<DocStore>((set, get) => ({
       }
     }
 
+    if (!key) {
+      set({
+        activeDoc: null,
+        currentUpdate: null,
+        watcher: null,
+        invitesError: null
+      })
+      saveLastDocKey(null)
+      return
+    }
+
+    const session = getSession(key)
+    attachSession(session, get, set)
+
+    const fallback = preserve ? previous.currentUpdate : null
+    const docEntry = previous.docs.find((doc) => doc.key === key)
+    const lockedAt = docEntry?.lockedAt ?? fallback?.lockedAt ?? null
+    const lockedBy = docEntry?.lockedBy ?? fallback?.lockedBy ?? null
+
     set({
       activeDoc: key,
-      currentUpdate: preservedUpdate,
+      currentUpdate: {
+        key,
+        revision: docEntry?.lastRevision ?? fallback?.revision ?? 0,
+        updatedAt: docEntry?.lastOpenedAt ?? fallback?.updatedAt,
+        title: docEntry?.title ?? fallback?.title ?? null,
+        doc: session.doc,
+        awareness: session.awareness,
+        capabilities: fallback?.capabilities ?? null,
+        lockedAt,
+        lockedBy
+      },
       watcher: null,
       invitesError: null
     })
 
-    saveLastDocKey(key ?? null)
-
-    if (!key) return
-
-    const cached = loadDocState(key)
-    let sinceRevision = 0
-
-    if (cached) {
-      const cachedSnapshot = parseSnapshotText(cached.snapshotText)
-      const fingerprint = snapshotFingerprint(cachedSnapshot)
-      sinceRevision = Number.isFinite(cached.revision) ? cached.revision : 0
-      const pending = normalizePendingEntries(cached.pending)
-      const cachedTitle =
-        typeof cached.title === 'string' && cached.title.length > 0
-          ? cached.title
-          : null
-      const cachedUpdatedAt =
-        typeof cached.updatedAt === 'number' &&
-        Number.isFinite(cached.updatedAt)
-          ? cached.updatedAt
-          : Date.now()
-
-      set((state) => {
-        const existingDoc = state.docs.find((doc) => doc.key === key)
-        const lockedAt =
-          existingDoc?.lockedAt ?? state.currentUpdate?.lockedAt ?? null
-        const lockedBy =
-          existingDoc?.lockedBy ?? state.currentUpdate?.lockedBy ?? null
-        const capabilities = state.currentUpdate?.capabilities
-        const adjustedCapabilities =
-          capabilities && lockedAt
-            ? {
-                ...capabilities,
-                canEdit: false,
-                canComment: false,
-                canInvite: false
-              }
-            : capabilities
-        const updatedDocs = state.docs.map((doc) =>
-          doc.key === key
-            ? {
-                ...doc,
-                title: cachedTitle ?? doc.title,
-                lastRevision: sinceRevision,
-                lastOpenedAt: cachedUpdatedAt,
-                lockedAt,
-                lockedBy
-              }
-            : doc
-        )
-
-        return {
-          docs: existingDoc ? updatedDocs : state.docs,
-          currentUpdate: {
-            key,
-            revision: sinceRevision,
-            updatedAt: cachedUpdatedAt,
-            title:
-              cachedTitle ??
-              existingDoc?.title ??
-              state.currentUpdate?.title ??
-              null,
-            snapshotRevision: sinceRevision,
-            snapshot: cachedSnapshot,
-            snapshotText: fingerprint.text,
-            rawSnapshot: textEncoder.encode(fingerprint.text),
-            snapshotHash: fingerprint.hash,
-            capabilities: adjustedCapabilities ?? null,
-            lockedAt,
-            lockedBy
-          },
-          pendingOps: {
-            ...state.pendingOps,
-            [key]: pending
-          },
-          conflicts: {
-            ...state.conflicts,
-            [key]: null
-          }
-        }
-      })
-    } else {
-      set((state) => ({
-        pendingOps: {
-          ...state.pendingOps,
-          [key]: []
-        },
-        conflicts: {
-          ...state.conflicts,
-          [key]: null
-        }
-      }))
-    }
+    saveLastDocKey(key)
 
     try {
       const rpc = getRpc()
+      const vector = Y.encodeStateVector(session.doc)
       const stream = rpc.watchDoc({
         key,
-        includeSnapshot: cached ? false : true,
-        sinceRevision: sinceRevision > 0 ? sinceRevision : undefined
+        stateVector: vector
       })
 
       const watcher: DocWatcher = {
@@ -934,53 +533,44 @@ export const useDocStore = create<DocStore>((set, get) => ({
       set({ watcher })
 
       stream.on('data', (payload: RawDocUpdate) => {
-        let nextUpdate: DocUpdate | null = null
-        let nextPending: PendingOp[] = []
-        let shouldLoadInvites = false
+        const updateKey =
+          typeof payload.key === 'string' ? payload.key : key
+        const targetSession = getSession(updateKey)
+        applyIncoming(targetSession, payload)
+
         set((state) => {
-          const update = normalizeDocUpdate(payload, state.currentUpdate)
-          nextUpdate = update
-          const existingPending = state.pendingOps[update.key] ?? []
-          const remaining = existingPending.filter(
-            (op) => op.rev > update.revision
+          const nextUpdate = normalizeDocMeta(
+            payload,
+            targetSession,
+            state.currentUpdate
           )
-          nextPending = remaining
-          shouldLoadInvites =
-            update.capabilities?.canInvite === true &&
-            state.invites[update.key] === undefined
+          const docs = state.docs.map((doc) =>
+            doc.key === updateKey
+              ? {
+                  ...doc,
+                  title: nextUpdate.title ?? doc.title,
+                  lastRevision: nextUpdate.revision,
+                  lastOpenedAt: nextUpdate.updatedAt ?? Date.now(),
+                  lockedAt: nextUpdate.lockedAt ?? null,
+                  lockedBy: nextUpdate.lockedBy ?? null
+                }
+              : doc
+          )
+
           return {
-            currentUpdate: update,
-            docs: state.docs.map((doc) =>
-              doc.key === update.key
-                ? {
-                    ...doc,
-                    title: update.title ?? doc.title,
-                    lastRevision: update.revision,
-                    lastOpenedAt: update.updatedAt ?? Date.now(),
-                    lockedAt: update.lockedAt ?? null,
-                    lockedBy: update.lockedBy ?? null
-                  }
-                : doc
-            ),
-            pendingOps: {
-              ...state.pendingOps,
-              [update.key]: remaining
-            },
-            conflicts: {
-              ...state.conflicts,
-              [update.key]: null
-            }
+            currentUpdate:
+              state.activeDoc === updateKey ? nextUpdate : state.currentUpdate,
+            docs
           }
         })
 
-        if (shouldLoadInvites && nextUpdate) {
+        if (
+          payload.capabilities?.canInvite === true &&
+          get().invites[updateKey] === undefined
+        ) {
           void get()
-            .loadInvites(nextUpdate.key, { includeRevoked: false })
+            .loadInvites(updateKey, { includeRevoked: false })
             .catch(() => {})
-        }
-
-        if (nextUpdate) {
-          persistDocStateEntry(nextUpdate.key, nextUpdate, nextPending)
         }
       })
 
@@ -1067,15 +657,6 @@ export const useDocStore = create<DocStore>((set, get) => ({
       }
     })
 
-    const optimisticState = get()
-    if (optimisticState.currentUpdate?.key === key) {
-      persistDocStateEntry(
-        key,
-        optimisticState.currentUpdate,
-        optimisticState.pendingOps[key] ?? []
-      )
-    }
-
     try {
       const rpc = getRpc()
       const response = await rpc.renameDoc({ key, title: trimmed || null })
@@ -1114,15 +695,6 @@ export const useDocStore = create<DocStore>((set, get) => ({
           currentUpdate
         }
       })
-
-      const nextState = get()
-      if (nextState.currentUpdate?.key === key) {
-        persistDocStateEntry(
-          key,
-          nextState.currentUpdate,
-          nextState.pendingOps[key] ?? []
-        )
-      }
     } catch (error) {
       set((state) => {
         const docs = state.docs.map((doc) =>
@@ -1150,15 +722,6 @@ export const useDocStore = create<DocStore>((set, get) => ({
           error: error instanceof Error ? error.message : String(error)
         }
       })
-
-      const revertedState = get()
-      if (revertedState.currentUpdate?.key === key) {
-        persistDocStateEntry(
-          key,
-          revertedState.currentUpdate,
-          revertedState.pendingOps[key] ?? []
-        )
-      }
 
       throw error
     }
@@ -1383,12 +946,8 @@ export const useDocStore = create<DocStore>((set, get) => ({
 
       set((state) => {
         const docs = state.docs.filter((doc) => doc.key !== key)
-        const nextPending = { ...state.pendingOps }
-        delete nextPending[key]
         const nextInvites = { ...state.invites }
         delete nextInvites[key]
-        const nextConflicts = { ...state.conflicts }
-        delete nextConflicts[key]
 
         return {
           ...state,
@@ -1399,15 +958,10 @@ export const useDocStore = create<DocStore>((set, get) => ({
             state.currentUpdate && state.currentUpdate.key === key
               ? null
               : state.currentUpdate,
-          pendingOps: nextPending,
           invites: nextInvites,
-          conflicts: nextConflicts,
           error: null
         }
       })
-
-      clearDocState(key)
-      clearApplyQueue(key)
     } catch (error) {
       const message =
         error instanceof Error ? error.message : 'Failed to abandon document'
@@ -1415,283 +969,6 @@ export const useDocStore = create<DocStore>((set, get) => ({
       throw error instanceof Error ? error : new Error(message)
     } finally {
       set({ abandoningDoc: false })
-    }
-  },
-  applySnapshot: async (key, snapshot) => {
-    const state = get()
-    const current = state.currentUpdate
-    if (!current || current.key !== key) return
-
-    const sanitized = sanitizeDocSnapshot(snapshot)
-    const fingerprint = snapshotFingerprint(sanitized)
-
-    if (fingerprint.hash === current.snapshotHash) {
-      return
-    }
-    const delta = createDeltaPayload(current.snapshotText, fingerprint.text)
-    if (!delta) {
-      return
-    }
-
-    const encoded = textEncoder.encode(JSON.stringify(delta))
-    const baseRevision = current.revision
-    const nextRevision = baseRevision + 1
-    const timestamp = Date.now()
-    const pendingEntry: PendingOp = {
-      rev: nextRevision,
-      baseRev: baseRevision,
-      timestamp,
-      delta
-    }
-
-    set((prev) => {
-      if (!prev.currentUpdate || prev.currentUpdate.key !== key) return prev
-      const pendingForDoc = prev.pendingOps[key] ?? []
-      const nextPending = [...pendingForDoc, pendingEntry]
-      return {
-        ...prev,
-        currentUpdate: {
-          ...prev.currentUpdate,
-          snapshot: sanitized,
-          snapshotText: fingerprint.text,
-          rawSnapshot: textEncoder.encode(fingerprint.text),
-          snapshotHash: fingerprint.hash,
-          revision: nextRevision,
-          snapshotRevision: nextRevision,
-          updatedAt: timestamp
-        },
-        docs: prev.docs.map((doc) =>
-          doc.key === key
-            ? {
-                ...doc,
-                lastRevision: nextRevision,
-                lastOpenedAt: timestamp
-              }
-            : doc
-        ),
-        pendingOps: {
-          ...prev.pendingOps,
-          [key]: nextPending
-        }
-      }
-    })
-
-    const optimisticState = get()
-    persistDocStateEntry(
-      key,
-      optimisticState.currentUpdate,
-      optimisticState.pendingOps[key] ?? []
-    )
-
-    const send = async () => {
-      try {
-        const rpc = getRpc()
-        const result = await rpc.applyOps({
-          key,
-          ops: [
-            {
-              rev: nextRevision,
-              baseRev: baseRevision,
-              clientId: state.clientId,
-              sessionId: state.sessionId,
-              timestamp,
-              data: encoded
-            }
-          ],
-          clientTime: timestamp
-        })
-        const resultPayload = isPlainObject(result) ? result : null
-        const accepted = resultPayload?.accepted === true
-        if (!accepted) {
-          const reason =
-            typeof resultPayload?.reason === 'string'
-              ? resultPayload.reason
-              : 'REJECTED'
-
-          const existingRevision =
-            typeof resultPayload?.revision === 'number'
-              ? resultPayload.revision
-              : baseRevision
-
-          const expectedRevision =
-            typeof resultPayload?.expected === 'number'
-              ? resultPayload.expected
-              : existingRevision + 1
-
-          const conflictDetails =
-            reason === 'REVISION_CONFLICT'
-              ? toConflictState(resultPayload?.conflict, {
-                  message: DEFAULT_CONFLICT_MESSAGE,
-                  baseRevision,
-                  attemptedRevision: nextRevision,
-                  existingRevision,
-                  expectedRevision,
-                  clientId: null,
-                  sessionId: null,
-                  timestamp
-                })
-              : null
-
-          const errorMessage =
-            conflictDetails?.message ??
-            (typeof reason === 'string' ? reason : 'applyOps failed')
-
-          set((prev) => {
-            const existing = prev.pendingOps[key] ?? []
-            const filtered = existing.filter((op) => op.rev !== nextRevision)
-            return {
-              ...prev,
-              error: errorMessage,
-              pendingOps: {
-                ...prev.pendingOps,
-                [key]: filtered
-              },
-              conflicts: conflictDetails
-                ? {
-                    ...prev.conflicts,
-                    [key]: conflictDetails
-                  }
-                : {
-                    ...prev.conflicts,
-                    [key]: null
-                  }
-            }
-          })
-
-          clearDocState(key)
-          clearApplyQueue(key)
-          void get().selectDoc(key)
-          return
-        }
-
-        set((prev) => {
-          const existing = prev.pendingOps[key] ?? []
-          const filtered = existing.filter((op) => op.rev !== nextRevision)
-          return {
-            ...prev,
-            pendingOps: {
-              ...prev.pendingOps,
-              [key]: filtered
-            },
-            conflicts: {
-              ...prev.conflicts,
-              [key]: null
-            }
-          }
-        })
-
-        const nextState = get()
-        persistDocStateEntry(
-          key,
-          nextState.currentUpdate,
-          nextState.pendingOps[key] ?? []
-        )
-      } catch (error) {
-        set({ error: error instanceof Error ? error.message : String(error) })
-        set((prev) => {
-          const existing = prev.pendingOps[key] ?? []
-          const filtered = existing.filter((op) => op.rev !== pendingEntry.rev)
-          return {
-            ...prev,
-            pendingOps: {
-              ...prev.pendingOps,
-              [key]: filtered
-            },
-            conflicts: {
-              ...prev.conflicts,
-              [key]: null
-            }
-          }
-        })
-        clearDocState(key)
-        clearApplyQueue(key)
-        void get().selectDoc(key)
-      }
-    }
-
-    return await enqueueApplyTask(key, send)
-  },
-  resyncDoc: async (key) => {
-    if (!key) return
-
-    clearDocState(key)
-    clearApplyQueue(key)
-
-    set((state) => ({
-      conflicts: {
-        ...state.conflicts,
-        [key]: null
-      },
-      pendingOps: {
-        ...state.pendingOps,
-        [key]: []
-      },
-      error: null
-    }))
-
-    try {
-      await get().selectDoc(key)
-    } catch (error) {
-      set({
-        error: error instanceof Error ? error.message : String(error)
-      })
-      throw error
-    }
-  },
-  forkDocFromConflict: async (key) => {
-    if (!key) return
-
-    const state = get()
-    const current = state.currentUpdate
-    if (!current || current.key !== key) {
-      throw new Error('Open the document before forking')
-    }
-
-    const sourceSnapshot = sanitizeDocSnapshot(current.snapshot)
-    const sourceTitle =
-      typeof current.title === 'string' && current.title.length > 0
-        ? current.title
-        : 'Untitled document'
-    const forkTitle = `${sourceTitle} (Fork)`
-
-    clearDocState(key)
-    clearApplyQueue(key)
-
-    set((prev) => ({
-      conflicts: {
-        ...prev.conflicts,
-        [key]: null
-      },
-      pendingOps: {
-        ...prev.pendingOps,
-        [key]: []
-      }
-    }))
-
-    try {
-      const rpc = getRpc()
-      const response = await rpc.createDoc({ title: forkTitle })
-      const doc = response?.doc
-      if (!doc) {
-        throw new Error('Failed to create forked document')
-      }
-
-      set((prev) => ({
-        docs: [
-          doc,
-          ...prev.docs.filter((existing) => existing.key !== doc.key)
-        ],
-        error: null
-      }))
-
-      await get().selectDoc(doc.key)
-      await waitForDocActivation(doc.key, get)
-      await get().applySnapshot(doc.key, sourceSnapshot)
-    } catch (error) {
-      set({
-        error: error instanceof Error ? error.message : String(error)
-      })
-      throw error
     }
   },
   loadInvites: async (key, options) => {
@@ -1764,55 +1041,115 @@ export const useDocStore = create<DocStore>((set, get) => ({
         invitesLoading: false,
         invitesError: error instanceof Error ? error.message : String(error)
       })
-      throw error
+      return []
     }
   },
   refreshInvites: async (options) => {
-    const key = get().activeDoc
-    if (!key) return null
-    return await get().loadInvites(key, options)
+    const activeDoc = get().activeDoc
+    if (!activeDoc) return null
+    return await get().loadInvites(activeDoc, options)
   },
-  createDocInvite: async (options) => {
-    const key = get().activeDoc
-    if (!key) {
-      throw new Error('Select a document before creating invites')
+  createDocInvite: async (options = {}) => {
+    const activeDoc = get().activeDoc
+    if (!activeDoc) {
+      throw new Error('Open a document before creating invites')
     }
-
-    const rawRoles = Array.isArray(options?.roles) ? options.roles : []
-    const normalizedRoles = Array.from(
-      new Set(
-        [DOC_VIEWER_ROLE]
-          .concat(
-            rawRoles
-              .filter((role) => typeof role === 'string' && role.length > 0)
-              .map((role) => role.trim())
-          )
-          .filter((role) => role.length > 0)
-      )
-    )
 
     const rpc = getRpc()
     const response = await rpc.createInvite({
-      key,
-      roles: normalizedRoles,
-      expiresAt: options?.expiresAt
+      key: activeDoc,
+      roles: options.roles,
+      expiresAt: options.expiresAt
     })
 
-    await get().loadInvites(key, { includeRevoked: false })
+    if (!response?.invite || !response?.inviteId) {
+      throw new Error('Invite response missing data')
+    }
 
-    return response
+    await get().loadInvites(activeDoc, { includeRevoked: false })
+    return {
+      invite: response.invite,
+      inviteId: response.inviteId
+    }
   },
   revokeDocInvite: async ({ inviteId }) => {
-    const key = get().activeDoc
-    if (!key) {
-      throw new Error('Select a document before revoking invites')
+    const activeDoc = get().activeDoc
+    if (!activeDoc) {
+      throw new Error('Open a document before revoking invites')
     }
-    if (!inviteId) {
-      throw new Error('Invite id is required to revoke an invite')
-    }
-
     const rpc = getRpc()
-    await rpc.revokeInvite({ key, inviteId })
-    await get().loadInvites(key, { includeRevoked: false })
+    await rpc.revokeInvite({ key: activeDoc, inviteId })
+    await get().loadInvites(activeDoc, { includeRevoked: false })
   }
 }))
+
+function normalizePairStatus(value: unknown): DocPairStatus {
+  if (!isPlainObject(value)) {
+    return { state: 'unknown', message: null, progress: null, doc: null }
+  }
+
+  const state = typeof value.state === 'string' ? value.state : 'unknown'
+  const message =
+    typeof value.message === 'string' && value.message.length > 0
+      ? value.message
+      : null
+  const progress =
+    typeof value.progress === 'number' && Number.isFinite(value.progress)
+      ? value.progress
+      : null
+
+  let doc: DocRecord | null = null
+  const candidate = value.doc
+  if (isPlainObject(candidate) && typeof candidate.key === 'string') {
+    doc = {
+      key: candidate.key,
+      encryptionKey:
+        typeof candidate.encryptionKey === 'string'
+          ? candidate.encryptionKey
+          : '',
+      createdAt:
+        typeof candidate.createdAt === 'number'
+          ? candidate.createdAt
+          : Date.now(),
+      joinedAt:
+        typeof candidate.joinedAt === 'number'
+          ? candidate.joinedAt
+          : candidate.createdAt && Number.isFinite(candidate.createdAt)
+            ? Number(candidate.createdAt)
+            : null,
+      isCreator: candidate.isCreator === true,
+      title:
+        typeof candidate.title === 'string' && candidate.title.length > 0
+          ? candidate.title
+          : null,
+      lastRevision:
+        typeof candidate.lastRevision === 'number' ? candidate.lastRevision : null,
+      lastOpenedAt:
+        typeof candidate.lastOpenedAt === 'number'
+          ? candidate.lastOpenedAt
+          : null,
+      lockedAt:
+        typeof candidate.lockedAt === 'number' &&
+        Number.isFinite(candidate.lockedAt)
+          ? candidate.lockedAt
+          : null,
+      lockedBy:
+        typeof candidate.lockedBy === 'string' && candidate.lockedBy.length > 0
+          ? candidate.lockedBy
+          : null
+    }
+  }
+
+  return {
+    state,
+    message,
+    progress,
+    doc
+  }
+}
+
+function isPlainObject(
+  value: unknown
+): value is Record<string | number | symbol, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}

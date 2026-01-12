@@ -2,6 +2,10 @@ import { useEffect, useRef, useState } from 'react'
 import { EditorContent, useEditor } from '@tiptap/react'
 import { BubbleMenu } from '@tiptap/react/menus'
 import StarterKit from '@tiptap/starter-kit'
+import Collaboration from '@tiptap/extension-collaboration'
+import CollaborationCursor from '@/lib/collaboration-cursor'
+import type { Awareness } from 'y-protocols/awareness'
+import type { Doc as YDoc } from 'yjs'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -13,30 +17,33 @@ import {
   DialogTitle
 } from '@/components/ui/dialog'
 
-const EMPTY_DOCUMENT = {
-  type: 'doc',
-  content: [{ type: 'paragraph' }]
+type EditorUser = {
+  name: string
+  color: string
 }
 
 interface DocEditorProps {
-  docKey: string
-  snapshot?: any
+  docKey?: string | null
+  doc: YDoc
+  awareness?: Awareness | null
+  user?: EditorUser | null
   className?: string
   readOnly?: boolean
-  onSnapshotChange?: (snapshot: any) => void
 }
 
 export function DocEditor({
-  docKey,
-  snapshot,
+  docKey = null,
+  doc,
+  awareness = null,
+  user = null,
   className,
-  readOnly = true,
-  onSnapshotChange
+  readOnly = true
 }: DocEditorProps) {
-  const applyRef = useRef(false)
   const [linkDialogOpen, setLinkDialogOpen] = useState(false)
   const [linkValue, setLinkValue] = useState('')
   const prevReadOnlyRef = useRef(readOnly)
+
+  const cursorUser = user ?? { name: 'You', color: '#111827' }
 
   const editor = useEditor({
     extensions: [
@@ -45,29 +52,35 @@ export function DocEditor({
           openOnClick: false,
           linkOnPaste: true,
           autolink: true
-        }
-      })
+        },
+        history: false,
+        undoRedo: false
+      }),
+      Collaboration.configure({
+        document: doc
+      }),
+      ...(awareness
+        ? [
+            CollaborationCursor.configure({
+              provider: { awareness },
+              user: cursorUser
+            })
+          ]
+        : [])
     ],
-    content: snapshot ?? EMPTY_DOCUMENT,
     editable: !readOnly,
     autofocus: true,
     editorProps: {
       attributes: {
         class: 'p-5 focus:outline-none'
       }
-    },
-    onUpdate: ({ editor }) => {
-      if (applyRef.current) {
-        applyRef.current = false
-        return
-      }
-      if (readOnly || typeof onSnapshotChange !== 'function') return
-      try {
-        const json = editor.getJSON()
-        onSnapshotChange(json)
-      } catch {}
     }
-  })
+  }, [doc, awareness])
+
+  useEffect(() => {
+    if (!editor || !awareness) return
+    editor.commands.updateUser(cursorUser)
+  }, [editor, awareness, cursorUser])
 
   useEffect(() => {
     if (!editor) return
@@ -79,57 +92,6 @@ export function DocEditor({
       setLinkDialogOpen(false)
     }
   }, [readOnly, linkDialogOpen])
-
-  useEffect(() => {
-    if (!editor) return
-
-    const nextContent = snapshot ?? EMPTY_DOCUMENT
-    const currentSerialized = JSON.stringify(editor.getJSON())
-    const nextSerialized = JSON.stringify(nextContent)
-    if (currentSerialized === nextSerialized) {
-      editor.setEditable(!readOnly)
-      return
-    }
-
-    const wasFocused = editor.isFocused
-    const { from, to } = editor.state.selection
-
-    applyRef.current = true
-
-    const setContent = () => {
-      editor.commands.setContent(nextContent, {
-        emitUpdate: false
-      })
-    }
-
-    try {
-      try {
-        setContent()
-      } catch {
-        setContent()
-      }
-
-      const docSize = Math.max(0, editor.state.doc.nodeSize - 2)
-      const clamp = (value: number) => Math.max(0, Math.min(value, docSize))
-      const clampedFrom = clamp(from)
-      const clampedTo = clamp(to)
-
-      if (clampedFrom <= clampedTo) {
-        if (wasFocused) {
-          editor
-            .chain()
-            .setTextSelection({ from: clampedFrom, to: clampedTo })
-            .focus()
-            .run()
-        } else {
-          editor.commands.setTextSelection({ from: clampedFrom, to: clampedTo })
-        }
-      }
-    } finally {
-      applyRef.current = false
-      editor.setEditable(!readOnly)
-    }
-  }, [editor, snapshot, readOnly])
 
   useEffect(() => {
     const previous = prevReadOnlyRef.current
@@ -247,7 +209,11 @@ export function DocEditor({
         </BubbleMenu>
       ) : null}
 
-      <EditorContent editor={editor} className='h-full' data-doc-key={docKey} />
+      <EditorContent
+        editor={editor}
+        className='h-full'
+        data-doc-key={docKey ?? undefined}
+      />
 
       <Dialog open={linkDialogOpen} onOpenChange={setLinkDialogOpen}>
         <DialogContent className='max-w-sm'>

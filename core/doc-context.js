@@ -1,5 +1,4 @@
 import { Context } from 'autobonk'
-import b4a from 'b4a'
 import {
   DEFAULT_TITLE,
   METADATA_ID,
@@ -69,40 +68,32 @@ export class DocContext extends Context {
     )
 
     this.router.add(
-      '@bonk-docs/operation-append',
+      '@bonk-docs/update-append',
       async (data = {}, context) => {
         await this.requirePermission(context.writerKey, PERMISSIONS.DOC_EDIT)
 
-        if (typeof data.rev !== 'number') {
-          throw new Error('operation-append requires numeric rev')
-        }
-        if (typeof data.baseRev !== 'number') {
-          throw new Error('operation-append requires numeric baseRev')
-        }
-        if (!data.clientId) {
-          throw new Error('operation-append requires clientId')
+        if (typeof data.clientId !== 'string' || data.clientId.length === 0) {
+          throw new Error('update-append requires clientId')
         }
         if (!data.data) {
-          throw new Error('operation-append requires data buffer')
+          throw new Error('update-append requires data buffer')
         }
+
+        const latest = await getLatestEntry(context.view, '@bonk-docs/updates')
+        const nextRev = latest ? latest.rev + 1 : 1
 
         const record = {
-          rev: data.rev,
-          baseRev: data.baseRev,
           clientId: data.clientId,
-          sessionId: data.sessionId || null,
           timestamp: data.timestamp || Date.now(),
-          data: data.data
+          data: data.data,
+          rev: nextRev
         }
 
-        const shouldInsert = await this._assertNextOperationRevision(
-          context.view,
-          record
-        )
+        if (typeof data.sessionId === 'string' && data.sessionId.length > 0) {
+          record.sessionId = data.sessionId
+        }
 
-        if (!shouldInsert) return
-
-        await context.view.insert('@bonk-docs/operations', record)
+        await context.view.insert('@bonk-docs/updates', record)
       }
     )
 
@@ -299,35 +290,29 @@ export class DocContext extends Context {
   }
 
   async getLatestRevision() {
-    const latest = await getLatestEntry(this.base.view, '@bonk-docs/operations')
+    const latest = await getLatestEntry(this.base.view, '@bonk-docs/updates')
     return latest ? latest.rev : 0
   }
 
-  async appendOperation(operation = {}) {
+  async appendUpdate(update = {}) {
     await this.requirePermission(this.writerKey, PERMISSIONS.DOC_EDIT)
 
-    const latest = await this.getLatestRevision()
-    const rev = typeof operation.rev === 'number' ? operation.rev : latest + 1
-    const baseRev =
-      typeof operation.baseRev === 'number'
-        ? operation.baseRev
-        : Math.max(latest, 0)
-
     const record = {
-      rev,
-      baseRev,
-      clientId: operation.clientId,
-      sessionId: operation.sessionId || null,
-      timestamp: operation.timestamp || Date.now(),
-      data: operation.data
+      clientId: update.clientId,
+      timestamp: update.timestamp || Date.now(),
+      data: update.data
+    }
+
+    if (typeof update.sessionId === 'string' && update.sessionId.length > 0) {
+      record.sessionId = update.sessionId
     }
 
     if (!record.clientId || !record.data) {
-      throw new Error('appendOperation requires clientId and data')
+      throw new Error('appendUpdate requires clientId and data')
     }
 
     await this.base.append(
-      this.schema.dispatch.encode('@bonk-docs/operation-append', record)
+      this.schema.dispatch.encode('@bonk-docs/update-append', record)
     )
 
     return record
@@ -346,9 +331,8 @@ export class DocContext extends Context {
     const record = {
       rev,
       createdAt: snapshot.createdAt || Date.now(),
-      compression: snapshot.compression || null,
       data: snapshot.data,
-      hash: snapshot.hash || null
+      stateVector: snapshot.stateVector || null
     }
 
     await this.base.append(
@@ -356,47 +340,5 @@ export class DocContext extends Context {
     )
 
     return record
-  }
-
-  async _assertNextOperationRevision(view, record) {
-    const latest = await getLatestEntry(view, '@bonk-docs/operations')
-    const latestRev = latest ? latest.rev : 0
-    const expected = latestRev + 1
-
-    if (record.rev === expected) return true
-
-    if (record.rev <= latestRev) {
-      const existing = await view.get('@bonk-docs/operations', {
-        rev: record.rev
-      })
-
-      if (existing && this._operationEquals(existing, record)) {
-        return false
-      }
-
-      throw new Error(
-        `Conflicting operation revision ${record.rev}: expected ${expected}`
-      )
-    }
-
-    throw new Error(
-      `Invalid operation revision: expected ${expected}, got ${record.rev}`
-    )
-  }
-
-  _operationEquals(left = null, right = null) {
-    if (!left || !right) return false
-    if (left.rev !== right.rev) return false
-    if (left.baseRev !== right.baseRev) return false
-    if (left.clientId !== right.clientId) return false
-    if ((left.sessionId || null) !== (right.sessionId || null)) return false
-    if ((left.timestamp || null) !== (right.timestamp || null)) return false
-
-    const leftData = left.data
-    const rightData = right.data
-
-    if (!leftData || !rightData) return leftData === rightData
-
-    return b4a.equals(leftData, rightData)
   }
 }

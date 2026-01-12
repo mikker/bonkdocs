@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "offset": 0,
   "schema": [
     {
@@ -57,12 +57,6 @@
       "version": 1
     },
     {
-      "id": 9,
-      "name": "@bonk-docs/operation-append",
-      "requestType": "@bonk-docs/operation",
-      "version": 1
-    },
-    {
       "id": 10,
       "name": "@bonk-docs/snapshot-save",
       "requestType": "@bonk-docs/snapshot",
@@ -85,6 +79,12 @@
       "name": "@local/profile-upsert",
       "requestType": "@local/profile",
       "version": 1
+    },
+    {
+      "id": 9,
+      "name": "@bonk-docs/update-append",
+      "requestType": "@bonk-docs/update-entry",
+      "version": 2
     }
   ]
 }

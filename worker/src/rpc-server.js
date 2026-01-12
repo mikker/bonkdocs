@@ -182,8 +182,7 @@ export function createRpcServer(stream, worker) {
       stop = await worker.watchDoc(
         request.key,
         {
-          includeSnapshot: request.includeSnapshot === true,
-          sinceRevision: request.sinceRevision
+          stateVector: request.stateVector
         },
         async (update) => {
           if (!stream.destroyed) {
@@ -209,10 +208,16 @@ export function createRpcServer(stream, worker) {
     stream.on('error', cleanup)
   })
 
-  rpc.onApplyOps(async (request = {}) => {
-    console.log('[worker] apply-ops request')
-    if (!request.key) throw new Error('Doc key is required for applyOps')
-    return await worker.applyOperations(request)
+  rpc.onApplyUpdates(async (request = {}) => {
+    console.log('[worker] apply-updates request')
+    if (!request.key) throw new Error('Doc key is required for applyUpdates')
+    return await worker.applyUpdates(request)
+  })
+
+  rpc.onApplyAwareness(async (request = {}) => {
+    console.log('[worker] apply-awareness request')
+    if (!request.key) throw new Error('Doc key is required for applyAwareness')
+    return await worker.applyAwareness(request)
   })
 
   rpc.onListInvites(async (request = {}) => {

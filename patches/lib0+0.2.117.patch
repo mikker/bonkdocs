@@ -1,0 +1,16 @@
+diff --git a/node_modules/lib0/package.json b/node_modules/lib0/package.json
+--- a/node_modules/lib0/package.json
++++ b/node_modules/lib0/package.json
+@@ -503,6 +503,12 @@
+       "module": "./schema.js",
+       "import": "./schema.js",
+       "require": "./dist/schema.cjs"
++    }
++  },
++  "imports": {
++    "node:crypto": {
++      "bare": "bare-crypto",
++      "default": "node:crypto"
+     }
+   },
+   "dependencies": {

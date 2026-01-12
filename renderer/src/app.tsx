@@ -5,7 +5,6 @@ import { Toaster } from '@/components/ui/sonner'
 import { DocEditor } from '@/components/doc-editor'
 import { DocInvitesDialog } from '@/components/doc-invites-dialog'
 import { DocJoinDialog } from '@/components/doc-join-dialog'
-import { DocConflictView } from '@/components/doc-conflict-view'
 import { EditorEmptyState } from '@/components/editor-empty-state'
 import { EditorLoadingState } from '@/components/editor-loading-state'
 import { useDocStore } from './state/doc-store'
@@ -61,12 +60,7 @@ export function App() {
   const activeDoc = useDocState((state) => state.activeDoc)
   const currentUpdate = useDocState((state) => state.currentUpdate)
   const loading = useDocState((state) => state.loading)
-  const applySnapshot = useDocState((state) => state.applySnapshot)
-  const conflict = useDocState((state) =>
-    state.activeDoc ? (state.conflicts[state.activeDoc] ?? null) : null
-  )
-  const resyncDoc = useDocState((state) => state.resyncDoc)
-  const forkDocFromConflict = useDocState((state) => state.forkDocFromConflict)
+  const localUser = useDocState((state) => state.localUser)
 
   useEffect(() => {
     void initialize()
@@ -84,35 +78,27 @@ export function App() {
 
         <SidebarInset className='h-dvh grid grid-cols-1 grid-rows-[auto_1fr]'>
           <DocsTitleBar />
-          {conflict && activeDoc ? (
-            <DocConflictView
-              key={activeDoc}
-              docKey={activeDoc}
-              conflict={conflict}
-              onResync={() => resyncDoc(activeDoc!)}
-              onFork={() => forkDocFromConflict(activeDoc!)}
-            />
-          ) : currentUpdate ? (
+          {currentUpdate ? (
             <div>
               {currentUpdate.lockedAt ? (
                 <DocLockedNotice lockedAt={currentUpdate.lockedAt} />
               ) : null}
               <DocEditor
+                key={currentUpdate.key}
                 docKey={currentUpdate.key}
-                snapshot={currentUpdate.snapshot}
+                doc={currentUpdate.doc}
+                awareness={currentUpdate.awareness}
+                user={localUser}
                 readOnly={
                   currentUpdate.lockedAt != null ||
                   currentUpdate.capabilities?.canEdit === false
-                }
-                onSnapshotChange={(nextSnapshot) =>
-                  applySnapshot(currentUpdate.key, nextSnapshot)
                 }
               />
             </div>
           ) : loading ? (
             <EditorLoadingState />
           ) : activeDoc ? (
-            <StatusMessage>Waiting for snapshot…</StatusMessage>
+            <StatusMessage>Waiting for sync…</StatusMessage>
           ) : (
             <EditorEmptyState />
           )}

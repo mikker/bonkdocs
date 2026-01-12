@@ -1,52 +1,32 @@
-# WebRTC Presence Plan
+# Yjs Awareness Plan
 
 ## Objectives
 
-- Replace all Autobonk-based presence syncing with a WebRTC-only flow.
-- Keep presence strictly ephemeral: no persistence, no worker-side reconciliation loops.
-- Surface consistent user colors for cursors and the title bar badge set.
+- Use Yjs Awareness for presence (cursors, selection, focus state).
+- Keep presence ephemeral: no persistence, no recovery replays.
+- Relay awareness updates through the worker for consistent multi-peer delivery.
 
-## Phase 1 – Cleanup & Baseline
+## Phase 1 – Transport
 
-- [x] Strip remaining presence helpers from `worker/src/doc-worker.js` and `worker/src/rpc-server.js`.
-- [x] Remove unused imports, logging branches, and schema references created for Autobonk presence.
-- [x] Verify renderer builds (`npm run build`) and worker smoke tests still pass.
+- [x] Add HRPC endpoints for `applyAwareness` + awareness payloads in `watchDoc`.
+- [ ] Ensure awareness updates are throttled on the renderer side.
 
-## Phase 2 – Signaling Channel
+## Phase 2 – Renderer Integration
 
-- [ ] Introduce a lightweight HRPC endpoint (offer/answer exchange) that only brokers WebRTC setup per document session.
-- [ ] Generate WebRTC key material with `hypercore-crypto/randomBytes` where entropy is required.
-- [ ] Ensure signaling requests contain: document key, participant session id, optional display name seed.
-- [ ] Add structured logging around signaling events to ease debugging.
+- [ ] Wire TipTap CollaborationCursor to the shared Awareness instance.
+- [ ] Persist local user color + name (optional) for stable identity.
 
-## Phase 3 – Renderer Presence Service
+## Phase 3 – UI Integration
 
-- [ ] Create a renderer-side presence controller that:
-  - Opens a WebRTC data channel per active document (lazily, on focus).
-  - Broadcasts local presence payloads (color, selection, focus state) on meaningful changes only.
-  - Debounces outbound updates and merges inbound peer updates without triggering editor reflows.
-- [ ] Persist chosen user color locally (`localStorage`) to keep stable identity across reloads.
+- [ ] Display active peers in the title bar (avatars or initials).
+- [ ] Provide a `usePresence(docId)` selector in Zustand for UI consumption.
 
-## Phase 4 – UI Integration
+## Phase 4 – Instrumentation & Testing
 
-- [ ] Provide a Zustand slice for presence with a subscription-friendly `usePresence(docId)` selector.
-- [ ] Update the editor extension to draw remote cursors/carets with the colors supplied by presence peers.
-- [ ] Reintroduce title bar avatars using the same presence store, matching cursor colors.
-
-## Phase 5 – Instrumentation & Guardrails
-
-- [ ] Add verbose logging and a developer toggle to trace WebRTC presence events.
-- [ ] Surface connection status in the developer console (connected / reconnecting / failed).
-- [ ] Harden against edge cases: dropped peers, stale channels, duplicate session ids.
-
-## Phase 6 – Testing & Verification
-
-- [ ] Write brittle tests that mock the signaling HRPC handler to exercise offer/answer flow.
-- [ ] Add renderer unit tests for the presence controller (debounce logic, selection diffs).
-- [ ] Manual QA checklist: two clients editing, focus/blur transitions, document creation edge cases.
+- [ ] Add verbose logging for awareness updates in a debug mode.
+- [ ] Add brittle tests that validate awareness fan-out through the worker.
 
 ## Deliverables
 
-- [ ] Worker and renderer code implementing the WebRTC presence pipeline.
+- [ ] Worker and renderer code implementing the Yjs Awareness pipeline.
 - [ ] Updated docs (`docs/architecture-plan.md`, `docs/roadmap.md`) summarising the new presence architecture.
-- [ ] Basic troubleshooting guide for presence issues.

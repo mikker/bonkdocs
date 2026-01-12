@@ -1,5 +1,6 @@
 import { performance } from 'node:perf_hooks'
 import process from 'process'
+import * as Y from 'yjs'
 import { ensurePear } from '../lib/pear-env.js'
 
 ensurePear()
@@ -43,10 +44,10 @@ function printHelp() {
   console.log(
     `Usage: node scripts/typing-sim.js [--ops N] [--delay ms] [--key doc-key]\n` +
       `\n` +
-      `Simulates a burst of TipTap snapshots against the renderer doc store.\n` +
+      `Simulates a burst of Yjs updates against the renderer doc store.\n` +
       `Options:\n` +
       `  --ops N     Number of local edits to queue (default 200)\n` +
-      `  --delay ms  Artificial network delay per applyOps call (default 5ms)\n` +
+      `  --delay ms  Artificial network delay per applyUpdates call (default 5ms)\n` +
       `  --key name  Document key to target (default doc-sim)\n` +
       `  --verbose   Print RPC payloads for debugging\n`
   )
@@ -65,20 +66,17 @@ async function simulateBurst(options) {
     activeDoc: doc.key
   })
 
-  mock.setApplyOpsHandler(async (request = {}) => {
+  mock.setApplyUpdatesHandler(async (request = {}) => {
     if (options.delay > 0) {
       await new Promise((resolve) => setTimeout(resolve, options.delay))
     }
     if (options.verbose) {
-      console.log(
-        `applyOps => rev ${request?.ops?.[0]?.rev} (ops: ${
-          request?.ops?.length ?? 0
-        })`
-      )
+      const bytes = request?.updates?.[0]?.data?.length ?? 0
+      console.log(`applyUpdates => ${bytes} bytes`)
     }
     return {
       accepted: true,
-      revision: request?.ops?.at(-1)?.rev ?? null
+      revision: request?.revision ?? null
     }
   })
 
@@ -87,76 +85,43 @@ async function simulateBurst(options) {
 
   try {
     await useDocStore.getState().initialize()
+
+    const seedDoc = new Y.Doc()
+    seedDoc.getText('body').insert(0, 'seed')
+    const seedUpdate = Y.encodeStateAsUpdate(seedDoc)
     mock.emitUpdate(doc.key, {
       key: doc.key,
       revision: 1,
-      snapshotRevision: 1,
-      snapshot: {
-        type: 'doc',
-        content: [
-          {
-            type: 'paragraph',
-            content: [{ type: 'text', text: 'seed' }]
-          }
-        ]
-      },
+      syncUpdate: seedUpdate,
       updatedAt: Date.now()
     })
     await flushMicrotasks()
 
-    let maxPending = 0
-    const unsubscribe = useDocStore.subscribe(
-      (state) => state.pendingOps[doc.key]?.length ?? 0,
-      (pending) => {
-        if (pending > maxPending) {
-          maxPending = pending
-        }
-      }
-    )
-
     const start = performance.now()
-    const applyTasks = []
     for (let i = 0; i < options.ops; i++) {
-      const text = `sim-${i + 1}`
-      applyTasks.push(
-        useDocStore.getState().applySnapshot(doc.key, {
-          type: 'doc',
-          content: [
-            {
-              type: 'paragraph',
-              content: [{ type: 'text', text }]
-            }
-          ]
-        })
-      )
+      const current = useDocStore.getState().currentUpdate
+      current?.doc.getText('body').insert(0, `sim-${i + 1} `)
     }
 
-    await Promise.all(applyTasks)
+    await new Promise((resolve) => setTimeout(resolve, options.delay + 200))
     const durationMs = performance.now() - start
 
-    unsubscribe()
-
-    const calls = mock.getApplyOpsCalls()
-    const opsSent = calls.reduce(
-      (total, entry) => total + (entry?.ops?.length ?? 0),
+    const calls = mock.getApplyUpdatesCalls()
+    const bytesSent = calls.reduce(
+      (total, entry) => total + (entry?.updates?.[0]?.data?.length ?? 0),
       0
     )
-    const avgBatch = calls.length > 0 ? opsSent / calls.length : 0
 
     const state = useDocStore.getState()
-    const latest =
-      state.currentUpdate?.snapshot?.content?.[0]?.content?.[0]?.text ?? ''
+    const latest = state.currentUpdate?.doc.getText('body').toString() ?? ''
 
     return {
       opsRequested: options.ops,
       durationMs,
       opsPerSecond: (options.ops / durationMs) * 1000,
       rpcCalls: calls.length,
-      opsSent,
-      avgBatchSize: avgBatch,
-      maxPending,
-      finalText: latest,
-      pendingLeft: state.pendingOps[doc.key]?.length ?? 0
+      bytesSent,
+      finalTextLength: latest.length
     }
   } finally {
     mock.destroyAll()
@@ -178,12 +143,9 @@ async function main() {
     'Ops requested': metrics.opsRequested,
     'Duration (ms)': Number(metrics.durationMs.toFixed(2)),
     'Ops/sec': Number(metrics.opsPerSecond.toFixed(2)),
-    'applyOps calls': metrics.rpcCalls,
-    'Ops sent': metrics.opsSent,
-    'Avg ops per call': Number(metrics.avgBatchSize.toFixed(2)),
-    'Max pending queue': metrics.maxPending,
-    'Pending remaining': metrics.pendingLeft,
-    'Final snapshot text': metrics.finalText
+    'applyUpdates calls': metrics.rpcCalls,
+    'Bytes sent': metrics.bytesSent,
+    'Final text length': metrics.finalTextLength
   })
 }
 

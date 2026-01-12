@@ -4,17 +4,17 @@
 
 - Overhaul `schema.js` with doc namespaces and regenerate specs.
 - Implement `core/doc-context.js` and `core/doc-manager.js` in plain JS using Bare shims.
-- Scaffold HRPC handlers for create/join/list/remove/watch without OT.
+- Scaffold HRPC handlers for create/join/list/remove/watch before Yjs wiring.
 - Build minimal renderer flow: docs list, create/join dialogs, static TipTap mount fed by snapshot.
 - Validate invite pairing and local metadata persistence end-to-end.
 
 ## Phase 1 — Collaborative Editing Core
 
-- Land shared OT engine in `core/ot/` plus TipTap adapter in `renderer/lib/editor-adapter.ts`.
-- Add `worker/doc-worker.js` apply/watch handlers that transform, commit, and acknowledge ops.
-- Stream snapshots + ops tail via watcher; hydrate renderer Zustand store with optimistic reconciliation.
-- Implement presence heartbeats and basic UI indicators (peer cursors optional).
-- Harden offline queue replay and conflict handling (surface resync/fork UX backed by worker conflict hints); add brittle coverage for OT convergence.
+- Adopt Yjs CRDT core with TipTap Collaboration + CollaborationCursor.
+- Add `worker/doc-worker.js` apply/watch handlers that commit Yjs updates and stream diffs.
+- Stream state-vector sync + update tail via watcher; hydrate renderer store with Y.Doc.
+- Implement Yjs Awareness presence (peer cursors optional).
+- Harden offline update replay and snapshot compaction; add brittle coverage for Yjs convergence.
 
 ## Phase 2 — Collaboration Polish
 
