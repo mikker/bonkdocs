@@ -133,7 +133,7 @@ export function DocEditor({
   return (
     <div
       className={cn(
-        'relative h-full isolate',
+        'relative grid overflow-y-auto',
         readOnly && 'pointer-events-none',
         className
       )}
@@ -214,7 +214,7 @@ export function DocEditor({
 
       <EditorContent
         editor={editor}
-        className='h-full'
+        className='grid'
         data-doc-key={docKey ?? undefined}
       />
 

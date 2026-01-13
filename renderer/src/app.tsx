@@ -76,10 +76,10 @@ export function App() {
 
         <DocsSidebar />
 
-        <SidebarInset className='h-dvh grid grid-cols-1 grid-rows-[auto_1fr]'>
+        <SidebarInset className='h-dvh grid grid-cols-1 grid-rows-[auto_1fr] overflow-y-hidden'>
           <DocsTitleBar />
           {currentUpdate ? (
-            <div>
+            <>
               {currentUpdate.lockedAt ? (
                 <DocLockedNotice lockedAt={currentUpdate.lockedAt} />
               ) : null}
@@ -95,7 +95,7 @@ export function App() {
                   currentUpdate.capabilities?.canEdit === false
                 }
               />
-            </div>
+            </>
           ) : loading ? (
             <EditorLoadingState />
           ) : activeDoc ? (
