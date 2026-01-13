@@ -1,0 +1,14 @@
+tasks:
+  - key: d
+    name: dev
+    cmd: npm run dev
+    persistent: true
+    autostart: true
+
+  - key: f
+    name: format
+    cmd: npm run format
+
+  - key: l
+    name: lint
+    cmd: npm run lint
