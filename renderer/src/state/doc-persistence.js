@@ -4,6 +4,9 @@ const memoryStore = {}
 
 function isBrowserStorageAvailable() {
   try {
+    if (typeof window === 'undefined' || typeof document === 'undefined') {
+      return false
+    }
     if (typeof localStorage === 'undefined') return false
     const testKey = '__bonk-docs-test__'
     localStorage.setItem(testKey, '1')

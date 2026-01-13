@@ -8,11 +8,43 @@
       "main": "renderer/dist/index.html",
       "width": 1080,
       "height": 900,
+      "icon": "icon.png",
       "minWidth": 400,
       "minHeight": 300
     },
     "name": "bonk-docs",
-    "pre": "pear-electron/pre"
+    "pre": "pear-electron/pre",
+    "stage": {
+      "ignore": [
+        ".lunterc",
+        ".lunteignore",
+        ".git",
+        ".github",
+        ".gitignore",
+        ".prettierignore",
+        ".prettierrc.json",
+        "AGENTS.md",
+        "README.md",
+        "components.json",
+        "docs",
+        "node_modules/.package-lock.json",
+        "node_modules/*/*.md",
+        "node_modules/*/*/*.md",
+        "node_modules/*/LICENSE",
+        "node_modules/*/*/LICENSE",
+        "node_modules/*/CHANGELOG",
+        "node_modules/*/*/CHANGELOG",
+        "node_modules/*/test",
+        "node_modules/*/*/test",
+        "package-lock.json",
+        "scripts",
+        "spec",
+        "test"
+      ],
+      "prefetch": [
+        "assets"
+      ]
+    }
   },
   "scripts": {
     "dev": "concurrently \"npm:dev:*\"",
