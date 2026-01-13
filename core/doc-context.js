@@ -122,6 +122,12 @@ export class DocContext extends Context {
     await this.ensureDocRoles()
   }
 
+  async teardownResources() {
+    if (this.base?.view && typeof this.base.view.close === 'function') {
+      await this.base.view.close()
+    }
+  }
+
   async ensureDocRoles() {
     const roleEntries = Object.entries(ROLE_PERMISSIONS)
 

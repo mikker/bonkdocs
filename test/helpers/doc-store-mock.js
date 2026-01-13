@@ -1,5 +1,8 @@
 import { EventEmitter } from 'events'
-import { useDocStore } from '../../renderer/src/state/doc-store.ts'
+import {
+  destroyAllSessions,
+  useDocStore
+} from '../../renderer/src/state/doc-store.ts'
 
 function createMockStream() {
   const emitter = new EventEmitter()
@@ -228,6 +231,7 @@ export async function flushMicrotasks() {
 }
 
 export function resetDocStoreState(overrides = {}) {
+  destroyAllSessions()
   useDocStore.setState({
     docs: [],
     activeDoc: null,

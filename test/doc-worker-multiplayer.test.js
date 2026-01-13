@@ -236,6 +236,10 @@ test('DocWorker broadcasts awareness updates to watchers', async (t) => {
     await watcherA.stop()
     await watcherB.stop()
   })
+  t.teardown(() => {
+    awarenessA.destroy()
+    awarenessB.destroy()
+  })
 
   await Promise.all([watcherA.ready, watcherB.ready])
 

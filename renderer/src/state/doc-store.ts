@@ -224,6 +224,30 @@ function getSession(key: string): DocSession {
   return session
 }
 
+function destroySession(session: DocSession) {
+  if (session.flushTimer) {
+    clearTimeout(session.flushTimer)
+    session.flushTimer = null
+  }
+  if (session.awarenessTimer) {
+    clearTimeout(session.awarenessTimer)
+    session.awarenessTimer = null
+  }
+  session.pendingUpdates = []
+  session.pendingAwareness = null
+  session.awareness?.destroy?.()
+  session.doc?.destroy?.()
+  sessions.delete(session.key)
+}
+
+export function destroyAllSessions() {
+  for (const session of sessions.values()) {
+    destroySession(session)
+  }
+  sessions.clear()
+  applyQueues.clear()
+}
+
 function attachSession(
   session: DocSession,
   getState: () => DocStore,

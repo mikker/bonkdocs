@@ -104,6 +104,14 @@ export class DocWorker {
       } catch {}
     }
     this.subscriptions.clear()
+    for (const sync of this.syncs.values()) {
+      try {
+        sync.awareness?.destroy?.()
+      } catch {}
+      try {
+        sync.doc?.destroy?.()
+      } catch {}
+    }
     this.syncs.clear()
     this.syncQueues.clear()
     await this.manager.close()
