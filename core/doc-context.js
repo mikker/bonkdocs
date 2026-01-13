@@ -31,7 +31,7 @@ export class DocContext extends Context {
     this.router.add(
       '@bonk-docs/metadata-upsert',
       async (data = {}, context) => {
-        await this.requirePermission(context.writerKey, PERMISSIONS.DOC_EDIT)
+        await this.requireDocPermission(context.writerKey, PERMISSIONS.DOC_EDIT)
 
         const record = {
           id: data.id || METADATA_ID,
@@ -68,7 +68,7 @@ export class DocContext extends Context {
     )
 
     this.router.add('@bonk-docs/update-append', async (data = {}, context) => {
-      await this.requirePermission(context.writerKey, PERMISSIONS.DOC_EDIT)
+      await this.requireDocPermission(context.writerKey, PERMISSIONS.DOC_EDIT)
 
       if (typeof data.clientId !== 'string' || data.clientId.length === 0) {
         throw new Error('update-append requires clientId')
@@ -95,7 +95,10 @@ export class DocContext extends Context {
     })
 
     this.router.add('@bonk-docs/snapshot-save', async (data = {}, context) => {
-      await this.requirePermission(context.writerKey, PERMISSIONS.DOC_SNAPSHOT)
+      await this.requireDocPermission(
+        context.writerKey,
+        PERMISSIONS.DOC_SNAPSHOT
+      )
 
       if (typeof data.rev !== 'number') {
         throw new Error('snapshot-save requires numeric rev')
@@ -116,6 +119,37 @@ export class DocContext extends Context {
     this.router.add('@local/doc-upsert', async () => {})
     this.router.add('@local/state-update', async () => {})
     this.router.add('@local/profile-upsert', async () => {})
+  }
+
+  async hasDocPermission(subjectKey, permission) {
+    const allowed = await this.hasPermission(subjectKey, permission)
+    if (allowed) return true
+
+    const aclEntry = await this.base.view.get('@autobonk/acl-entry', {
+      subjectKey
+    })
+    return Array.isArray(aclEntry?.roles) && aclEntry.roles.includes('owner')
+  }
+
+  async requireDocPermission(subjectKey, permission) {
+    const contextInit = await this.base.view.findOne(
+      '@autobonk/context-init',
+      {}
+    )
+    if (!contextInit) {
+      return
+    }
+
+    const hasAccess = await this.hasDocPermission(subjectKey, permission)
+    if (hasAccess) {
+      return
+    }
+
+    const error = new Error(`Missing permission: ${permission}`)
+    error.name = 'PermissionError'
+    error.requiredPermission = permission
+    error.subjectKey = subjectKey
+    throw error
   }
 
   async setupResources() {
@@ -207,7 +241,7 @@ export class DocContext extends Context {
 
   async updateMetadata(patch = {}) {
     await this.ensureDocRoles()
-    await this.requirePermission(this.writerKey, PERMISSIONS.DOC_EDIT)
+    await this.requireDocPermission(this.writerKey, PERMISSIONS.DOC_EDIT)
 
     const existing = await this.getMetadata()
     if (!existing) {
@@ -251,7 +285,7 @@ export class DocContext extends Context {
 
   async lockDoc(options = {}) {
     await this.ensureDocRoles()
-    await this.requirePermission(this.writerKey, PERMISSIONS.DOC_EDIT)
+    await this.requireDocPermission(this.writerKey, PERMISSIONS.DOC_EDIT)
 
     const existing = await this.getMetadata()
     if (!existing) {
@@ -298,7 +332,7 @@ export class DocContext extends Context {
   }
 
   async appendUpdate(update = {}) {
-    await this.requirePermission(this.writerKey, PERMISSIONS.DOC_EDIT)
+    await this.requireDocPermission(this.writerKey, PERMISSIONS.DOC_EDIT)
 
     const record = {
       clientId: update.clientId,
@@ -322,7 +356,7 @@ export class DocContext extends Context {
   }
 
   async recordSnapshot(snapshot = {}) {
-    await this.requirePermission(this.writerKey, PERMISSIONS.DOC_SNAPSHOT)
+    await this.requireDocPermission(this.writerKey, PERMISSIONS.DOC_SNAPSHOT)
 
     if (!snapshot.data) {
       throw new Error('recordSnapshot requires snapshot data')

@@ -848,15 +848,19 @@ export class DocWorker {
       metadata && metadata.lockedBy && lockedAt
         ? bufferToHex(metadata.lockedBy)
         : null
-    const canEditPermission = await context.hasPermission(
+    const hasDocPermission =
+      typeof context.hasDocPermission === 'function'
+        ? context.hasDocPermission.bind(context)
+        : context.hasPermission.bind(context)
+    const canEditPermission = await hasDocPermission(
       context.writerKey,
       PERMISSIONS.DOC_EDIT
     )
-    const canCommentPermission = await context.hasPermission(
+    const canCommentPermission = await hasDocPermission(
       context.writerKey,
       PERMISSIONS.DOC_COMMENT
     )
-    const canInvitePermission = await context.hasPermission(
+    const canInvitePermission = await hasDocPermission(
       context.writerKey,
       PERMISSIONS.DOC_INVITE
     )
