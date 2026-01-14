@@ -57,7 +57,8 @@
     "lint": "prettier --check . && lunte .",
     "format": "prettier --write .",
     "postinstall": "patch-package",
-    "stage:dev": "npm run build && pear stage dev"
+    "stage:dev": "npm run build && pear stage dev3",
+    "release:dev": "npm release dev3"
   },
   "imports": {
     "fs": {
