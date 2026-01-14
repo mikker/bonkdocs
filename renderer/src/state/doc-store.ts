@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { getRpc } from '../lib/rpc.ts'
-import { mergeDocsWithCachedMetadata } from './doc-cache.js'
 import { loadLastDocKey, saveLastDocKey } from './doc-persistence.js'
+import { DEFAULT_TITLE } from '../constants'
 import * as Y from 'yjs'
 import {
   Awareness,
@@ -350,7 +350,7 @@ async function prefetchDocTitles(
   for (const doc of docs) {
     if (!doc?.key) continue
     const title = typeof doc.title === 'string' ? doc.title.trim() : ''
-    if (title && title !== 'Untitled document') continue
+    if (title && title !== DEFAULT_TITLE) continue
 
     try {
       const response = await rpc.getDoc({ key: doc.key })
@@ -538,7 +538,7 @@ export const useDocStore = create<DocStore>((set, get) => ({
     try {
       const rpc = getRpc()
       const response = await rpc.initialize({})
-      const docs = mergeDocsWithCachedMetadata(response?.docs ?? [])
+      const docs = response?.docs ?? []
       let activeDoc = response?.activeDoc ?? null
 
       if (!activeDoc) {
@@ -565,7 +565,7 @@ export const useDocStore = create<DocStore>((set, get) => ({
     try {
       const rpc = getRpc()
       const response = await rpc.listDocs({})
-      const docs = mergeDocsWithCachedMetadata(response?.docs ?? [])
+      const docs = response?.docs ?? []
       set({ docs })
       void prefetchDocTitles(docs, set)
     } catch (error) {
@@ -728,7 +728,7 @@ export const useDocStore = create<DocStore>((set, get) => ({
     if (!key) return
 
     const trimmed = typeof title === 'string' ? title.trim() : ''
-    const fallbackTitle = trimmed.length > 0 ? trimmed : 'Untitled document'
+    const fallbackTitle = trimmed.length > 0 ? trimmed : DEFAULT_TITLE
 
     const previousState = get()
     const previousDoc =

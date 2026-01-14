@@ -137,9 +137,6 @@ export class DocContext extends Context {
       })
     })
 
-    this.router.add('@local/doc-upsert', async () => {})
-    this.router.add('@local/state-update', async () => {})
-    this.router.add('@local/profile-upsert', async () => {})
   }
 
   async hasDocPermission(subjectKey, permission) {

@@ -18,8 +18,6 @@ import {
   ROLE_VIEWER
 } from '../../core/constants.js'
 
-const APP_STATE_KEY = 'state/app'
-
 const bufferToHex = (buf) =>
   Buffer.isBuffer(buf) ? Buffer.from(buf).toString('hex') : buf || ''
 
@@ -184,6 +182,8 @@ export class DocWorker {
 
   async removeDoc(keyHex) {
     await this.ready()
+    this._teardownWatchers(keyHex)
+    this._releaseSync(keyHex)
     return await this.manager.removeDoc(keyHex)
   }
 
@@ -227,8 +227,7 @@ export class DocWorker {
     return {
       key: request.key,
       title: metadata?.title || nextTitle,
-      updatedAt: metadata?.updatedAt || Date.now(),
-      rev: metadata?.rev || null
+      updatedAt: metadata?.updatedAt || Date.now()
     }
   }
 
@@ -251,8 +250,7 @@ export class DocWorker {
       lockedAt: metadata?.lockedAt || Date.now(),
       lockedBy: metadata?.lockedBy
         ? bufferToHex(metadata.lockedBy)
-        : bufferToHex(context.writerKey),
-      rev: metadata?.rev || null
+        : bufferToHex(context.writerKey)
     }
   }
 
@@ -312,6 +310,7 @@ export class DocWorker {
           } catch {}
         }
         this.subscriptions.delete(keyHex)
+        this._releaseSync(keyHex)
       }
     }
   }
@@ -379,6 +378,10 @@ export class DocWorker {
     const sync = await this._ensureSync(context)
     const update = toUint8Array(request.update)
     if (!update) return { accepted: false }
+
+    try {
+      applyAwarenessUpdate(sync.awareness, update, REMOTE_ORIGIN)
+    } catch {}
 
     await context.appendAwareness({
       timestamp: Date.now(),
@@ -636,17 +639,6 @@ export class DocWorker {
     }
   }
 
-  async readAppState() {
-    const localDb = this.manager.localDb
-    if (!localDb) return null
-    try {
-      const record = await localDb.get(APP_STATE_KEY)
-      return record?.value ?? record ?? null
-    } catch {
-      return null
-    }
-  }
-
   async _ensureSync(context) {
     const keyHex = bufferToHex(context.key)
     const existing = this.syncs.get(keyHex)
@@ -707,9 +699,7 @@ export class DocWorker {
         }
       }
 
-      if (!snapshotRecord) {
-        sync.updatesSinceSnapshot = records.length
-      }
+      sync.updatesSinceSnapshot = records.length
 
       try {
         const latestAwareness = await context.base.view.findOne(
@@ -929,6 +919,49 @@ export class DocWorker {
     }
 
     return update
+  }
+
+  _releaseSync(keyHex) {
+    const sync = this.syncs.get(keyHex)
+    if (!sync) return
+
+    this.syncs.delete(keyHex)
+    this.syncQueues.delete(keyHex)
+
+    const destroy = () => {
+      try {
+        sync.awareness?.destroy?.()
+      } catch {}
+      try {
+        sync.doc?.destroy?.()
+      } catch {}
+    }
+
+    if (sync.loading) {
+      Promise.resolve(sync.loading)
+        .catch(() => {})
+        .finally(destroy)
+    } else {
+      destroy()
+    }
+  }
+
+  _teardownWatchers(keyHex) {
+    const watchers = this.watchers.get(keyHex)
+    if (watchers) {
+      for (const watcher of watchers) {
+        watcher.closed = true
+      }
+      watchers.clear()
+      this.watchers.delete(keyHex)
+    }
+    const unsubscribe = this.subscriptions.get(keyHex)
+    if (unsubscribe) {
+      try {
+        unsubscribe()
+      } catch {}
+    }
+    this.subscriptions.delete(keyHex)
   }
 
   normalizeDocRecord(record = {}, metadata = null) {

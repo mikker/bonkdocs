@@ -1,5 +1,5 @@
 {
-  "version": 3,
+  "version": 1,
   "offset": 0,
   "schema": [
     {
@@ -57,40 +57,22 @@
       "version": 1
     },
     {
+      "id": 9,
+      "name": "@bonk-docs/update-append",
+      "requestType": "@bonk-docs/update-entry",
+      "version": 1
+    },
+    {
       "id": 10,
       "name": "@bonk-docs/snapshot-save",
       "requestType": "@bonk-docs/snapshot",
       "version": 1
     },
     {
-      "id": 11,
-      "name": "@local/doc-upsert",
-      "requestType": "@local/doc",
-      "version": 1
-    },
-    {
-      "id": 12,
-      "name": "@local/state-update",
-      "requestType": "@local/state",
-      "version": 1
-    },
-    {
-      "id": 13,
-      "name": "@local/profile-upsert",
-      "requestType": "@local/profile",
-      "version": 1
-    },
-    {
-      "id": 9,
-      "name": "@bonk-docs/update-append",
-      "requestType": "@bonk-docs/update-entry",
-      "version": 2
-    },
-    {
       "id": 14,
       "name": "@bonk-docs/awareness-append",
       "requestType": "@bonk-docs/awareness-entry",
-      "version": 3
+      "version": 1
     }
   ]
 }

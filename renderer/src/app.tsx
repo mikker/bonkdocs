@@ -8,6 +8,7 @@ import { DocJoinDialog } from '@/components/doc-join-dialog'
 import { EditorEmptyState } from '@/components/editor-empty-state'
 import { EditorLoadingState } from '@/components/editor-loading-state'
 import { useDocStore } from './state/doc-store'
+import { DEFAULT_TITLE } from './constants'
 import {
   Sidebar,
   SidebarContent,
@@ -304,7 +305,7 @@ function DocsTitleBar() {
               autoFocus
               value={renameValue}
               onChange={(event) => setRenameValue(event.target.value)}
-              placeholder='Untitled document'
+              placeholder={DEFAULT_TITLE}
             />
             {renameError ? (
               <p className='text-sm text-destructive'>{renameError}</p>
@@ -445,7 +446,7 @@ function DocsSidebar({ ...props }) {
                   >
                     <span className='flex w-full items-center gap-2'>
                       <span className='truncate'>
-                        {doc.title || 'Untitled document'}
+                        {doc.title || DEFAULT_TITLE}
                       </span>
                       {doc.lockedAt ? (
                         <Lock

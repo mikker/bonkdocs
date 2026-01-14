@@ -22,22 +22,20 @@ const methods = new Map([
   [6, '@bonk-docs/get-doc'],
   ['@bonk-docs/watch-doc', 7],
   [7, '@bonk-docs/watch-doc'],
-  ['@bonk-docs/apply-ops', 8],
-  [8, '@bonk-docs/apply-ops'],
-  ['@bonk-docs/list-invites', 9],
-  [9, '@bonk-docs/list-invites'],
-  ['@bonk-docs/create-invite', 10],
-  [10, '@bonk-docs/create-invite'],
-  ['@bonk-docs/revoke-invite', 11],
-  [11, '@bonk-docs/revoke-invite'],
-  ['@bonk-docs/rename-doc', 12],
-  [12, '@bonk-docs/rename-doc'],
-  ['@bonk-docs/lock-doc', 13],
-  [13, '@bonk-docs/lock-doc'],
-  ['@bonk-docs/apply-updates', 14],
-  [14, '@bonk-docs/apply-updates'],
-  ['@bonk-docs/apply-awareness', 15],
-  [15, '@bonk-docs/apply-awareness']
+  ['@bonk-docs/apply-updates', 8],
+  [8, '@bonk-docs/apply-updates'],
+  ['@bonk-docs/apply-awareness', 9],
+  [9, '@bonk-docs/apply-awareness'],
+  ['@bonk-docs/list-invites', 10],
+  [10, '@bonk-docs/list-invites'],
+  ['@bonk-docs/create-invite', 11],
+  [11, '@bonk-docs/create-invite'],
+  ['@bonk-docs/revoke-invite', 12],
+  [12, '@bonk-docs/revoke-invite'],
+  ['@bonk-docs/rename-doc', 13],
+  [13, '@bonk-docs/rename-doc'],
+  ['@bonk-docs/lock-doc', 14],
+  [14, '@bonk-docs/lock-doc']
 ])
 
 class HRPC {
@@ -53,14 +51,13 @@ class HRPC {
       ['@bonk-docs/remove-doc', getEncoding('@bonk-docs-rpc/remove-doc-request')],
       ['@bonk-docs/get-doc', getEncoding('@bonk-docs-rpc/get-doc-request')],
       ['@bonk-docs/watch-doc', getEncoding('@bonk-docs-rpc/watch-doc-request')],
-      ['@bonk-docs/apply-ops', getEncoding('@bonk-docs-rpc/apply-ops-request')],
+      ['@bonk-docs/apply-updates', getEncoding('@bonk-docs-rpc/apply-updates-request')],
+      ['@bonk-docs/apply-awareness', getEncoding('@bonk-docs-rpc/apply-awareness-request')],
       ['@bonk-docs/list-invites', getEncoding('@bonk-docs-rpc/list-invites-request')],
       ['@bonk-docs/create-invite', getEncoding('@bonk-docs-rpc/create-invite-request')],
       ['@bonk-docs/revoke-invite', getEncoding('@bonk-docs-rpc/revoke-invite-request')],
       ['@bonk-docs/rename-doc', getEncoding('@bonk-docs-rpc/rename-doc-request')],
-      ['@bonk-docs/lock-doc', getEncoding('@bonk-docs-rpc/lock-doc-request')],
-      ['@bonk-docs/apply-updates', getEncoding('@bonk-docs-rpc/apply-updates-request')],
-      ['@bonk-docs/apply-awareness', getEncoding('@bonk-docs-rpc/apply-awareness-request')]
+      ['@bonk-docs/lock-doc', getEncoding('@bonk-docs-rpc/lock-doc-request')]
     ])
     this._responseEncodings = new Map([
       ['@bonk-docs/initialize', getEncoding('@bonk-docs-rpc/initialize-response')],
@@ -71,14 +68,13 @@ class HRPC {
       ['@bonk-docs/remove-doc', getEncoding('@bonk-docs-rpc/remove-doc-response')],
       ['@bonk-docs/get-doc', getEncoding('@bonk-docs-rpc/get-doc-response')],
       ['@bonk-docs/watch-doc', getEncoding('@bonk-docs-rpc/doc-update')],
-      ['@bonk-docs/apply-ops', getEncoding('@bonk-docs-rpc/apply-ops-response')],
+      ['@bonk-docs/apply-updates', getEncoding('@bonk-docs-rpc/apply-updates-response')],
+      ['@bonk-docs/apply-awareness', getEncoding('@bonk-docs-rpc/apply-awareness-response')],
       ['@bonk-docs/list-invites', getEncoding('@bonk-docs-rpc/list-invites-response')],
       ['@bonk-docs/create-invite', getEncoding('@bonk-docs-rpc/create-invite-response')],
       ['@bonk-docs/revoke-invite', getEncoding('@bonk-docs-rpc/revoke-invite-response')],
       ['@bonk-docs/rename-doc', getEncoding('@bonk-docs-rpc/rename-doc-response')],
-      ['@bonk-docs/lock-doc', getEncoding('@bonk-docs-rpc/lock-doc-response')],
-      ['@bonk-docs/apply-updates', getEncoding('@bonk-docs-rpc/apply-updates-response')],
-      ['@bonk-docs/apply-awareness', getEncoding('@bonk-docs-rpc/apply-awareness-response')]
+      ['@bonk-docs/lock-doc', getEncoding('@bonk-docs-rpc/lock-doc-response')]
     ])
     this._rpc = new RPC(stream, async (req) => {
       const command = methods.get(req.command)
@@ -208,8 +204,12 @@ class HRPC {
     return this._callSync('@bonk-docs/watch-doc', args)
   }
 
-  async applyOps(args) {
-    return this._call('@bonk-docs/apply-ops', args)
+  async applyUpdates(args) {
+    return this._call('@bonk-docs/apply-updates', args)
+  }
+
+  async applyAwareness(args) {
+    return this._call('@bonk-docs/apply-awareness', args)
   }
 
   async listInvites(args) {
@@ -230,14 +230,6 @@ class HRPC {
 
   async lockDoc(args) {
     return this._call('@bonk-docs/lock-doc', args)
-  }
-
-  async applyUpdates(args) {
-    return this._call('@bonk-docs/apply-updates', args)
-  }
-
-  async applyAwareness(args) {
-    return this._call('@bonk-docs/apply-awareness', args)
   }
 
   onInitialize(responseFn) {
@@ -272,8 +264,12 @@ class HRPC {
     this._handlers['@bonk-docs/watch-doc'] = responseFn
   }
 
-  onApplyOps(responseFn) {
-    this._handlers['@bonk-docs/apply-ops'] = responseFn
+  onApplyUpdates(responseFn) {
+    this._handlers['@bonk-docs/apply-updates'] = responseFn
+  }
+
+  onApplyAwareness(responseFn) {
+    this._handlers['@bonk-docs/apply-awareness'] = responseFn
   }
 
   onListInvites(responseFn) {
@@ -294,14 +290,6 @@ class HRPC {
 
   onLockDoc(responseFn) {
     this._handlers['@bonk-docs/lock-doc'] = responseFn
-  }
-
-  onApplyUpdates(responseFn) {
-    this._handlers['@bonk-docs/apply-updates'] = responseFn
-  }
-
-  onApplyAwareness(responseFn) {
-    this._handlers['@bonk-docs/apply-awareness'] = responseFn
   }
 
   _requestIsStream(command) {

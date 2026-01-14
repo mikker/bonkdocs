@@ -65,12 +65,7 @@ export function createRpcServer(stream, worker) {
   rpc.onInitialize(async () => {
     console.log('[worker] initialize request')
     const docs = await worker.listDocs()
-    const state = await worker.readAppState()
-    const response = { docs }
-    if (state?.activeDoc) {
-      response.activeDoc = state.activeDoc
-    }
-    return response
+    return { docs }
   })
 
   rpc.onListDocs(async () => {

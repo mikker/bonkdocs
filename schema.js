@@ -109,27 +109,6 @@ local.register({
   ]
 })
 
-local.register({
-  name: 'state',
-  compact: false,
-  fields: [
-    { name: 'id', type: 'string', required: true },
-    { name: 'activeDoc', type: 'string', required: false },
-    { name: 'lastSeenAt', type: 'uint', required: false }
-  ]
-})
-
-local.register({
-  name: 'profile',
-  compact: false,
-  fields: [
-    { name: 'id', type: 'string', required: true },
-    { name: 'displayName', type: 'string', required: false },
-    { name: 'color', type: 'string', required: false },
-    { name: 'updatedAt', type: 'uint', required: false }
-  ]
-})
-
 const rpc = schema.namespace('bonk-docs-rpc')
 
 rpc.register({
@@ -155,35 +134,13 @@ rpc.register({
 })
 
 rpc.register({
-  name: 'doc-operation',
-  compact: false,
-  fields: [
-    { name: 'rev', type: 'uint', required: false },
-    { name: 'baseRev', type: 'uint', required: false },
-    { name: 'clientId', type: 'string', required: true },
-    { name: 'sessionId', type: 'string', required: false },
-    { name: 'timestamp', type: 'uint', required: false },
-    { name: 'data', type: 'buffer', required: true }
-  ]
-})
-
-rpc.register({
   name: 'doc-update',
   compact: false,
   fields: [
     { name: 'key', type: 'string', required: true },
     { name: 'revision', type: 'uint', required: true },
-    { name: 'baseRevision', type: 'uint', required: false },
-    { name: 'snapshotRevision', type: 'uint', required: false },
     { name: 'updatedAt', type: 'uint', required: false },
     { name: 'title', type: 'string', required: false },
-    { name: 'snapshot', type: 'buffer', required: false },
-    {
-      name: 'ops',
-      type: '@bonk-docs-rpc/doc-operation',
-      array: true,
-      required: false
-    },
     {
       name: 'capabilities',
       type: '@bonk-docs-rpc/doc-capabilities',
@@ -219,7 +176,7 @@ rpc.register({
 rpc.register({
   name: 'initialize-request',
   compact: false,
-  fields: [{ name: 'refresh', type: 'bool', required: false }]
+  fields: []
 })
 
 rpc.register({
@@ -234,7 +191,7 @@ rpc.register({
 rpc.register({
   name: 'list-docs-request',
   compact: false,
-  fields: [{ name: 'refresh', type: 'bool', required: false }]
+  fields: []
 })
 
 rpc.register({
@@ -246,10 +203,7 @@ rpc.register({
 rpc.register({
   name: 'create-doc-request',
   compact: false,
-  fields: [
-    { name: 'title', type: 'string', required: false },
-    { name: 'displayName', type: 'string', required: false }
-  ]
+  fields: [{ name: 'title', type: 'string', required: false }]
 })
 
 rpc.register({
@@ -257,8 +211,7 @@ rpc.register({
   compact: false,
   fields: [
     { name: 'doc', type: '@local/doc', required: true },
-    { name: 'writerKey', type: 'string', required: true },
-    { name: 'invite', type: 'string', required: false }
+    { name: 'writerKey', type: 'string', required: true }
   ]
 })
 
@@ -307,8 +260,7 @@ rpc.register({
   fields: [
     { name: 'key', type: 'string', required: true },
     { name: 'title', type: 'string', required: true },
-    { name: 'updatedAt', type: 'uint', required: false },
-    { name: 'rev', type: 'uint', required: false }
+    { name: 'updatedAt', type: 'uint', required: false }
   ]
 })
 
@@ -324,8 +276,7 @@ rpc.register({
   fields: [
     { name: 'key', type: 'string', required: true },
     { name: 'lockedAt', type: 'uint', required: true },
-    { name: 'lockedBy', type: 'string', required: true },
-    { name: 'rev', type: 'uint', required: false }
+    { name: 'lockedBy', type: 'string', required: true }
   ]
 })
 
@@ -346,8 +297,6 @@ rpc.register({
   compact: false,
   fields: [
     { name: 'key', type: 'string', required: true },
-    { name: 'sinceRevision', type: 'uint', required: false },
-    { name: 'includeSnapshot', type: 'bool', required: false },
     { name: 'stateVector', type: 'buffer', required: false }
   ]
 })
@@ -362,8 +311,7 @@ rpc.register({
       type: '@bonk-docs-rpc/doc-update-entry',
       array: true,
       required: true
-    },
-    { name: 'clientTime', type: 'uint', required: false }
+    }
   ]
 })
 
@@ -451,10 +399,7 @@ rpc.register({
 rpc.register({
   name: 'pair-invite-request',
   compact: false,
-  fields: [
-    { name: 'invite', type: 'string', required: true },
-    { name: 'title', type: 'string', required: false }
-  ]
+  fields: [{ name: 'invite', type: 'string', required: true }]
 })
 
 rpc.register({
@@ -504,16 +449,6 @@ localDb.collections.register({
   schema: '@local/doc',
   key: ['key']
 })
-localDb.collections.register({
-  name: 'state',
-  schema: '@local/state',
-  key: ['id']
-})
-localDb.collections.register({
-  name: 'profile',
-  schema: '@local/profile',
-  key: ['id']
-})
 
 HyperdbBuilder.toDisk(dbBuilder)
 
@@ -540,15 +475,6 @@ docDispatch.register({
   requestType: '@bonk-docs/awareness-entry',
   id: 14
 })
-const localDispatch = dispatch.namespace('local')
-
-localDispatch.register({ name: 'doc-upsert', requestType: '@local/doc' })
-localDispatch.register({ name: 'state-update', requestType: '@local/state' })
-localDispatch.register({
-  name: 'profile-upsert',
-  requestType: '@local/profile'
-})
-
 Hyperdispatch.toDisk(dispatch)
 
 // --- HRPC ----------------------------------------------------------------

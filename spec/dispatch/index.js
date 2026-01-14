@@ -17,14 +17,11 @@ class Router {
     this._handler6 = null
     this._handler7 = null
     this._handler8 = null
-    this._handler10 = null
-    this._handler11 = null
-    this._handler12 = null
-    this._handler13 = null
     this._handler9 = null
+    this._handler10 = null
     this._handler14 = null
 
-    this._missing = 15
+    this._missing = 12
   }
 
   add (name, handler) {
@@ -56,20 +53,11 @@ class Router {
       case '@bonk-docs/metadata-upsert':
         this._handler8 = handler
         break
-      case '@bonk-docs/snapshot-save':
-        this._handler10 = handler
-        break
-      case '@local/doc-upsert':
-        this._handler11 = handler
-        break
-      case '@local/state-update':
-        this._handler12 = handler
-        break
-      case '@local/profile-upsert':
-        this._handler13 = handler
-        break
       case '@bonk-docs/update-append':
         this._handler9 = handler
+        break
+      case '@bonk-docs/snapshot-save':
+        this._handler10 = handler
         break
       case '@bonk-docs/awareness-append':
         this._handler14 = handler
@@ -90,11 +78,8 @@ class Router {
     assert(this._handler6 !== null, 'Missing handler for "@autobonk/grant-roles"')
     assert(this._handler7 !== null, 'Missing handler for "@autobonk/revoke-roles"')
     assert(this._handler8 !== null, 'Missing handler for "@bonk-docs/metadata-upsert"')
-    assert(this._handler10 !== null, 'Missing handler for "@bonk-docs/snapshot-save"')
-    assert(this._handler11 !== null, 'Missing handler for "@local/doc-upsert"')
-    assert(this._handler12 !== null, 'Missing handler for "@local/state-update"')
-    assert(this._handler13 !== null, 'Missing handler for "@local/profile-upsert"')
     assert(this._handler9 !== null, 'Missing handler for "@bonk-docs/update-append"')
+    assert(this._handler10 !== null, 'Missing handler for "@bonk-docs/snapshot-save"')
     assert(this._handler14 !== null, 'Missing handler for "@bonk-docs/awareness-append"')
   }
 
@@ -126,16 +111,10 @@ class Router {
         return this._handler7(op.value, context)
       case 8:
         return this._handler8(op.value, context)
-      case 10:
-        return this._handler10(op.value, context)
-      case 11:
-        return this._handler11(op.value, context)
-      case 12:
-        return this._handler12(op.value, context)
-      case 13:
-        return this._handler13(op.value, context)
       case 9:
         return this._handler9(op.value, context)
+      case 10:
+        return this._handler10(op.value, context)
       case 14:
         return this._handler14(op.value, context)
       default:
@@ -225,34 +204,16 @@ const route8 = {
   enc: getEncoding('@bonk-docs/metadata')
 }
 
-const route10 = {
-  name: '@bonk-docs/snapshot-save',
-  id: 10,
-  enc: getEncoding('@bonk-docs/snapshot')
-}
-
-const route11 = {
-  name: '@local/doc-upsert',
-  id: 11,
-  enc: getEncoding('@local/doc')
-}
-
-const route12 = {
-  name: '@local/state-update',
-  id: 12,
-  enc: getEncoding('@local/state')
-}
-
-const route13 = {
-  name: '@local/profile-upsert',
-  id: 13,
-  enc: getEncoding('@local/profile')
-}
-
 const route9 = {
   name: '@bonk-docs/update-append',
   id: 9,
   enc: getEncoding('@bonk-docs/update-entry')
+}
+
+const route10 = {
+  name: '@bonk-docs/snapshot-save',
+  id: 10,
+  enc: getEncoding('@bonk-docs/snapshot')
 }
 
 const route14 = {
@@ -281,16 +242,10 @@ function getRouteByName (name) {
       return route7
     case '@bonk-docs/metadata-upsert':
       return route8
-    case '@bonk-docs/snapshot-save':
-      return route10
-    case '@local/doc-upsert':
-      return route11
-    case '@local/state-update':
-      return route12
-    case '@local/profile-upsert':
-      return route13
     case '@bonk-docs/update-append':
       return route9
+    case '@bonk-docs/snapshot-save':
+      return route10
     case '@bonk-docs/awareness-append':
       return route14
     default:
@@ -318,16 +273,10 @@ function getRouteById (id) {
       return route7
     case 8:
       return route8
-    case 10:
-      return route10
-    case 11:
-      return route11
-    case 12:
-      return route12
-    case 13:
-      return route13
     case 9:
       return route9
+    case 10:
+      return route10
     case 14:
       return route14
     default:

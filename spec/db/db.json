@@ -81,12 +81,12 @@
       "trigger": null
     },
     {
-      "name": "operations",
+      "name": "updates",
       "namespace": "bonk-docs",
       "id": 6,
       "type": 1,
       "indexes": [],
-      "schema": "@bonk-docs/operation",
+      "schema": "@bonk-docs/update",
       "derived": false,
       "key": [
         "rev"
@@ -107,67 +107,28 @@
       "trigger": null
     },
     {
-      "name": "docs",
-      "namespace": "local",
-      "id": 8,
-      "type": 1,
-      "indexes": [],
-      "schema": "@local/doc",
-      "derived": false,
-      "key": [
-        "key"
-      ],
-      "trigger": null
-    },
-    {
-      "name": "state",
-      "namespace": "local",
-      "id": 9,
-      "type": 1,
-      "indexes": [],
-      "schema": "@local/state",
-      "derived": false,
-      "key": [
-        "id"
-      ],
-      "trigger": null
-    },
-    {
-      "name": "profile",
-      "namespace": "local",
-      "id": 10,
-      "type": 1,
-      "indexes": [],
-      "schema": "@local/profile",
-      "derived": false,
-      "key": [
-        "id"
-      ],
-      "trigger": null
-    },
-    {
-      "name": "updates",
-      "namespace": "bonk-docs",
-      "id": 11,
-      "type": 1,
-      "indexes": [],
-      "schema": "@bonk-docs/update",
-      "derived": false,
-      "key": [
-        "rev"
-      ],
-      "trigger": null
-    },
-    {
       "name": "awareness",
       "namespace": "bonk-docs",
-      "id": 12,
+      "id": 8,
       "type": 1,
       "indexes": [],
       "schema": "@bonk-docs/awareness",
       "derived": false,
       "key": [
         "rev"
+      ],
+      "trigger": null
+    },
+    {
+      "name": "docs",
+      "namespace": "local",
+      "id": 9,
+      "type": 1,
+      "indexes": [],
+      "schema": "@local/doc",
+      "derived": false,
+      "key": [
+        "key"
       ],
       "trigger": null
     }

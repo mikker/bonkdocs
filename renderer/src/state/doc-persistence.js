@@ -50,38 +50,6 @@ function readMeta(all) {
   return entry
 }
 
-export function loadDocState(key) {
-  if (!key) return null
-  const all = readAll()
-  const entry = all?.[key]
-  if (!entry || typeof entry !== 'object') return null
-  const snapshotText =
-    typeof entry.snapshotText === 'string' ? entry.snapshotText : null
-  if (!snapshotText) return null
-  const revision = Number.isFinite(entry.revision) ? entry.revision : 0
-  const snapshotHash =
-    typeof entry.snapshotHash === 'string' ? entry.snapshotHash : null
-  const pending = Array.isArray(entry.pending) ? entry.pending : []
-  const title = typeof entry.title === 'string' ? entry.title : null
-  const updatedAt = Number.isFinite(entry.updatedAt) ? entry.updatedAt : null
-  return { revision, snapshotText, snapshotHash, pending, title, updatedAt }
-}
-
-export function saveDocState(key, entry) {
-  if (!key || !entry) return
-  const all = { ...readAll(), [key]: entry }
-  writeAll(all)
-}
-
-export function clearDocState(key) {
-  if (!key) return
-  const all = { ...readAll() }
-  if (all[key]) {
-    delete all[key]
-    writeAll(all)
-  }
-}
-
 export function loadLastDocKey() {
   const all = readAll()
   const meta = readMeta(all)

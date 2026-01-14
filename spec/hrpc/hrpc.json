@@ -1,5 +1,5 @@
 {
-  "version": 3,
+  "version": 1,
   "schema": [
     {
       "id": 0,
@@ -93,72 +93,6 @@
     },
     {
       "id": 8,
-      "name": "@bonk-docs/apply-ops",
-      "request": {
-        "name": "@bonk-docs-rpc/apply-ops-request"
-      },
-      "response": {
-        "name": "@bonk-docs-rpc/apply-ops-response"
-      },
-      "version": 1
-    },
-    {
-      "id": 9,
-      "name": "@bonk-docs/list-invites",
-      "request": {
-        "name": "@bonk-docs-rpc/list-invites-request"
-      },
-      "response": {
-        "name": "@bonk-docs-rpc/list-invites-response"
-      },
-      "version": 1
-    },
-    {
-      "id": 10,
-      "name": "@bonk-docs/create-invite",
-      "request": {
-        "name": "@bonk-docs-rpc/create-invite-request"
-      },
-      "response": {
-        "name": "@bonk-docs-rpc/create-invite-response"
-      },
-      "version": 1
-    },
-    {
-      "id": 11,
-      "name": "@bonk-docs/revoke-invite",
-      "request": {
-        "name": "@bonk-docs-rpc/revoke-invite-request"
-      },
-      "response": {
-        "name": "@bonk-docs-rpc/revoke-invite-response"
-      },
-      "version": 1
-    },
-    {
-      "id": 12,
-      "name": "@bonk-docs/rename-doc",
-      "request": {
-        "name": "@bonk-docs-rpc/rename-doc-request"
-      },
-      "response": {
-        "name": "@bonk-docs-rpc/rename-doc-response"
-      },
-      "version": 1
-    },
-    {
-      "id": 13,
-      "name": "@bonk-docs/lock-doc",
-      "request": {
-        "name": "@bonk-docs-rpc/lock-doc-request"
-      },
-      "response": {
-        "name": "@bonk-docs-rpc/lock-doc-response"
-      },
-      "version": 2
-    },
-    {
-      "id": 8,
       "name": "@bonk-docs/apply-updates",
       "request": {
         "name": "@bonk-docs-rpc/apply-updates-request"
@@ -166,7 +100,7 @@
       "response": {
         "name": "@bonk-docs-rpc/apply-updates-response"
       },
-      "version": 3
+      "version": 1
     },
     {
       "id": 9,
@@ -177,7 +111,62 @@
       "response": {
         "name": "@bonk-docs-rpc/apply-awareness-response"
       },
-      "version": 3
+      "version": 1
+    },
+    {
+      "id": 10,
+      "name": "@bonk-docs/list-invites",
+      "request": {
+        "name": "@bonk-docs-rpc/list-invites-request"
+      },
+      "response": {
+        "name": "@bonk-docs-rpc/list-invites-response"
+      },
+      "version": 1
+    },
+    {
+      "id": 11,
+      "name": "@bonk-docs/create-invite",
+      "request": {
+        "name": "@bonk-docs-rpc/create-invite-request"
+      },
+      "response": {
+        "name": "@bonk-docs-rpc/create-invite-response"
+      },
+      "version": 1
+    },
+    {
+      "id": 12,
+      "name": "@bonk-docs/revoke-invite",
+      "request": {
+        "name": "@bonk-docs-rpc/revoke-invite-request"
+      },
+      "response": {
+        "name": "@bonk-docs-rpc/revoke-invite-response"
+      },
+      "version": 1
+    },
+    {
+      "id": 13,
+      "name": "@bonk-docs/rename-doc",
+      "request": {
+        "name": "@bonk-docs-rpc/rename-doc-request"
+      },
+      "response": {
+        "name": "@bonk-docs-rpc/rename-doc-response"
+      },
+      "version": 1
+    },
+    {
+      "id": 14,
+      "name": "@bonk-docs/lock-doc",
+      "request": {
+        "name": "@bonk-docs-rpc/lock-doc-request"
+      },
+      "response": {
+        "name": "@bonk-docs-rpc/lock-doc-response"
+      },
+      "version": 1
     }
   ]
 }

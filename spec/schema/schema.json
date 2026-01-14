@@ -1,5 +1,5 @@
 {
-  "version": 6,
+  "version": 1,
   "schema": [
     {
       "name": "writer",
@@ -254,21 +254,21 @@
           "name": "lockedAt",
           "required": false,
           "type": "uint",
-          "version": 2
+          "version": 1
         },
         {
           "name": "lockedBy",
           "required": false,
           "type": "fixed32",
-          "version": 2
+          "version": 1
         }
       ]
     },
     {
-      "name": "operation",
+      "name": "update",
       "namespace": "bonk-docs",
       "compact": false,
-      "flagsPosition": 3,
+      "flagsPosition": 4,
       "fields": [
         {
           "name": "rev",
@@ -277,21 +277,9 @@
           "version": 1
         },
         {
-          "name": "baseRev",
-          "required": true,
-          "type": "uint",
-          "version": 1
-        },
-        {
           "name": "clientId",
           "required": true,
-          "type": "fixed32",
-          "version": 1
-        },
-        {
-          "name": "sessionId",
-          "required": false,
-          "type": "fixed32",
+          "type": "string",
           "version": 1
         },
         {
@@ -304,6 +292,44 @@
           "name": "data",
           "required": true,
           "type": "buffer",
+          "version": 1
+        },
+        {
+          "name": "sessionId",
+          "required": false,
+          "type": "string",
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "update-entry",
+      "namespace": "bonk-docs",
+      "compact": false,
+      "flagsPosition": 3,
+      "fields": [
+        {
+          "name": "clientId",
+          "required": true,
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "timestamp",
+          "required": true,
+          "type": "uint",
+          "version": 1
+        },
+        {
+          "name": "data",
+          "required": true,
+          "type": "buffer",
+          "version": 1
+        },
+        {
+          "name": "sessionId",
+          "required": false,
+          "type": "string",
           "version": 1
         }
       ]
@@ -348,7 +374,65 @@
           "name": "stateVector",
           "required": false,
           "type": "buffer",
-          "version": 3
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "awareness",
+      "namespace": "bonk-docs",
+      "compact": false,
+      "flagsPosition": 3,
+      "fields": [
+        {
+          "name": "rev",
+          "required": true,
+          "type": "uint",
+          "version": 1
+        },
+        {
+          "name": "timestamp",
+          "required": true,
+          "type": "uint",
+          "version": 1
+        },
+        {
+          "name": "data",
+          "required": true,
+          "type": "buffer",
+          "version": 1
+        },
+        {
+          "name": "clientId",
+          "required": false,
+          "type": "string",
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "awareness-entry",
+      "namespace": "bonk-docs",
+      "compact": false,
+      "flagsPosition": 2,
+      "fields": [
+        {
+          "name": "timestamp",
+          "required": true,
+          "type": "uint",
+          "version": 1
+        },
+        {
+          "name": "data",
+          "required": true,
+          "type": "buffer",
+          "version": 1
+        },
+        {
+          "name": "clientId",
+          "required": false,
+          "type": "string",
+          "version": 1
         }
       ]
     },
@@ -410,70 +494,12 @@
           "name": "lockedAt",
           "required": false,
           "type": "uint",
-          "version": 2
+          "version": 1
         },
         {
           "name": "lockedBy",
           "required": false,
           "type": "string",
-          "version": 2
-        }
-      ]
-    },
-    {
-      "name": "state",
-      "namespace": "local",
-      "compact": false,
-      "flagsPosition": 1,
-      "fields": [
-        {
-          "name": "id",
-          "required": true,
-          "type": "string",
-          "version": 1
-        },
-        {
-          "name": "activeDoc",
-          "required": false,
-          "type": "string",
-          "version": 1
-        },
-        {
-          "name": "lastSeenAt",
-          "required": false,
-          "type": "uint",
-          "version": 1
-        }
-      ]
-    },
-    {
-      "name": "profile",
-      "namespace": "local",
-      "compact": false,
-      "flagsPosition": 1,
-      "fields": [
-        {
-          "name": "id",
-          "required": true,
-          "type": "string",
-          "version": 1
-        },
-        {
-          "name": "displayName",
-          "required": false,
-          "type": "string",
-          "version": 1
-        },
-        {
-          "name": "color",
-          "required": false,
-          "type": "string",
-          "version": 1
-        },
-        {
-          "name": "updatedAt",
-          "required": false,
-          "type": "uint",
           "version": 1
         }
       ]
@@ -512,7 +538,7 @@
       ]
     },
     {
-      "name": "doc-operation",
+      "name": "doc-update-entry",
       "namespace": "bonk-docs-rpc",
       "compact": false,
       "flagsPosition": 0,
@@ -524,20 +550,8 @@
           "version": 1
         },
         {
-          "name": "baseRev",
-          "required": false,
-          "type": "uint",
-          "version": 1
-        },
-        {
           "name": "clientId",
           "required": true,
-          "type": "string",
-          "version": 1
-        },
-        {
-          "name": "sessionId",
-          "required": false,
           "type": "string",
           "version": 1
         },
@@ -574,18 +588,6 @@
           "version": 1
         },
         {
-          "name": "baseRevision",
-          "required": false,
-          "type": "uint",
-          "version": 1
-        },
-        {
-          "name": "snapshotRevision",
-          "required": false,
-          "type": "uint",
-          "version": 1
-        },
-        {
           "name": "updatedAt",
           "required": false,
           "type": "uint",
@@ -598,19 +600,6 @@
           "version": 1
         },
         {
-          "name": "snapshot",
-          "required": false,
-          "type": "buffer",
-          "version": 1
-        },
-        {
-          "name": "ops",
-          "required": false,
-          "array": true,
-          "type": "@bonk-docs-rpc/doc-operation",
-          "version": 1
-        },
-        {
           "name": "capabilities",
           "required": false,
           "type": "@bonk-docs-rpc/doc-capabilities",
@@ -620,32 +609,32 @@
           "name": "lockedAt",
           "required": false,
           "type": "uint",
-          "version": 2
+          "version": 1
         },
         {
           "name": "lockedBy",
           "required": false,
           "type": "string",
-          "version": 2
+          "version": 1
         },
         {
           "name": "syncUpdate",
           "required": false,
           "type": "buffer",
-          "version": 3
+          "version": 1
         },
         {
           "name": "updates",
           "required": false,
           "array": true,
           "type": "@bonk-docs-rpc/doc-update-entry",
-          "version": 3
+          "version": 1
         },
         {
           "name": "awareness",
           "required": false,
           "type": "buffer",
-          "version": 3
+          "version": 1
         }
       ]
     },
@@ -704,15 +693,8 @@
       "name": "initialize-request",
       "namespace": "bonk-docs-rpc",
       "compact": false,
-      "flagsPosition": 0,
-      "fields": [
-        {
-          "name": "refresh",
-          "required": false,
-          "type": "bool",
-          "version": 1
-        }
-      ]
+      "flagsPosition": -1,
+      "fields": []
     },
     {
       "name": "initialize-response",
@@ -739,15 +721,8 @@
       "name": "list-docs-request",
       "namespace": "bonk-docs-rpc",
       "compact": false,
-      "flagsPosition": 0,
-      "fields": [
-        {
-          "name": "refresh",
-          "required": false,
-          "type": "bool",
-          "version": 1
-        }
-      ]
+      "flagsPosition": -1,
+      "fields": []
     },
     {
       "name": "list-docs-response",
@@ -775,12 +750,6 @@
           "required": false,
           "type": "string",
           "version": 1
-        },
-        {
-          "name": "displayName",
-          "required": false,
-          "type": "string",
-          "version": 1
         }
       ]
     },
@@ -788,7 +757,7 @@
       "name": "create-doc-response",
       "namespace": "bonk-docs-rpc",
       "compact": false,
-      "flagsPosition": 2,
+      "flagsPosition": -1,
       "fields": [
         {
           "name": "doc",
@@ -799,12 +768,6 @@
         {
           "name": "writerKey",
           "required": true,
-          "type": "string",
-          "version": 1
-        },
-        {
-          "name": "invite",
-          "required": false,
           "type": "string",
           "version": 1
         }
@@ -921,11 +884,45 @@
           "required": false,
           "type": "uint",
           "version": 1
+        }
+      ]
+    },
+    {
+      "name": "lock-doc-request",
+      "namespace": "bonk-docs-rpc",
+      "compact": false,
+      "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "key",
+          "required": true,
+          "type": "string",
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "lock-doc-response",
+      "namespace": "bonk-docs-rpc",
+      "compact": false,
+      "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "key",
+          "required": true,
+          "type": "string",
+          "version": 1
         },
         {
-          "name": "rev",
-          "required": false,
+          "name": "lockedAt",
+          "required": true,
           "type": "uint",
+          "version": 1
+        },
+        {
+          "name": "lockedBy",
+          "required": true,
+          "type": "string",
           "version": 1
         }
       ]
@@ -971,30 +968,18 @@
           "version": 1
         },
         {
-          "name": "sinceRevision",
-          "required": false,
-          "type": "uint",
-          "version": 1
-        },
-        {
-          "name": "includeSnapshot",
-          "required": false,
-          "type": "bool",
-          "version": 1
-        },
-        {
           "name": "stateVector",
           "required": false,
           "type": "buffer",
-          "version": 3
+          "version": 1
         }
       ]
     },
     {
-      "name": "apply-ops-request",
+      "name": "apply-updates-request",
       "namespace": "bonk-docs-rpc",
       "compact": false,
-      "flagsPosition": 2,
+      "flagsPosition": -1,
       "fields": [
         {
           "name": "key",
@@ -1003,22 +988,16 @@
           "version": 1
         },
         {
-          "name": "ops",
+          "name": "updates",
           "required": true,
           "array": true,
-          "type": "@bonk-docs-rpc/doc-operation",
-          "version": 1
-        },
-        {
-          "name": "clientTime",
-          "required": false,
-          "type": "uint",
+          "type": "@bonk-docs-rpc/doc-update-entry",
           "version": 1
         }
       ]
     },
     {
-      "name": "apply-ops-response",
+      "name": "apply-updates-response",
       "namespace": "bonk-docs-rpc",
       "compact": false,
       "flagsPosition": 0,
@@ -1044,10 +1023,10 @@
       ]
     },
     {
-      "name": "update-presence-request",
+      "name": "apply-awareness-request",
       "namespace": "bonk-docs-rpc",
       "compact": false,
-      "flagsPosition": 2,
+      "flagsPosition": -1,
       "fields": [
         {
           "name": "key",
@@ -1056,47 +1035,23 @@
           "version": 1
         },
         {
-          "name": "sessionId",
+          "name": "update",
           "required": true,
-          "type": "string",
-          "version": 1
-        },
-        {
-          "name": "displayName",
-          "required": false,
-          "type": "string",
-          "version": 1
-        },
-        {
-          "name": "color",
-          "required": false,
-          "type": "string",
-          "version": 1
-        },
-        {
-          "name": "payload",
-          "required": false,
           "type": "buffer",
-          "version": 1
-        },
-        {
-          "name": "updatedAt",
-          "required": false,
-          "type": "uint",
           "version": 1
         }
       ]
     },
     {
-      "name": "update-presence-response",
+      "name": "apply-awareness-response",
       "namespace": "bonk-docs-rpc",
       "compact": false,
       "flagsPosition": 0,
       "fields": [
         {
-          "name": "status",
+          "name": "accepted",
           "required": false,
-          "type": "string",
+          "type": "bool",
           "version": 1
         }
       ]
@@ -1221,17 +1176,11 @@
       "name": "pair-invite-request",
       "namespace": "bonk-docs-rpc",
       "compact": false,
-      "flagsPosition": 1,
+      "flagsPosition": -1,
       "fields": [
         {
           "name": "invite",
           "required": true,
-          "type": "string",
-          "version": 1
-        },
-        {
-          "name": "title",
-          "required": false,
           "type": "string",
           "version": 1
         }
@@ -1272,299 +1221,6 @@
           "required": false,
           "type": "string",
           "version": 1
-        }
-      ]
-    },
-    {
-      "name": "lock-doc-request",
-      "namespace": "bonk-docs-rpc",
-      "compact": false,
-      "flagsPosition": -1,
-      "fields": [
-        {
-          "name": "key",
-          "required": true,
-          "type": "string",
-          "version": 2
-        }
-      ]
-    },
-    {
-      "name": "lock-doc-response",
-      "namespace": "bonk-docs-rpc",
-      "compact": false,
-      "flagsPosition": 3,
-      "fields": [
-        {
-          "name": "key",
-          "required": true,
-          "type": "string",
-          "version": 2
-        },
-        {
-          "name": "lockedAt",
-          "required": true,
-          "type": "uint",
-          "version": 2
-        },
-        {
-          "name": "lockedBy",
-          "required": true,
-          "type": "string",
-          "version": 2
-        },
-        {
-          "name": "rev",
-          "required": false,
-          "type": "uint",
-          "version": 2
-        }
-      ]
-    },
-    {
-      "name": "update",
-      "namespace": "bonk-docs",
-      "compact": false,
-      "flagsPosition": 4,
-      "fields": [
-        {
-          "name": "rev",
-          "required": true,
-          "type": "uint",
-          "version": 3
-        },
-        {
-          "name": "clientId",
-          "required": true,
-          "type": "string",
-          "version": 3
-        },
-        {
-          "name": "timestamp",
-          "required": true,
-          "type": "uint",
-          "version": 3
-        },
-        {
-          "name": "data",
-          "required": true,
-          "type": "buffer",
-          "version": 3
-        },
-        {
-          "name": "sessionId",
-          "required": false,
-          "type": "string",
-          "version": 4
-        }
-      ]
-    },
-    {
-      "name": "doc-update-entry",
-      "namespace": "bonk-docs-rpc",
-      "compact": false,
-      "flagsPosition": 0,
-      "fields": [
-        {
-          "name": "rev",
-          "required": false,
-          "type": "uint",
-          "version": 3
-        },
-        {
-          "name": "clientId",
-          "required": true,
-          "type": "string",
-          "version": 3
-        },
-        {
-          "name": "timestamp",
-          "required": false,
-          "type": "uint",
-          "version": 3
-        },
-        {
-          "name": "data",
-          "required": true,
-          "type": "buffer",
-          "version": 3
-        }
-      ]
-    },
-    {
-      "name": "apply-updates-request",
-      "namespace": "bonk-docs-rpc",
-      "compact": false,
-      "flagsPosition": 2,
-      "fields": [
-        {
-          "name": "key",
-          "required": true,
-          "type": "string",
-          "version": 3
-        },
-        {
-          "name": "updates",
-          "required": true,
-          "array": true,
-          "type": "@bonk-docs-rpc/doc-update-entry",
-          "version": 3
-        },
-        {
-          "name": "clientTime",
-          "required": false,
-          "type": "uint",
-          "version": 3
-        }
-      ]
-    },
-    {
-      "name": "apply-updates-response",
-      "namespace": "bonk-docs-rpc",
-      "compact": false,
-      "flagsPosition": 0,
-      "fields": [
-        {
-          "name": "accepted",
-          "required": false,
-          "type": "bool",
-          "version": 3
-        },
-        {
-          "name": "revision",
-          "required": false,
-          "type": "uint",
-          "version": 3
-        },
-        {
-          "name": "error",
-          "required": false,
-          "type": "string",
-          "version": 3
-        }
-      ]
-    },
-    {
-      "name": "apply-awareness-request",
-      "namespace": "bonk-docs-rpc",
-      "compact": false,
-      "flagsPosition": -1,
-      "fields": [
-        {
-          "name": "key",
-          "required": true,
-          "type": "string",
-          "version": 3
-        },
-        {
-          "name": "update",
-          "required": true,
-          "type": "buffer",
-          "version": 3
-        }
-      ]
-    },
-    {
-      "name": "apply-awareness-response",
-      "namespace": "bonk-docs-rpc",
-      "compact": false,
-      "flagsPosition": 0,
-      "fields": [
-        {
-          "name": "accepted",
-          "required": false,
-          "type": "bool",
-          "version": 3
-        }
-      ]
-    },
-    {
-      "name": "update-entry",
-      "namespace": "bonk-docs",
-      "compact": false,
-      "flagsPosition": 3,
-      "fields": [
-        {
-          "name": "clientId",
-          "required": true,
-          "type": "string",
-          "version": 5
-        },
-        {
-          "name": "timestamp",
-          "required": true,
-          "type": "uint",
-          "version": 5
-        },
-        {
-          "name": "data",
-          "required": true,
-          "type": "buffer",
-          "version": 5
-        },
-        {
-          "name": "sessionId",
-          "required": false,
-          "type": "string",
-          "version": 5
-        }
-      ]
-    },
-    {
-      "name": "awareness",
-      "namespace": "bonk-docs",
-      "compact": false,
-      "flagsPosition": 3,
-      "fields": [
-        {
-          "name": "rev",
-          "required": true,
-          "type": "uint",
-          "version": 6
-        },
-        {
-          "name": "timestamp",
-          "required": true,
-          "type": "uint",
-          "version": 6
-        },
-        {
-          "name": "data",
-          "required": true,
-          "type": "buffer",
-          "version": 6
-        },
-        {
-          "name": "clientId",
-          "required": false,
-          "type": "string",
-          "version": 6
-        }
-      ]
-    },
-    {
-      "name": "awareness-entry",
-      "namespace": "bonk-docs",
-      "compact": false,
-      "flagsPosition": 2,
-      "fields": [
-        {
-          "name": "timestamp",
-          "required": true,
-          "type": "uint",
-          "version": 6
-        },
-        {
-          "name": "data",
-          "required": true,
-          "type": "buffer",
-          "version": 6
-        },
-        {
-          "name": "clientId",
-          "required": false,
-          "type": "string",
-          "version": 6
         }
       ]
     }
