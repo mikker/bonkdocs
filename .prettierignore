@@ -1,2 +1,4 @@
 archive/**
 spec/
+.beads/**
+AGENTS.md
