@@ -10,6 +10,7 @@ import {
   encodeAwarenessUpdate
 } from 'y-protocols/awareness'
 import { DocWorker } from '../worker/src/doc-worker.js'
+import { toUint8Array } from '../lib/codec.js'
 
 const { mkdtemp } = fs
 const rm =
@@ -44,13 +45,6 @@ async function createTempDir(prefix) {
   }
 
   return { dir, cleanup }
-}
-
-function toUint8Array(value) {
-  if (!value) return null
-  if (value instanceof Uint8Array) return value
-  if (Buffer.isBuffer(value)) return new Uint8Array(value)
-  return null
 }
 
 function applyDocPayload(doc, payload) {

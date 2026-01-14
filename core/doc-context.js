@@ -94,26 +94,34 @@ export class DocContext extends Context {
       await context.view.insert('@bonk-docs/updates', record)
     })
 
-    this.router.add('@bonk-docs/awareness-append', async (data = {}, context) => {
-      if (!data.data) {
-        throw new Error('awareness-append requires data buffer')
+    this.router.add(
+      '@bonk-docs/awareness-append',
+      async (data = {}, context) => {
+        await this.requireDocMember(context.writerKey)
+
+        if (!data.data) {
+          throw new Error('awareness-append requires data buffer')
+        }
+
+        const latest = await getLatestEntry(
+          context.view,
+          '@bonk-docs/awareness'
+        )
+        const nextRev = latest ? latest.rev + 1 : 1
+
+        const record = {
+          timestamp: data.timestamp || Date.now(),
+          data: data.data,
+          rev: nextRev
+        }
+
+        if (typeof data.clientId === 'string' && data.clientId.length > 0) {
+          record.clientId = data.clientId
+        }
+
+        await context.view.insert('@bonk-docs/awareness', record)
       }
-
-      const latest = await getLatestEntry(context.view, '@bonk-docs/awareness')
-      const nextRev = latest ? latest.rev + 1 : 1
-
-      const record = {
-        timestamp: data.timestamp || Date.now(),
-        data: data.data,
-        rev: nextRev
-      }
-
-      if (typeof data.clientId === 'string' && data.clientId.length > 0) {
-        record.clientId = data.clientId
-      }
-
-      await context.view.insert('@bonk-docs/awareness', record)
-    })
+    )
 
     this.router.add('@bonk-docs/snapshot-save', async (data = {}, context) => {
       await this.requireDocPermission(
@@ -136,7 +144,6 @@ export class DocContext extends Context {
         hash: data.hash || null
       })
     })
-
   }
 
   async hasDocPermission(subjectKey, permission) {
@@ -147,6 +154,13 @@ export class DocContext extends Context {
       subjectKey
     })
     return Array.isArray(aclEntry?.roles) && aclEntry.roles.includes('owner')
+  }
+
+  async hasDocMember(subjectKey) {
+    const aclEntry = await this.base.view.get('@autobonk/acl-entry', {
+      subjectKey
+    })
+    return !!aclEntry
   }
 
   async requireDocPermission(subjectKey, permission) {
@@ -166,6 +180,27 @@ export class DocContext extends Context {
     const error = new Error(`Missing permission: ${permission}`)
     error.name = 'PermissionError'
     error.requiredPermission = permission
+    error.subjectKey = subjectKey
+    throw error
+  }
+
+  async requireDocMember(subjectKey) {
+    const contextInit = await this.base.view.findOne(
+      '@autobonk/context-init',
+      {}
+    )
+    if (!contextInit) {
+      return
+    }
+
+    const hasAccess = await this.hasDocMember(subjectKey)
+    if (hasAccess) {
+      return
+    }
+
+    const error = new Error('Missing permission: doc:member')
+    error.name = 'PermissionError'
+    error.requiredPermission = 'doc:member'
     error.subjectKey = subjectKey
     throw error
   }

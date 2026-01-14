@@ -17,41 +17,17 @@ import {
   ROLE_EDITOR,
   ROLE_VIEWER
 } from '../../core/constants.js'
-
-const bufferToHex = (buf) =>
-  Buffer.isBuffer(buf) ? Buffer.from(buf).toString('hex') : buf || ''
-
-const hexToBuffer = (hex) => {
-  if (typeof hex !== 'string' || hex.length === 0) return Buffer.alloc(0)
-  const normalized = hex.length % 2 === 0 ? hex : `0${hex}`
-  try {
-    return Buffer.from(normalized, 'hex')
-  } catch {
-    return Buffer.alloc(0)
-  }
-}
-
-function buffersEqual(a, b) {
-  if (!a || !b) return false
-  const bufA = Buffer.from(a)
-  const bufB = Buffer.from(b)
-  if (bufA.length !== bufB.length) return false
-  for (let i = 0; i < bufA.length; i++) {
-    if (bufA[i] !== bufB[i]) return false
-  }
-  return true
-}
+import {
+  bufferToHex,
+  buffersEqual,
+  hexToBuffer,
+  toUint8Array
+} from '../../lib/codec.js'
 
 const SNAPSHOT_OPS_INTERVAL = 50
 const SNAPSHOT_TIME_INTERVAL = 60_000
+const MAX_BROADCAST_UPDATES = 200
 const REMOTE_ORIGIN = 'remote'
-
-function toUint8Array(value) {
-  if (!value) return null
-  if (value instanceof Uint8Array) return value
-  if (Buffer.isBuffer(value)) return new Uint8Array(value)
-  return null
-}
 
 function isCoreClosingError(error) {
   if (!error) return false
@@ -62,6 +38,20 @@ function isCoreClosingError(error) {
     message.includes('core is closing') ||
     message.includes('closing core')
   )
+}
+
+async function eachCursor(cursor, handler) {
+  if (!cursor) return
+  if (typeof cursor[Symbol.asyncIterator] === 'function') {
+    for await (const record of cursor) {
+      await handler(record)
+    }
+    return
+  }
+  const records = await cursor.toArray()
+  for (const record of records) {
+    await handler(record)
+  }
 }
 
 export class DocWorker {
@@ -685,8 +675,8 @@ export class DocWorker {
       const cursor = context.base.view.find('@bonk-docs/updates', {
         gt: { rev: sync.lastRev }
       })
-      const records = await cursor.toArray()
-      for (const record of records) {
+      let recordsCount = 0
+      await eachCursor(cursor, (record) => {
         const update = toUint8Array(record?.data)
         if (update) {
           Y.applyUpdate(sync.doc, update, REMOTE_ORIGIN)
@@ -697,9 +687,10 @@ export class DocWorker {
         if (typeof record.timestamp === 'number') {
           sync.lastUpdateAt = Math.max(sync.lastUpdateAt, record.timestamp)
         }
-      }
+        recordsCount += 1
+      })
 
-      sync.updatesSinceSnapshot = records.length
+      sync.updatesSinceSnapshot = recordsCount
 
       try {
         const latestAwareness = await context.base.view.findOne(
@@ -728,16 +719,19 @@ export class DocWorker {
     })
     const latestRev = typeof latest?.rev === 'number' ? latest.rev : 0
     if (latestRev <= sync.lastRev) {
-      return []
+      return { updates: [], syncUpdate: null, count: 0 }
     }
 
     const cursor = context.base.view.find('@bonk-docs/updates', {
       gt: { rev: sync.lastRev },
       lte: { rev: latestRev }
     })
-    const records = await cursor.toArray()
+    let updates = []
+    let truncated = false
+    let lastRev = sync.lastRev
+    let recordsCount = 0
 
-    for (const record of records) {
+    await eachCursor(cursor, (record) => {
       const update = toUint8Array(record?.data)
       if (update) {
         Y.applyUpdate(sync.doc, update, REMOTE_ORIGIN)
@@ -745,15 +739,35 @@ export class DocWorker {
       if (typeof record.timestamp === 'number') {
         sync.lastUpdateAt = Math.max(sync.lastUpdateAt, record.timestamp)
       }
-    }
+      if (typeof record.rev === 'number') {
+        lastRev = record.rev
+      }
+      recordsCount += 1
 
-    if (records.length > 0) {
-      sync.lastRev = records[records.length - 1].rev
-      sync.updatesSinceSnapshot += records.length
+      if (!truncated) {
+        if (updates.length < MAX_BROADCAST_UPDATES) {
+          updates.push(record)
+        } else {
+          truncated = true
+          updates = null
+        }
+      }
+    })
+
+    if (recordsCount > 0) {
+      sync.lastRev = lastRev
+      sync.updatesSinceSnapshot += recordsCount
       await this._persistSnapshot(context, sync)
     }
 
-    return records
+    const syncUpdate =
+      truncated && recordsCount > 0 ? Y.encodeStateAsUpdate(sync.doc) : null
+
+    return {
+      updates: updates && updates.length > 0 ? updates : [],
+      syncUpdate,
+      count: recordsCount
+    }
   }
 
   async _refreshAwareness(context, sync) {
@@ -770,27 +784,30 @@ export class DocWorker {
       gt: { rev: sync.lastAwarenessRev },
       lte: { rev: latestRev }
     })
-    const records = await cursor.toArray()
+    let changed = false
 
-    for (const record of records) {
+    await eachCursor(cursor, (record) => {
       const update = toUint8Array(record?.data)
       if (update) {
         applyAwarenessUpdate(sync.awareness, update, REMOTE_ORIGIN)
       }
-    }
+      changed = true
+    })
 
     sync.lastAwarenessRev = latestRev
-    return records.length > 0
+    return changed
   }
 
   async _persistSnapshot(context, sync, options = {}) {
     const force = options.force === true
     const now = Date.now()
+    const lastActivityAt = sync.lastSnapshotAt || sync.lastUpdateAt || 0
+    const timeReady =
+      lastActivityAt > 0 && now - lastActivityAt >= SNAPSHOT_TIME_INTERVAL
     const shouldSnapshot =
       force ||
       sync.updatesSinceSnapshot >= SNAPSHOT_OPS_INTERVAL ||
-      (sync.lastSnapshotAt > 0 &&
-        now - sync.lastSnapshotAt >= SNAPSHOT_TIME_INTERVAL)
+      (sync.updatesSinceSnapshot > 0 && timeReady)
 
     if (!shouldSnapshot) return
 
@@ -825,7 +842,7 @@ export class DocWorker {
     if (!watchers || watchers.size === 0) return
 
     const sync = await this._ensureSync(context)
-    const updates = await this._refreshSync(context, sync)
+    const refresh = await this._refreshSync(context, sync)
     const awarenessChanged = await this._refreshAwareness(context, sync)
     const awarenessUpdate = awarenessChanged
       ? encodeAwarenessUpdate(
@@ -834,7 +851,9 @@ export class DocWorker {
         )
       : null
     const payload = await this.buildDocUpdate(context, sync, {
-      updates: updates.length > 0 ? updates : null,
+      updates:
+        refresh.updates && refresh.updates.length > 0 ? refresh.updates : null,
+      syncUpdate: refresh.syncUpdate,
       awareness: awarenessUpdate
     })
 

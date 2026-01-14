@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { getRpc } from '../lib/rpc.ts'
 import { loadLastDocKey, saveLastDocKey } from './doc-persistence.js'
 import { DEFAULT_TITLE } from '../constants'
+import { toUint8Array } from '../lib/codec.ts'
 import * as Y from 'yjs'
 import {
   Awareness,
@@ -140,6 +141,8 @@ const REMOTE_ORIGIN = 'remote'
 const DEFAULT_JOIN_TIMEOUT = 15000
 const UPDATE_FLUSH_MS = 50
 const AWARENESS_FLUSH_MS = 120
+const WATCH_RECONNECT_BASE_MS = 400
+const WATCH_RECONNECT_MAX_MS = 5000
 
 const sessions = new Map<string, DocSession>()
 const applyQueues = new Map<string, Promise<void>>()
@@ -194,6 +197,34 @@ function mergeDocSummary(entry: DocRecord, fetched: DocRecord) {
   }
 }
 
+function updateDocListEntry(
+  docs: DocRecord[],
+  key: string,
+  updater: (doc: DocRecord) => DocRecord
+) {
+  return docs.map((doc) => (doc.key === key ? updater(doc) : doc))
+}
+
+function updateCurrentDoc(
+  current: DocUpdate | null,
+  key: string,
+  updater: (doc: DocUpdate) => DocUpdate
+) {
+  if (!current || current.key !== key) return current
+  return updater(current)
+}
+
+function applyDocUpdateToListEntry(doc: DocRecord, update: DocUpdate) {
+  return {
+    ...doc,
+    title: update.title ?? doc.title,
+    lastRevision: update.revision,
+    lastOpenedAt: update.updatedAt ?? Date.now(),
+    lockedAt: update.lockedAt ?? null,
+    lockedBy: update.lockedBy ?? null
+  }
+}
+
 function userFromWriterKey(writerKey: string | null | undefined) {
   if (typeof writerKey !== 'string') return null
   const trimmed = writerKey.trim()
@@ -229,13 +260,6 @@ const LOCAL_CLIENT_ID = randomId(16)
 const LOCAL_USER: LocalUser = {
   name: shortLabel(LOCAL_CLIENT_ID),
   color: colorFromId(LOCAL_CLIENT_ID)
-}
-
-function toUint8Array(value: unknown): Uint8Array | null {
-  if (!value) return null
-  if (value instanceof Uint8Array) return value
-  if (value instanceof ArrayBuffer) return new Uint8Array(value)
-  return null
 }
 
 function enqueueSend(key: string, task: () => Promise<void>) {
@@ -285,6 +309,14 @@ function destroySession(session: DocSession) {
   session.awareness?.destroy?.()
   session.doc?.destroy?.()
   sessions.delete(session.key)
+  applyQueues.delete(session.key)
+}
+
+function destroySessionByKey(key: string | null) {
+  if (!key) return
+  const session = sessions.get(key)
+  if (!session) return
+  destroySession(session)
 }
 
 export function destroyAllSessions() {
@@ -342,7 +374,9 @@ function attachSession(
 
 async function prefetchDocTitles(
   docs: DocRecord[],
-  set: (next: Partial<DocStore> | ((state: DocStore) => Partial<DocStore>)) => void
+  set: (
+    next: Partial<DocStore> | ((state: DocStore) => Partial<DocStore>)
+  ) => void
 ) {
   if (!Array.isArray(docs) || docs.length === 0) return
   const rpc = getRpc()
@@ -359,9 +393,7 @@ async function prefetchDocTitles(
 
       set((state) => ({
         docs: state.docs.map((entry) =>
-          entry.key === fetched.key
-            ? mergeDocSummary(entry, fetched)
-            : entry
+          entry.key === fetched.key ? mergeDocSummary(entry, fetched) : entry
         )
       }))
     } catch {}
@@ -492,16 +524,6 @@ function normalizeDocMeta(
     lockedBy = null
   }
 
-  const effectiveCapabilities =
-    capabilities && lockedAt
-      ? {
-          ...capabilities,
-          canEdit: false,
-          canComment: false,
-          canInvite: false
-        }
-      : capabilities
-
   return {
     key,
     revision,
@@ -509,7 +531,7 @@ function normalizeDocMeta(
     title,
     doc: session.doc,
     awareness: session.awareness,
-    capabilities: effectiveCapabilities,
+    capabilities,
     lockedAt,
     lockedBy
   }
@@ -575,6 +597,7 @@ export const useDocStore = create<DocStore>((set, get) => ({
   selectDoc: async (key) => {
     const currentWatcher = get().watcher
     const previous = get()
+    const previousActive = previous.activeDoc
     const preserve =
       key && previous.activeDoc === key && previous.currentUpdate !== null
 
@@ -586,6 +609,7 @@ export const useDocStore = create<DocStore>((set, get) => ({
     }
 
     if (!key) {
+      destroySessionByKey(previousActive)
       set({
         activeDoc: null,
         currentUpdate: null,
@@ -624,22 +648,46 @@ export const useDocStore = create<DocStore>((set, get) => ({
     saveLastDocKey(key)
 
     try {
-      const rpc = getRpc()
-      const vector = Y.encodeStateVector(session.doc)
-      const stream = rpc.watchDoc({
-        key,
-        stateVector: vector
-      })
+      let activeStream: any = null
+      let reconnectTimer: ReturnType<typeof setTimeout> | null = null
+      let reconnectAttempt = 0
+      let stopped = false
 
-      const watcher: DocWatcher = {
-        stop: async () => {
-          stream.destroy()
+      const isActiveDoc = () => get().activeDoc === key
+
+      const clearReconnect = () => {
+        if (reconnectTimer) {
+          clearTimeout(reconnectTimer)
+          reconnectTimer = null
         }
       }
 
-      set({ watcher })
+      const stopWatcher = async () => {
+        stopped = true
+        clearReconnect()
+        if (activeStream && !activeStream.destroyed) {
+          activeStream.destroy()
+        }
+        activeStream = null
+      }
 
-      stream.on('data', (payload: RawDocUpdate) => {
+      const scheduleReconnect = () => {
+        if (stopped || !isActiveDoc()) return
+        if (reconnectTimer) return
+        const delay = Math.min(
+          WATCH_RECONNECT_MAX_MS,
+          WATCH_RECONNECT_BASE_MS * 2 ** reconnectAttempt
+        )
+        reconnectAttempt = Math.min(reconnectAttempt + 1, 8)
+        reconnectTimer = setTimeout(() => {
+          reconnectTimer = null
+          startWatch()
+        }, delay)
+      }
+
+      const handleData = (payload: RawDocUpdate) => {
+        if (!isActiveDoc()) return
+        if (reconnectAttempt !== 0) reconnectAttempt = 0
         const updateKey = typeof payload.key === 'string' ? payload.key : key
         const targetSession = getSession(updateKey)
         applyIncoming(targetSession, payload)
@@ -650,17 +698,8 @@ export const useDocStore = create<DocStore>((set, get) => ({
             targetSession,
             state.currentUpdate
           )
-          const docs = state.docs.map((doc) =>
-            doc.key === updateKey
-              ? {
-                  ...doc,
-                  title: nextUpdate.title ?? doc.title,
-                  lastRevision: nextUpdate.revision,
-                  lastOpenedAt: nextUpdate.updatedAt ?? Date.now(),
-                  lockedAt: nextUpdate.lockedAt ?? null,
-                  lockedBy: nextUpdate.lockedBy ?? null
-                }
-              : doc
+          const docs = updateDocListEntry(state.docs, updateKey, (doc) =>
+            applyDocUpdateToListEntry(doc, nextUpdate)
           )
 
           return {
@@ -678,15 +717,43 @@ export const useDocStore = create<DocStore>((set, get) => ({
             .loadInvites(updateKey, { includeRevoked: false })
             .catch(() => {})
         }
-      })
+      }
 
-      stream.on('error', (err: Error) => {
-        set({ error: err.message })
-      })
+      const handleError = (err: Error, stream: any) => {
+        if (!isActiveDoc() || activeStream !== stream) return
+        set({ error: err.message, watcher: null })
+        scheduleReconnect()
+      }
 
-      stream.on('close', () => {
+      const handleClose = (stream: any) => {
+        if (!isActiveDoc() || activeStream !== stream) return
         set({ watcher: null })
-      })
+        scheduleReconnect()
+      }
+
+      const startWatch = () => {
+        if (stopped || !isActiveDoc()) return
+        const rpc = getRpc()
+        const vector = Y.encodeStateVector(session.doc)
+        const stream = rpc.watchDoc({
+          key,
+          stateVector: vector
+        })
+
+        activeStream = stream
+
+        const watcher: DocWatcher = {
+          stop: stopWatcher
+        }
+
+        set({ watcher })
+
+        stream.on('data', handleData)
+        stream.on('error', (err: Error) => handleError(err, stream))
+        stream.on('close', () => handleClose(stream))
+      }
+
+      startWatch()
     } catch (error) {
       set({ error: error instanceof Error ? error.message : String(error) })
     }
@@ -740,26 +807,23 @@ export const useDocStore = create<DocStore>((set, get) => ({
         : null
 
     set((state) => {
-      const nextDocs = state.docs.map((doc) =>
-        doc.key === key
-          ? {
-              ...doc,
-              title: fallbackTitle
-            }
-          : doc
-      )
+      const docs = updateDocListEntry(state.docs, key, (doc) => ({
+        ...doc,
+        title: fallbackTitle
+      }))
 
-      const currentUpdate =
-        state.currentUpdate && state.currentUpdate.key === key
-          ? {
-              ...state.currentUpdate,
-              title: fallbackTitle
-            }
-          : state.currentUpdate
+      const currentUpdate = updateCurrentDoc(
+        state.currentUpdate,
+        key,
+        (doc) => ({
+          ...doc,
+          title: fallbackTitle
+        })
+      )
 
       return {
         ...state,
-        docs: nextDocs,
+        docs,
         currentUpdate
       }
     })
@@ -777,24 +841,21 @@ export const useDocStore = create<DocStore>((set, get) => ({
           ? response.updatedAt
           : Date.now()
       set((state) => {
-        const docs = state.docs.map((doc) =>
-          doc.key === key
-            ? {
-                ...doc,
-                title: nextTitle,
-                lastOpenedAt: updatedAt
-              }
-            : doc
-        )
+        const docs = updateDocListEntry(state.docs, key, (doc) => ({
+          ...doc,
+          title: nextTitle,
+          lastOpenedAt: updatedAt
+        }))
 
-        const currentUpdate =
-          state.currentUpdate && state.currentUpdate.key === key
-            ? {
-                ...state.currentUpdate,
-                title: nextTitle,
-                updatedAt
-              }
-            : state.currentUpdate
+        const currentUpdate = updateCurrentDoc(
+          state.currentUpdate,
+          key,
+          (doc) => ({
+            ...doc,
+            title: nextTitle,
+            updatedAt
+          })
+        )
 
         return {
           ...state,
@@ -804,23 +865,17 @@ export const useDocStore = create<DocStore>((set, get) => ({
       })
     } catch (error) {
       set((state) => {
-        const docs = state.docs.map((doc) =>
-          doc.key === key
-            ? {
-                ...doc,
-                title: previousTitle ?? doc.title
-              }
-            : doc
-        )
+        const docs = updateDocListEntry(state.docs, key, (doc) => ({
+          ...doc,
+          title: previousTitle ?? doc.title
+        }))
 
         const currentUpdate = previousUpdate
           ? { ...previousUpdate }
-          : state.currentUpdate && state.currentUpdate.key === key
-            ? {
-                ...state.currentUpdate,
-                title: previousTitle ?? state.currentUpdate.title
-              }
-            : state.currentUpdate
+          : updateCurrentDoc(state.currentUpdate, key, (doc) => ({
+              ...doc,
+              title: previousTitle ?? doc.title
+            }))
 
         return {
           ...state,
@@ -996,32 +1051,21 @@ export const useDocStore = create<DocStore>((set, get) => ({
           : null
 
       set((state) => {
-        const docs = state.docs.map((doc) =>
-          doc.key === key
-            ? {
-                ...doc,
-                lockedAt,
-                lockedBy
-              }
-            : doc
-        )
+        const docs = updateDocListEntry(state.docs, key, (doc) => ({
+          ...doc,
+          lockedAt,
+          lockedBy
+        }))
 
-        const currentUpdate =
-          state.currentUpdate && state.currentUpdate.key === key
-            ? {
-                ...state.currentUpdate,
-                lockedAt,
-                lockedBy,
-                capabilities: state.currentUpdate.capabilities
-                  ? {
-                      ...state.currentUpdate.capabilities,
-                      canEdit: false,
-                      canComment: false,
-                      canInvite: false
-                    }
-                  : state.currentUpdate.capabilities
-              }
-            : state.currentUpdate
+        const currentUpdate = updateCurrentDoc(
+          state.currentUpdate,
+          key,
+          (doc) => ({
+            ...doc,
+            lockedAt,
+            lockedBy
+          })
+        )
 
         return {
           ...state,
@@ -1072,6 +1116,7 @@ export const useDocStore = create<DocStore>((set, get) => ({
           error: null
         }
       })
+      destroySessionByKey(key)
     } catch (error) {
       const message =
         error instanceof Error ? error.message : 'Failed to abandon document'
