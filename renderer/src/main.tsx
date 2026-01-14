@@ -21,11 +21,12 @@ root.render(
 
 let reloading = false
 
-updates(async (update: { diff: Array<{ key: string }> }) => {
+updates(async (update: { diff?: Array<{ key: string }> } | null) => {
   if (reloading) return
 
   // Only reload on client changes
-  const paths = update.diff.map((entry: { key: string }) => entry.key)
+  const diff = Array.isArray(update?.diff) ? update.diff : []
+  const paths = diff.map((entry: { key: string }) => entry.key)
   console.log(paths)
   if (paths.filter((path) => !path.match(/\/renderer\/src/)).length === 0) {
     return

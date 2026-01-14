@@ -74,6 +74,7 @@ export type DocPairStatus = {
   message?: string | null
   progress?: number | null
   doc?: DocRecord | null
+  writerKey?: string | null
 }
 
 type JoinDocOptions = {
@@ -178,9 +179,55 @@ function colorFromId(id: string) {
   return USER_COLORS[hash % USER_COLORS.length]
 }
 
+function shortLabel(value: string) {
+  return value.slice(0, 5)
+}
+
+function mergeDocSummary(entry: DocRecord, fetched: DocRecord) {
+  return {
+    ...entry,
+    title: fetched.title ?? entry.title,
+    lastRevision: fetched.lastRevision ?? entry.lastRevision,
+    lastOpenedAt: fetched.lastOpenedAt ?? entry.lastOpenedAt,
+    lockedAt: fetched.lockedAt ?? entry.lockedAt,
+    lockedBy: fetched.lockedBy ?? entry.lockedBy
+  }
+}
+
+function userFromWriterKey(writerKey: string | null | undefined) {
+  if (typeof writerKey !== 'string') return null
+  const trimmed = writerKey.trim()
+  if (!trimmed) return null
+  return {
+    name: shortLabel(trimmed),
+    color: colorFromId(trimmed)
+  }
+}
+
+function updateLocalUserFromKey(
+  set: (next: Partial<DocStore>) => void,
+  getState: () => DocStore,
+  writerKey: string | null | undefined
+) {
+  const nextUser = userFromWriterKey(writerKey)
+  if (!nextUser) return
+  const currentUser = getState().localUser
+  if (
+    currentUser.name === nextUser.name &&
+    currentUser.color === nextUser.color
+  ) {
+    return
+  }
+  set({ localUser: nextUser })
+  const awareness = getState().currentUpdate?.awareness
+  if (awareness) {
+    awareness.setLocalStateField('user', nextUser)
+  }
+}
+
 const LOCAL_CLIENT_ID = randomId(16)
 const LOCAL_USER: LocalUser = {
-  name: 'You',
+  name: shortLabel(LOCAL_CLIENT_ID),
   color: colorFromId(LOCAL_CLIENT_ID)
 }
 
@@ -286,6 +333,39 @@ function attachSession(
       })
     }, AWARENESS_FLUSH_MS)
   })
+
+  const localUser = getState().localUser
+  if (localUser) {
+    session.awareness.setLocalStateField('user', localUser)
+  }
+}
+
+async function prefetchDocTitles(
+  docs: DocRecord[],
+  set: (next: Partial<DocStore> | ((state: DocStore) => Partial<DocStore>)) => void
+) {
+  if (!Array.isArray(docs) || docs.length === 0) return
+  const rpc = getRpc()
+
+  for (const doc of docs) {
+    if (!doc?.key) continue
+    const title = typeof doc.title === 'string' ? doc.title.trim() : ''
+    if (title && title !== 'Untitled document') continue
+
+    try {
+      const response = await rpc.getDoc({ key: doc.key })
+      const fetched = response?.doc
+      if (!fetched || typeof fetched.key !== 'string') continue
+
+      set((state) => ({
+        docs: state.docs.map((entry) =>
+          entry.key === fetched.key
+            ? mergeDocSummary(entry, fetched)
+            : entry
+        )
+      }))
+    } catch {}
+  }
 }
 
 function scheduleFlush(
@@ -469,6 +549,7 @@ export const useDocStore = create<DocStore>((set, get) => ({
       }
 
       set({ docs, activeDoc, loading: false })
+      void prefetchDocTitles(docs, set)
 
       if (activeDoc) {
         await get().selectDoc(activeDoc)
@@ -486,6 +567,7 @@ export const useDocStore = create<DocStore>((set, get) => ({
       const response = await rpc.listDocs({})
       const docs = mergeDocsWithCachedMetadata(response?.docs ?? [])
       set({ docs })
+      void prefetchDocTitles(docs, set)
     } catch (error) {
       set({ error: error instanceof Error ? error.message : String(error) })
     }
@@ -630,6 +712,7 @@ export const useDocStore = create<DocStore>((set, get) => ({
         error: null
       }))
 
+      updateLocalUserFromKey(set, get, response?.writerKey)
       await get().selectDoc(doc.key)
     } catch (error) {
       const message =
@@ -854,6 +937,9 @@ export const useDocStore = create<DocStore>((set, get) => ({
           }))
 
           Promise.resolve()
+            .then(() => {
+              updateLocalUserFromKey(set, get, status.writerKey)
+            })
             .then(() => get().selectDoc(doc.key))
             .then(() => {
               succeed()
@@ -1166,11 +1252,17 @@ function normalizePairStatus(value: unknown): DocPairStatus {
     }
   }
 
+  const writerKey =
+    typeof value.writerKey === 'string' && value.writerKey.length > 0
+      ? value.writerKey
+      : null
+
   return {
     state,
     message,
     progress,
-    doc
+    doc,
+    writerKey
   }
 }
 

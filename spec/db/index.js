@@ -664,6 +664,61 @@ const collection11 = {
   indexes: []
 }
 
+// '@bonk-docs/awareness' collection key
+const collection12_key = new IndexEncoder([
+  IndexEncoder.UINT
+], { prefix: 12 })
+
+function collection12_indexify (record) {
+  const a = record.rev
+  return a === undefined ? [] : [a]
+}
+
+// '@bonk-docs/awareness' value encoding
+const collection12_enc = getEncoding('@bonk-docs/awareness/hyperdb#12')
+
+// '@bonk-docs/awareness' reconstruction function
+function collection12_reconstruct (version, keyBuf, valueBuf) {
+  const key = collection12_key.decode(keyBuf)
+  setVersion(version)
+  const record = c.decode(collection12_enc, valueBuf)
+  record.rev = key[0]
+  return record
+}
+// '@bonk-docs/awareness' key reconstruction function
+function collection12_reconstruct_key (keyBuf) {
+  const key = collection12_key.decode(keyBuf)
+  return {
+    rev: key[0]
+  }
+}
+
+// '@bonk-docs/awareness'
+const collection12 = {
+  name: '@bonk-docs/awareness',
+  id: 12,
+  encodeKey (record) {
+    const key = [record.rev]
+    return collection12_key.encode(key)
+  },
+  encodeKeyRange ({ gt, lt, gte, lte } = {}) {
+    return collection12_key.encodeRange({
+      gt: gt ? collection12_indexify(gt) : null,
+      lt: lt ? collection12_indexify(lt) : null,
+      gte: gte ? collection12_indexify(gte) : null,
+      lte: lte ? collection12_indexify(lte) : null
+    })
+  },
+  encodeValue (version, record) {
+    setVersion(version)
+    return c.encode(collection12_enc, record)
+  },
+  trigger: null,
+  reconstruct: collection12_reconstruct,
+  reconstructKey: collection12_reconstruct_key,
+  indexes: []
+}
+
 const collections = [
   collection0,
   collection1,
@@ -676,7 +731,8 @@ const collections = [
   collection8,
   collection9,
   collection10,
-  collection11
+  collection11,
+  collection12
 ]
 
 const indexes = [
@@ -698,6 +754,7 @@ function resolveCollection (name) {
     case '@local/state': return collection9
     case '@local/profile': return collection10
     case '@bonk-docs/updates': return collection11
+    case '@bonk-docs/awareness': return collection12
     default: return null
   }
 }

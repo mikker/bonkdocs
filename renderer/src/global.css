@@ -161,6 +161,33 @@
   .tiptap blockquote {
     @apply border-l-2 border-border pl-4 italic text-muted-foreground;
   }
+
+  .collaboration-cursor__caret {
+    border-left: 2px solid currentColor;
+    border-right: 2px solid currentColor;
+    margin-left: -1px;
+    margin-right: -1px;
+    position: relative;
+    pointer-events: none;
+  }
+
+  .collaboration-cursor__label {
+    border-radius: 4px 4px 4px 0;
+    color: white;
+    font-size: 0.7rem;
+    font-weight: 600;
+    left: -1px;
+    line-height: 1;
+    padding: 0.15rem 0.35rem;
+    position: absolute;
+    top: -1.2rem;
+    user-select: none;
+    white-space: nowrap;
+  }
+
+  .collaboration-cursor__selection {
+    opacity: 0.25;
+  }
 }
 
 @utility debug {

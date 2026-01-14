@@ -1,5 +1,5 @@
 {
-  "version": 2,
+  "version": 3,
   "offset": 0,
   "schema": [
     {
@@ -85,6 +85,12 @@
       "name": "@bonk-docs/update-append",
       "requestType": "@bonk-docs/update-entry",
       "version": 2
+    },
+    {
+      "id": 14,
+      "name": "@bonk-docs/awareness-append",
+      "requestType": "@bonk-docs/awareness-entry",
+      "version": 3
     }
   ]
 }

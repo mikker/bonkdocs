@@ -94,6 +94,27 @@ export class DocContext extends Context {
       await context.view.insert('@bonk-docs/updates', record)
     })
 
+    this.router.add('@bonk-docs/awareness-append', async (data = {}, context) => {
+      if (!data.data) {
+        throw new Error('awareness-append requires data buffer')
+      }
+
+      const latest = await getLatestEntry(context.view, '@bonk-docs/awareness')
+      const nextRev = latest ? latest.rev + 1 : 1
+
+      const record = {
+        timestamp: data.timestamp || Date.now(),
+        data: data.data,
+        rev: nextRev
+      }
+
+      if (typeof data.clientId === 'string' && data.clientId.length > 0) {
+        record.clientId = data.clientId
+      }
+
+      await context.view.insert('@bonk-docs/awareness', record)
+    })
+
     this.router.add('@bonk-docs/snapshot-save', async (data = {}, context) => {
       await this.requireDocPermission(
         context.writerKey,
@@ -350,6 +371,27 @@ export class DocContext extends Context {
 
     await this.base.append(
       this.schema.dispatch.encode('@bonk-docs/update-append', record)
+    )
+
+    return record
+  }
+
+  async appendAwareness(update = {}) {
+    const record = {
+      timestamp: update.timestamp || Date.now(),
+      data: update.data
+    }
+
+    if (typeof update.clientId === 'string' && update.clientId.length > 0) {
+      record.clientId = update.clientId
+    }
+
+    if (!record.data) {
+      throw new Error('appendAwareness requires data')
+    }
+
+    await this.base.append(
+      this.schema.dispatch.encode('@bonk-docs/awareness-append', record)
     )
 
     return record

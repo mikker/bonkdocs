@@ -69,6 +69,27 @@ docs.register({
   ]
 })
 
+docs.register({
+  name: 'awareness',
+  compact: false,
+  fields: [
+    { name: 'rev', type: 'uint', required: true },
+    { name: 'timestamp', type: 'uint', required: true },
+    { name: 'data', type: 'buffer', required: true },
+    { name: 'clientId', type: 'string', required: false }
+  ]
+})
+
+docs.register({
+  name: 'awareness-entry',
+  compact: false,
+  fields: [
+    { name: 'timestamp', type: 'uint', required: true },
+    { name: 'data', type: 'buffer', required: true },
+    { name: 'clientId', type: 'string', required: false }
+  ]
+})
+
 const local = schema.namespace('local')
 
 local.register({
@@ -471,6 +492,11 @@ docsDb.collections.register({
   schema: '@bonk-docs/snapshot',
   key: ['rev']
 })
+docsDb.collections.register({
+  name: 'awareness',
+  schema: '@bonk-docs/awareness',
+  key: ['rev']
+})
 const localDb = dbBuilder.namespace('local')
 
 localDb.collections.register({
@@ -508,6 +534,11 @@ docDispatch.register({
 docDispatch.register({
   name: 'snapshot-save',
   requestType: '@bonk-docs/snapshot'
+})
+docDispatch.register({
+  name: 'awareness-append',
+  requestType: '@bonk-docs/awareness-entry',
+  id: 14
 })
 const localDispatch = dispatch.namespace('local')
 

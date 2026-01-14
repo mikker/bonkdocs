@@ -37,6 +37,7 @@
         "node_modules/*/test",
         "node_modules/*/*/test",
         "package-lock.json",
+        "renderer/src/**/*",
         "scripts",
         "test"
       ],

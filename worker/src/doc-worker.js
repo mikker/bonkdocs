@@ -380,8 +380,10 @@ export class DocWorker {
     const update = toUint8Array(request.update)
     if (!update) return { accepted: false }
 
-    applyAwarenessUpdate(sync.awareness, update, REMOTE_ORIGIN)
-    await this._broadcastAwareness(context, sync, update)
+    await context.appendAwareness({
+      timestamp: Date.now(),
+      data: Buffer.from(update)
+    })
 
     return { accepted: true }
   }
@@ -657,6 +659,7 @@ export class DocWorker {
       doc: new Y.Doc(),
       awareness: null,
       lastRev: 0,
+      lastAwarenessRev: 0,
       lastUpdateAt: 0,
       lastSnapshotAt: 0,
       updatesSinceSnapshot: 0,
@@ -708,6 +711,17 @@ export class DocWorker {
         sync.updatesSinceSnapshot = records.length
       }
 
+      try {
+        const latestAwareness = await context.base.view.findOne(
+          '@bonk-docs/awareness',
+          { reverse: true, limit: 1 }
+        )
+        sync.lastAwarenessRev =
+          typeof latestAwareness?.rev === 'number' ? latestAwareness.rev : 0
+      } catch {
+        sync.lastAwarenessRev = 0
+      }
+
       sync.ready = true
       sync.loading = null
       return sync
@@ -750,6 +764,33 @@ export class DocWorker {
     }
 
     return records
+  }
+
+  async _refreshAwareness(context, sync) {
+    const latest = await context.base.view.findOne('@bonk-docs/awareness', {
+      reverse: true,
+      limit: 1
+    })
+    const latestRev = typeof latest?.rev === 'number' ? latest.rev : 0
+    if (latestRev <= sync.lastAwarenessRev) {
+      return false
+    }
+
+    const cursor = context.base.view.find('@bonk-docs/awareness', {
+      gt: { rev: sync.lastAwarenessRev },
+      lte: { rev: latestRev }
+    })
+    const records = await cursor.toArray()
+
+    for (const record of records) {
+      const update = toUint8Array(record?.data)
+      if (update) {
+        applyAwarenessUpdate(sync.awareness, update, REMOTE_ORIGIN)
+      }
+    }
+
+    sync.lastAwarenessRev = latestRev
+    return records.length > 0
   }
 
   async _persistSnapshot(context, sync, options = {}) {
@@ -795,30 +836,15 @@ export class DocWorker {
 
     const sync = await this._ensureSync(context)
     const updates = await this._refreshSync(context, sync)
+    const awarenessChanged = await this._refreshAwareness(context, sync)
+    const awarenessUpdate = awarenessChanged
+      ? encodeAwarenessUpdate(
+          sync.awareness,
+          Array.from(sync.awareness.getStates().keys())
+        )
+      : null
     const payload = await this.buildDocUpdate(context, sync, {
-      updates: updates.length > 0 ? updates : null
-    })
-
-    for (const watcher of watchers) {
-      if (watcher.closed) continue
-      try {
-        await watcher.emit(payload)
-      } catch (error) {
-        if (isCoreClosingError(error)) {
-          watcher.closed = true
-        } else {
-          console.warn('[doc-worker] failed to emit doc update', error)
-        }
-      }
-    }
-  }
-
-  async _broadcastAwareness(context, sync, awarenessUpdate) {
-    const keyHex = bufferToHex(context.key)
-    const watchers = this.watchers.get(keyHex)
-    if (!watchers || watchers.size === 0) return
-
-    const payload = await this.buildDocUpdate(context, sync, {
+      updates: updates.length > 0 ? updates : null,
       awareness: awarenessUpdate
     })
 
@@ -830,7 +856,7 @@ export class DocWorker {
         if (isCoreClosingError(error)) {
           watcher.closed = true
         } else {
-          console.warn('[doc-worker] failed to emit awareness update', error)
+          console.warn('[doc-worker] failed to emit doc update', error)
         }
       }
     }

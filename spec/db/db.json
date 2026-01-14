@@ -157,6 +157,19 @@
         "rev"
       ],
       "trigger": null
+    },
+    {
+      "name": "awareness",
+      "namespace": "bonk-docs",
+      "id": 12,
+      "type": 1,
+      "indexes": [],
+      "schema": "@bonk-docs/awareness",
+      "derived": false,
+      "key": [
+        "rev"
+      ],
+      "trigger": null
     }
   ]
 }
