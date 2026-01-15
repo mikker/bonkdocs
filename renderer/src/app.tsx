@@ -1,4 +1,5 @@
 import { FormEvent, useEffect, useState } from 'react'
+import type { Awareness } from 'y-protocols/awareness'
 import { TitleBar, TitleBarTitle } from './components/title-bar'
 import { Button } from '@/components/ui/button'
 import { Toaster } from '@/components/ui/sonner'
@@ -49,11 +50,96 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
+import { colorFromKey } from '@/lib/user-colors'
 
 function useDocState<T>(
   selector: (state: ReturnType<typeof useDocStore.getState>) => T
 ): T {
   return useDocStore(selector)
+}
+
+type LocalUser = ReturnType<typeof useDocStore.getState>['localUser']
+
+type PresenceUser = {
+  clientId: number
+  color: string
+  key: string
+  isLocal: boolean
+  resolved: boolean
+}
+
+const MAX_VISIBLE_USERS = 4
+const UNRESOLVED_USER_COLOR = '#94a3b8'
+
+function getPresenceUsers(
+  awareness: Awareness,
+  localUser: LocalUser
+): PresenceUser[] {
+  const localClientId = awareness.clientID
+  const users = Array.from(awareness.getStates().entries()).map(
+    ([clientId, state]) => {
+      const user = (state?.user ?? {}) as Partial<LocalUser>
+      const key = typeof user.key === 'string' ? user.key.trim() : ''
+      const resolved = key.length > 0
+      const color =
+        resolved
+          ? typeof user.color === 'string' && user.color.trim().length > 0
+            ? user.color
+            : colorFromKey(key)
+          : UNRESOLVED_USER_COLOR
+
+      return {
+        clientId,
+        color,
+        key,
+        isLocal: clientId === localClientId,
+        resolved
+      }
+    }
+  )
+
+  users.sort((left, right) => {
+    if (left.isLocal !== right.isLocal) {
+      return left.isLocal ? -1 : 1
+    }
+    const leftResolved = left.key.length > 0
+    const rightResolved = right.key.length > 0
+    if (leftResolved !== rightResolved) {
+      return leftResolved ? -1 : 1
+    }
+    return left.key.localeCompare(right.key)
+  })
+
+  return users
+}
+
+function usePresenceUsers(
+  awareness: Awareness | null | undefined,
+  localUser: LocalUser
+): PresenceUser[] {
+  const [users, setUsers] = useState<PresenceUser[]>(() =>
+    awareness ? getPresenceUsers(awareness, localUser) : []
+  )
+
+  useEffect(() => {
+    if (!awareness) {
+      setUsers([])
+      return
+    }
+
+    const handleUpdate = () => {
+      setUsers(getPresenceUsers(awareness, localUser))
+    }
+
+    handleUpdate()
+    awareness.on('update', handleUpdate)
+
+    return () => {
+      awareness.off('update', handleUpdate)
+    }
+  }, [awareness, localUser.color, localUser.key])
+
+  return users
 }
 
 export function App() {
@@ -119,6 +205,8 @@ function DocsTitleBar() {
   const abandonDocAction = useDocState((state) => state.abandonDoc)
   const lockingDoc = useDocState((state) => state.lockingDoc)
   const abandoningDoc = useDocState((state) => state.abandoningDoc)
+  const awareness = useDocState((state) => state.currentUpdate?.awareness)
+  const localUser = useDocState((state) => state.localUser)
   const renameDoc = useDocState((state) => state.renameDoc)
   const fullDoc = docs.find((doc) => doc.key === activeDoc)
   const { open } = useSidebar()
@@ -236,6 +324,7 @@ function DocsTitleBar() {
             </Badge>
           ) : null}
         </TitleBarTitle>
+        <DocUsersBar awareness={awareness} localUser={localUser} />
         {fullDoc ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -388,6 +477,62 @@ function DocsTitleBar() {
         </DialogContent>
       </Dialog>
     </>
+  )
+}
+
+function DocUsersBar({
+  awareness,
+  localUser
+}: {
+  awareness: Awareness | null | undefined
+  localUser: LocalUser
+}) {
+  const users = usePresenceUsers(awareness, localUser)
+  const allUsers = users
+
+  if (allUsers.length === 0) return null
+
+  const visibleUsers = allUsers.slice(0, MAX_VISIBLE_USERS)
+  const remainingCount = allUsers.length - visibleUsers.length
+
+  return (
+    <div className='flex items-center pr-2 -space-x-1 [-webkit-app-region:none]'>
+      {visibleUsers.map((user) => {
+        const tooltipLabel = user.resolved
+          ? user.isLocal
+            ? `${user.key} (you)`
+            : user.key
+          : 'Resolving…'
+
+        return (
+          <Tooltip key={user.clientId}>
+            <TooltipTrigger asChild>
+              <span
+                className={`flex size-6 items-center justify-center rounded-full border border-background ${
+                  user.resolved ? '' : 'animate-pulse'
+                }`}
+                style={{ backgroundColor: user.color }}
+                aria-label={tooltipLabel}
+              />
+            </TooltipTrigger>
+            <TooltipContent>{tooltipLabel}</TooltipContent>
+          </Tooltip>
+        )
+      })}
+      {remainingCount > 0 ? (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span
+              className='flex size-6 items-center justify-center rounded-full border border-background bg-muted text-[0.55rem] font-semibold uppercase text-foreground'
+              aria-label={`${remainingCount} more users`}
+            >
+              +{remainingCount}
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>{remainingCount} more</TooltipContent>
+        </Tooltip>
+      ) : null}
+    </div>
   )
 }
 

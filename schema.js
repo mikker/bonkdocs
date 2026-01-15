@@ -155,7 +155,8 @@ rpc.register({
       array: true,
       required: false
     },
-    { name: 'awareness', type: 'buffer', required: false }
+    { name: 'awareness', type: 'buffer', required: false },
+    { name: 'writerKey', type: 'string', required: false }
   ]
 })
 
@@ -289,7 +290,10 @@ rpc.register({
 rpc.register({
   name: 'get-doc-response',
   compact: false,
-  fields: [{ name: 'doc', type: '@local/doc', required: false }]
+  fields: [
+    { name: 'doc', type: '@local/doc', required: false },
+    { name: 'writerKey', type: 'string', required: false }
+  ]
 })
 
 rpc.register({

@@ -3,6 +3,7 @@ import { getRpc } from '../lib/rpc.ts'
 import { loadLastDocKey, saveLastDocKey } from './doc-persistence.js'
 import { DEFAULT_TITLE } from '../constants'
 import { toUint8Array } from '../lib/codec.ts'
+import { colorFromKey } from '../lib/user-colors.ts'
 import * as Y from 'yjs'
 import {
   Awareness,
@@ -30,6 +31,7 @@ type DocInvite = {
 type RawDocUpdate = {
   key?: string
   revision?: number
+  writerKey?: string | null
   updatedAt?: number
   title?: string | null
   syncUpdate?: unknown
@@ -87,6 +89,7 @@ type JoinDocOptions = {
 type LocalUser = {
   name: string
   color: string
+  key: string
 }
 
 type DocSession = {
@@ -147,16 +150,6 @@ const WATCH_RECONNECT_MAX_MS = 5000
 const sessions = new Map<string, DocSession>()
 const applyQueues = new Map<string, Promise<void>>()
 
-const USER_COLORS = [
-  '#2563eb',
-  '#dc2626',
-  '#16a34a',
-  '#9333ea',
-  '#ea580c',
-  '#0f766e',
-  '#0f172a'
-]
-
 function randomId(length = 32) {
   if (length <= 0) return ''
   if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
@@ -172,14 +165,6 @@ function randomId(length = 32) {
     chunks.push(value.toString(16).padStart(2, '0'))
   }
   return chunks.join('')
-}
-
-function colorFromId(id: string) {
-  let hash = 0
-  for (let i = 0; i < id.length; i++) {
-    hash = (hash + id.charCodeAt(i) * 17) % 9973
-  }
-  return USER_COLORS[hash % USER_COLORS.length]
 }
 
 function shortLabel(value: string) {
@@ -231,7 +216,8 @@ function userFromWriterKey(writerKey: string | null | undefined) {
   if (!trimmed) return null
   return {
     name: shortLabel(trimmed),
-    color: colorFromId(trimmed)
+    color: colorFromKey(trimmed),
+    key: trimmed
   }
 }
 
@@ -245,11 +231,12 @@ function updateLocalUserFromKey(
   const currentUser = getState().localUser
   if (
     currentUser.name === nextUser.name &&
-    currentUser.color === nextUser.color
+    currentUser.color === nextUser.color &&
+    currentUser.key === nextUser.key
   ) {
     return
   }
-  set({ localUser: nextUser })
+  set({ localUser: nextUser, clientId: nextUser.key })
   const awareness = getState().currentUpdate?.awareness
   if (awareness) {
     awareness.setLocalStateField('user', nextUser)
@@ -258,8 +245,9 @@ function updateLocalUserFromKey(
 
 const LOCAL_CLIENT_ID = randomId(16)
 const LOCAL_USER: LocalUser = {
-  name: shortLabel(LOCAL_CLIENT_ID),
-  color: colorFromId(LOCAL_CLIENT_ID)
+  name: '',
+  color: '#94a3b8',
+  key: ''
 }
 
 function enqueueSend(key: string, task: () => Promise<void>) {
@@ -648,6 +636,16 @@ export const useDocStore = create<DocStore>((set, get) => ({
     saveLastDocKey(key)
 
     try {
+      const rpc = getRpc()
+      void rpc
+        .getDoc({ key })
+        .then((response) => {
+          if (response?.writerKey) {
+            updateLocalUserFromKey(set, get, response.writerKey)
+          }
+        })
+        .catch(() => {})
+
       let activeStream: any = null
       let reconnectTimer: ReturnType<typeof setTimeout> | null = null
       let reconnectAttempt = 0
@@ -691,6 +689,9 @@ export const useDocStore = create<DocStore>((set, get) => ({
         const updateKey = typeof payload.key === 'string' ? payload.key : key
         const targetSession = getSession(updateKey)
         applyIncoming(targetSession, payload)
+        if (payload.writerKey) {
+          updateLocalUserFromKey(set, get, payload.writerKey)
+        }
 
         set((state) => {
           const nextUpdate = normalizeDocMeta(
@@ -733,7 +734,6 @@ export const useDocStore = create<DocStore>((set, get) => ({
 
       const startWatch = () => {
         if (stopped || !isActiveDoc()) return
-        const rpc = getRpc()
         const vector = Y.encodeStateVector(session.doc)
         const stream = rpc.watchDoc({
           key,

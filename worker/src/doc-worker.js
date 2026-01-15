@@ -192,7 +192,10 @@ export class DocWorker {
       isCreator: !!stored?.isCreator
     }
 
-    return this.normalizeDocRecord(fallback, metadata)
+    return {
+      doc: this.normalizeDocRecord(fallback, metadata),
+      writerKey: bufferToHex(context.writerKey)
+    }
   }
 
   async renameDoc(request = {}) {
@@ -907,6 +910,7 @@ export class DocWorker {
 
     const update = {
       key: bufferToHex(context.key),
+      writerKey: bufferToHex(context.writerKey),
       revision,
       updatedAt,
       title: metadata?.title || DEFAULT_TITLE,

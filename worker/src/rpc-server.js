@@ -159,8 +159,14 @@ export function createRpcServer(stream, worker) {
   rpc.onGetDoc(async (request = {}) => {
     console.log('[worker] get-doc request', request?.key)
     if (!request.key) throw new Error('Doc key is required to load doc')
-    const doc = await worker.getDoc(request.key)
-    return { doc: doc ?? undefined }
+    const result = await worker.getDoc(request.key)
+    if (!result) {
+      return { doc: undefined }
+    }
+    if (result.doc) {
+      return { doc: result.doc ?? undefined, writerKey: result.writerKey }
+    }
+    return { doc: result ?? undefined }
   })
 
   rpc.onWatchDoc(async (stream) => {
