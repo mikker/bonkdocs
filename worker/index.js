@@ -1,8 +1,6 @@
 import process from 'process'
 import { join } from 'path'
 
-import FramedStream from 'framed-stream'
-import pearPipe from 'pear-pipe'
 import { DocWorker } from './src/doc-worker.js'
 import { createRpcServer } from './src/rpc-server.js'
 
@@ -11,7 +9,7 @@ let rpcInstance = null
 
 export async function initializeWorker(options = {}) {
   if (!workerInstance) {
-    const baseDir = options.baseDir || resolveBaseDir()
+    const baseDir = options.baseDir || resolveBaseDir(options.storageRoot)
     workerInstance = new DocWorker({
       baseDir,
       bootstrap: options.bootstrap,
@@ -28,35 +26,87 @@ export async function initializeWorker(options = {}) {
   return workerInstance
 }
 
-function resolveBaseDir() {
+function resolveStorageRoot(explicitStorageRoot = null) {
+  if (
+    typeof explicitStorageRoot === 'string' &&
+    explicitStorageRoot.trim().length > 0
+  ) {
+    return explicitStorageRoot.trim()
+  }
+
+  const bareArgv = globalThis.Bare?.argv
+  if (Array.isArray(bareArgv) && typeof bareArgv[2] === 'string') {
+    const storageRoot = bareArgv[2].trim()
+    if (storageRoot.length > 0) {
+      return storageRoot
+    }
+  }
+
   const envRoot =
     typeof process !== 'undefined' ? process.env?.PEAR_APP_DATA : null
-  const pearStorage = Pear?.config?.storage ?? null
 
-  if (pearStorage) return join(pearStorage, 'bonk-docs')
-  if (envRoot) return join(envRoot, 'bonk-docs')
+  if (typeof envRoot === 'string' && envRoot.trim().length > 0) {
+    return envRoot.trim()
+  }
+
   const cwd =
     typeof process !== 'undefined' && typeof process.cwd === 'function'
       ? process.cwd()
       : '/'
-  return join(cwd, 'bonk-docs-data')
+
+  return cwd
 }
 
-async function bootstrapWithPear() {
-  const pipe = pearPipe()
-  if (!pipe) return
+function resolveBaseDir(storageRoot = null) {
+  const root = resolveStorageRoot(storageRoot)
+  if (storageRoot === null && root === process.cwd()) {
+    return join(root, 'bonk-docs-data')
+  }
+  return join(root, 'bonk-docs')
+}
 
-  const framed = new FramedStream(pipe)
-  const pearConfig = Pear.config || {}
+function createBareIpcStream() {
+  const ipc = globalThis.Bare?.IPC
+  if (!ipc || typeof ipc.on !== 'function' || typeof ipc.write !== 'function') {
+    return null
+  }
+
+  const stream = {
+    on(event, listener) {
+      ipc.on(event, listener)
+      return stream
+    },
+    off(event, listener) {
+      if (typeof ipc.off === 'function') {
+        ipc.off(event, listener)
+      } else if (typeof ipc.removeListener === 'function') {
+        ipc.removeListener(event, listener)
+      }
+      return stream
+    },
+    write(data) {
+      ipc.write(data)
+      return true
+    },
+    destroy(error) {
+      if (error) {
+        console.error('[worker] IPC stream destroyed', error)
+      }
+      return stream
+    }
+  }
+
+  return stream
+}
+
+async function bootstrapWithRuntime() {
+  const ipcStream = createBareIpcStream()
+  if (!ipcStream) return
 
   await initializeWorker({
-    baseDir: pearConfig.storage
-      ? join(pearConfig.storage, 'bonk-docs')
-      : resolveBaseDir(),
-    bootstrap: pearConfig.bootstrap,
-    autobase: pearConfig.autobase,
+    baseDir: resolveBaseDir(),
     ensureStorage: true,
-    rpc: framed
+    rpc: ipcStream
   })
 
   const cleanup = async () => {
@@ -67,8 +117,8 @@ async function bootstrapWithPear() {
     rpcInstance = null
   }
 
-  pipe.on('close', cleanup)
-  pipe.on('error', () => {})
+  ipcStream.on('close', cleanup)
+  ipcStream.on('error', () => {})
 }
 
-void bootstrapWithPear()
+void bootstrapWithRuntime()

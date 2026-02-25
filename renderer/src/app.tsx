@@ -81,12 +81,11 @@ function getPresenceUsers(
       const user = (state?.user ?? {}) as Partial<LocalUser>
       const key = typeof user.key === 'string' ? user.key.trim() : ''
       const resolved = key.length > 0
-      const color =
-        resolved
-          ? typeof user.color === 'string' && user.color.trim().length > 0
-            ? user.color
-            : colorFromKey(key)
-          : UNRESOLVED_USER_COLOR
+      const color = resolved
+        ? typeof user.color === 'string' && user.color.trim().length > 0
+          ? user.color
+          : colorFromKey(key)
+        : UNRESOLVED_USER_COLOR
 
       return {
         clientId,
@@ -156,10 +155,10 @@ export function App() {
   return (
     <>
       <SidebarProvider className='relative [--window-ctrl-width:78px] [--header-height:--spacing(12)] [--sidebar-width:--spacing(72)]'>
-        <div className='absolute h-(--header-height) w-(--window-ctrl-width) px-3 debug top-0 left-0 pt-[calc(--spacing(5)-1px)]'>
-          {/* @ts-ignore */}
-          <pear-ctrl></pear-ctrl>
-        </div>
+        <div
+          aria-hidden='true'
+          className='absolute h-(--header-height) w-(--window-ctrl-width) top-0 left-0 [-webkit-app-region:drag]'
+        />
 
         <DocsSidebar />
 

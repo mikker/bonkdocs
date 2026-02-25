@@ -1,18 +1,19 @@
-# Pear Docs Architecture Plan
+# Bonk Docs Architecture Plan
 
 ## Goals
 
-- Deliver a peer-to-peer Google Docs–style editor on Pear using Autobonk contexts.
+- Deliver a peer-to-peer Google Docs-style editor on Autobonk contexts.
 - Keep all non-renderer code plain JavaScript running on Bare runtime shims.
 - Power collaborative editing with Yjs CRDT updates while preserving offline resilience.
-- Reuse Autobonk invite flows so document access stays consistent across Pear apps.
+- Reuse Autobonk invite flows so document access stays consistent across apps.
 
 ## Key Decisions
 
 - **Editor Surface:** TipTap (ProseMirror-based) in the renderer with Yjs collaboration.
 - **Presence:** Yjs Awareness, relayed through the worker and replicated via an awareness log.
 - **Roles:** Doc-wide `owner`, `editor`, `commenter`, `viewer` seeded during context initialization.
-- **Runtime:** Bare-compatible modules only (`bare-path`, `bare-fs`, etc.) outside the Vite renderer.
+- **Desktop Runtime:** Electron shell with `pear-runtime` for Bare worker execution.
+- **Runtime Modules:** Bare-compatible modules only (`bare-path`, `bare-fs`, etc.) outside the Vite renderer.
 - **Testing:** Use `brittle` for unit/integration coverage mirroring other Pear projects.
 
 ## System Overview
@@ -22,6 +23,11 @@
 - `doc-context.js`: Extends `Context`, wires schema routes, seeds roles, manages snapshots.
 - `doc-manager.js`: Wraps Autobonk `Manager`, handles invite lifecycle, local metadata.
 - Yjs update log stored in `@bonk-docs/updates`, plus periodic snapshots under `@bonk-docs/snapshots`.
+
+### Desktop Shell (electron/)
+
+- `main.js`: Boots Electron, starts `pear-runtime`, and wires worker IPC to renderer preload bridge.
+- `preload.js`: Exposes `window.bridge` APIs used by renderer RPC transport.
 
 ### Worker Layer (worker/)
 

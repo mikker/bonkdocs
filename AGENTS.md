@@ -4,17 +4,17 @@
 
 - `schema.js` builds Autobonk-compatible bundles under `spec/`; update schemas then run `npm run schema:build`.
 - `core/` holds Bare-ready plain JS modules (e.g. `doc-context.js`, `doc-manager.js`, `ot/`).
-- `worker/` exposes the Pear worker entry (`doc-worker.js`, watchers, HRPC handlers). Keep it ESM, plain JS, Bare-compatible.
+- `worker/` exposes the Pear Runtime worker entry (`doc-worker.js`, watchers, HRPC handlers). Keep it ESM, plain JS, Bare-compatible.
 - `renderer/` is the only TypeScript zone; Vite handles builds and hot reload. UI state lives in Zustand stores, while TipTap powers the editor.
 - `docs/` captures architecture plans, roadmap, and additional design notes; keep it current with code changes.
 
 ## Build, Test & Development Commands
 
 - `npm install` once to fetch deps.
-- `npm run dev` starts Vite/Tailwind/Pear dev loop. Use it for interactive renderer work.
+- `npm run dev` starts Vite and Electron with Pear Runtime worker boot. Use it for interactive renderer work.
 - `npm run schema:build` regenerates `spec/` artifacts after schema updates.
 - `npm test` runs the `brittle` suites. Write new tests under `test/` with `.test.js`.
-- Prefer `npm run build` for production renderer bundles before packaging with Pear.
+- Prefer `npm run build` for production renderer bundles before packaging with Electron Forge.
 
 ## Coding Style & Tooling
 

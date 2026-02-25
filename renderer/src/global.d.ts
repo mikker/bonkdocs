@@ -1,5 +1,27 @@
 declare global {
   interface Window {
+    bridge: {
+      pkg: () => Record<string, any>
+      startWorker: (specifier: string) => Promise<unknown>
+      onWorkerStdout: (
+        specifier: string,
+        listener: (data: Uint8Array) => void
+      ) => () => void
+      onWorkerStderr: (
+        specifier: string,
+        listener: (data: Uint8Array) => void
+      ) => () => void
+      onWorkerIPC: (
+        specifier: string,
+        listener: (data: Uint8Array) => void
+      ) => () => void
+      onWorkerExit: (
+        specifier: string,
+        listener: (code: number) => void
+      ) => () => void
+      writeWorkerIPC: (specifier: string, data: Uint8Array) => Promise<unknown>
+    }
+
     Pear: {
       reload: () => void
       teardown: (callback: () => void | Promise<void>) => void
@@ -10,41 +32,6 @@ declare global {
   }
 
   const Pear: Window['Pear']
-
-  namespace JSX {
-    interface IntrinsicElements {
-      'pear-ctrl': React.DetailedHTMLProps<
-        React.HTMLAttributes<HTMLElement>,
-        HTMLElement
-      >
-    }
-  }
-}
-
-declare module 'pear-updates' {
-  export default function updates(
-    callback: (update: {
-      diff: Array<{ key: string; [key: string]: any }>
-      [key: string]: any
-    }) => void
-  ): void
-}
-
-declare module 'pear-run' {
-  interface Worker {
-    destroy: () => Promise<void>
-    [key: string]: any
-  }
-  function run(path: string): Worker
-  export default run
-}
-
-declare module 'framed-stream' {
-  class FramedStream {
-    constructor(stream: any)
-    [key: string]: any
-  }
-  export default FramedStream
 }
 
 declare module '../../../spec/hrpc/index.js' {

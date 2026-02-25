@@ -237,9 +237,15 @@ function updateLocalUserFromKey(
     return
   }
   set({ localUser: nextUser, clientId: nextUser.key })
-  const awareness = getState().currentUpdate?.awareness
-  if (awareness) {
-    awareness.setLocalStateField('user', nextUser)
+
+  // Avoid mutating the active editor awareness here. TipTap's collaboration
+  // cursor extension owns that lifecycle and updates it via editor command.
+  const activeDoc = getState().activeDoc
+  for (const session of sessions.values()) {
+    if (session.key === activeDoc) continue
+    try {
+      session.awareness.setLocalStateField('user', nextUser)
+    } catch {}
   }
 }
 

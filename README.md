@@ -1,12 +1,6 @@
-# Pear + React + TailwindCSS (Vite Edition)
+# Bonk Docs
 
-<img src="https://s3.brnbw.com/CleanShot-2025-08-07-at-10.01.38-2x-GH7rgUEYx7.png" width="800" />
-
-A minimal Pear desktop app setup with React and Tailwind CSS v4 via Vite.
-
-Build resilient P2P with the stack you already know.
-
-🍐 [Pear](https://pears.com) - P2P desktop app runtime
+Peer-to-peer collaborative docs on Autobonk with a React renderer, Electron shell, and Pear Runtime workers.
 
 ## Setup
 
@@ -20,16 +14,28 @@ npm install
 npm run dev
 ```
 
-Runs:
-
-- Vite in watch mode
-- Tailwind CSS in watch mode
-- Pear dev server with hot reload
+Runs Vite on `http://localhost:5173` and starts Electron with `pear-runtime`.
 
 ## Build
 
 ```bash
 npm run build
+```
+
+Builds the renderer into `renderer/dist`.
+
+## Package (local)
+
+```bash
+npm run package
+```
+
+Creates a local packaged Electron app with Electron Forge.
+
+## Test
+
+```bash
+npm test
 ```
 
 ## License
