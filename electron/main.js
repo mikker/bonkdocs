@@ -24,15 +24,31 @@ let pear = null
 const cmd = command(
   appName,
   flag('--storage', 'pass custom storage to pear-runtime'),
-  flag('--no-updates', 'start without OTA updates')
+  flag('--no-updates', 'start without OTA updates'),
+  flag(
+    '--remote-debugging-port [port]',
+    'enable Chromium remote debugging on a port'
+  )
 )
 
 cmd.parse(app.isPackaged ? process.argv.slice(1) : process.argv.slice(2))
 
 const pearStore = cmd.flags.storage
 const updates = cmd.flags.updates
+const remoteDebuggingPort = cmd.flags.remoteDebuggingPort
 const runtimeUpdates = Boolean(updates && upgrade)
 const runtimeUpgrade = upgrade || 'pear://updates-disabled'
+
+if (
+  remoteDebuggingPort !== undefined &&
+  remoteDebuggingPort !== null &&
+  String(remoteDebuggingPort).trim().length > 0
+) {
+  app.commandLine.appendSwitch(
+    'remote-debugging-port',
+    String(remoteDebuggingPort)
+  )
+}
 
 if (updates && !upgrade) {
   console.warn(

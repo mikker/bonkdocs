@@ -5,6 +5,8 @@ import type { Awareness } from 'y-protocols/awareness'
 
 type CollaborationCursorStorage = {
   users: { clientId: number; [key: string]: any }[]
+  awareness: Awareness | null
+  awarenessListener: (() => void) | null
 }
 
 export interface CollaborationCursorOptions {
@@ -34,6 +36,28 @@ const awarenessStatesToArray = (states: Map<number, Record<string, any>>) => {
 }
 
 const defaultOnUpdate = () => null
+
+function sameUser(
+  a: Record<string, any> | null | undefined,
+  b: Record<string, any> | null | undefined
+) {
+  if (a === b) return true
+  if (!a || !b) return false
+  const aKeys = Object.keys(a)
+  const bKeys = Object.keys(b)
+  if (aKeys.length !== bKeys.length) return false
+  for (const key of aKeys) {
+    if (a[key] !== b[key]) return false
+  }
+  return true
+}
+
+function setAwarenessUser(awareness: Awareness, user: Record<string, any>) {
+  const local = awareness.getLocalState()
+  const current = local && typeof local === 'object' ? local.user : undefined
+  if (sameUser(current, user)) return
+  awareness.setLocalStateField('user', user)
+}
 
 export const CollaborationCursor = Extension.create<
   CollaborationCursorOptions,
@@ -78,7 +102,9 @@ export const CollaborationCursor = Extension.create<
 
   addStorage() {
     return {
-      users: []
+      users: [],
+      awareness: null,
+      awarenessListener: null
     }
   },
 
@@ -90,7 +116,7 @@ export const CollaborationCursor = Extension.create<
         if (!awareness) return false
 
         this.options.user = attributes
-        awareness.setLocalStateField('user', this.options.user)
+        setAwarenessUser(awareness, this.options.user)
 
         return true
       },
@@ -111,13 +137,16 @@ export const CollaborationCursor = Extension.create<
 
     if (!awareness) return []
 
-    awareness.setLocalStateField('user', this.options.user)
+    setAwarenessUser(awareness, this.options.user)
 
+    this.storage.awareness = awareness
     this.storage.users = awarenessStatesToArray(awareness.getStates())
 
-    awareness.on('update', () => {
+    const handleUpdate = () => {
       this.storage.users = awarenessStatesToArray(awareness.getStates())
-    })
+    }
+    this.storage.awarenessListener = handleUpdate
+    awareness.on('update', handleUpdate)
 
     return [
       yCursorPlugin(awareness, {
@@ -125,6 +154,16 @@ export const CollaborationCursor = Extension.create<
         selectionBuilder: this.options.selectionRender
       })
     ]
+  },
+
+  onDestroy() {
+    const awareness = this.storage.awareness
+    const listener = this.storage.awarenessListener
+    if (awareness && listener) {
+      awareness.off('update', listener)
+    }
+    this.storage.awareness = null
+    this.storage.awarenessListener = null
   }
 })
 

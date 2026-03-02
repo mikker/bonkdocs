@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { EditorContent, useEditor } from '@tiptap/react'
 import { BubbleMenu } from '@tiptap/react/menus'
 import StarterKit from '@tiptap/starter-kit'
@@ -42,8 +42,12 @@ export function DocEditor({
   const [linkDialogOpen, setLinkDialogOpen] = useState(false)
   const [linkValue, setLinkValue] = useState('')
   const prevReadOnlyRef = useRef(readOnly)
+  const prevCursorUserRef = useRef('')
 
-  const cursorUser = user ?? { name: 'You', color: '#111827' }
+  const cursorUser = useMemo(
+    () => user ?? { name: 'You', color: '#111827' },
+    [user]
+  )
 
   const editor = useEditor(
     {
@@ -82,7 +86,18 @@ export function DocEditor({
 
   useEffect(() => {
     if (!editor || !awareness) return
-    editor.commands.updateUser(cursorUser)
+    const next = `${cursorUser.name}:${cursorUser.color}`
+    if (prevCursorUserRef.current === next) return
+    prevCursorUserRef.current = next
+    const frame = window.requestAnimationFrame(() => {
+      if (editor.isDestroyed) return
+      try {
+        editor.commands.updateUser(cursorUser)
+      } catch {}
+    })
+    return () => {
+      window.cancelAnimationFrame(frame)
+    }
   }, [editor, awareness, cursorUser])
 
   useEffect(() => {

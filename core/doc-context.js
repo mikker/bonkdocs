@@ -1,4 +1,5 @@
 import { Context } from 'autobonk'
+import { registerYjsRoutes } from 'autobonk-yjs'
 import {
   DEFAULT_TITLE,
   METADATA_ID,
@@ -67,82 +68,13 @@ export class DocContext extends Context {
       }
     )
 
-    this.router.add('@bonk-docs/update-append', async (data = {}, context) => {
-      await this.requireDocPermission(context.writerKey, PERMISSIONS.DOC_EDIT)
-
-      if (typeof data.clientId !== 'string' || data.clientId.length === 0) {
-        throw new Error('update-append requires clientId')
-      }
-      if (!data.data) {
-        throw new Error('update-append requires data buffer')
-      }
-
-      const latest = await getLatestEntry(context.view, '@bonk-docs/updates')
-      const nextRev = latest ? latest.rev + 1 : 1
-
-      const record = {
-        clientId: data.clientId,
-        timestamp: data.timestamp || Date.now(),
-        data: data.data,
-        rev: nextRev
-      }
-
-      if (typeof data.sessionId === 'string' && data.sessionId.length > 0) {
-        record.sessionId = data.sessionId
-      }
-
-      await context.view.insert('@bonk-docs/updates', record)
-    })
-
-    this.router.add(
-      '@bonk-docs/awareness-append',
-      async (data = {}, context) => {
-        await this.requireDocMember(context.writerKey)
-
-        if (!data.data) {
-          throw new Error('awareness-append requires data buffer')
-        }
-
-        const latest = await getLatestEntry(
-          context.view,
-          '@bonk-docs/awareness'
-        )
-        const nextRev = latest ? latest.rev + 1 : 1
-
-        const record = {
-          timestamp: data.timestamp || Date.now(),
-          data: data.data,
-          rev: nextRev
-        }
-
-        if (typeof data.clientId === 'string' && data.clientId.length > 0) {
-          record.clientId = data.clientId
-        }
-
-        await context.view.insert('@bonk-docs/awareness', record)
-      }
-    )
-
-    this.router.add('@bonk-docs/snapshot-save', async (data = {}, context) => {
-      await this.requireDocPermission(
-        context.writerKey,
-        PERMISSIONS.DOC_SNAPSHOT
-      )
-
-      if (typeof data.rev !== 'number') {
-        throw new Error('snapshot-save requires numeric rev')
-      }
-      if (!data.data) {
-        throw new Error('snapshot-save requires snapshot data')
-      }
-
-      await context.view.insert('@bonk-docs/snapshots', {
-        rev: data.rev,
-        createdAt: data.createdAt || Date.now(),
-        compression: data.compression || null,
-        data: data.data,
-        hash: data.hash || null
-      })
+    registerYjsRoutes(this, {
+      namespace: 'bonk-docs',
+      requireUpdatePermission: (writerKey) =>
+        this.requireDocPermission(writerKey, PERMISSIONS.DOC_EDIT),
+      requireAwarenessPermission: (writerKey) => this.requireDocMember(writerKey),
+      requireSnapshotPermission: (writerKey) =>
+        this.requireDocPermission(writerKey, PERMISSIONS.DOC_SNAPSHOT)
     })
   }
 

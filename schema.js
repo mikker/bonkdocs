@@ -4,6 +4,11 @@ import HyperdbBuilder from 'hyperdb/builder'
 import Hyperdispatch from 'hyperdispatch'
 import HRPCBuilder from 'hrpc'
 import { extendSchema, extendDb, extendDispatch } from 'autobonk'
+import {
+  extendYjsSchema,
+  extendYjsDb,
+  extendYjsDispatch
+} from 'autobonk-yjs'
 
 const specRoot = './spec'
 const schemaDir = specRoot + '/schema'
@@ -16,6 +21,7 @@ const schema = Hyperschema.from(schemaDir)
 extendSchema(schema)
 
 const docs = schema.namespace('bonk-docs')
+extendYjsSchema(schema, { namespace: 'bonk-docs' })
 
 docs.register({
   name: 'metadata',
@@ -30,63 +36,6 @@ docs.register({
     { name: 'rev', type: 'uint', required: true },
     { name: 'lockedAt', type: 'uint', required: false },
     { name: 'lockedBy', type: 'fixed32', required: false }
-  ]
-})
-
-docs.register({
-  name: 'update',
-  compact: false,
-  fields: [
-    { name: 'rev', type: 'uint', required: true },
-    { name: 'clientId', type: 'string', required: true },
-    { name: 'timestamp', type: 'uint', required: true },
-    { name: 'data', type: 'buffer', required: true },
-    { name: 'sessionId', type: 'string', required: false }
-  ]
-})
-
-docs.register({
-  name: 'update-entry',
-  compact: false,
-  fields: [
-    { name: 'clientId', type: 'string', required: true },
-    { name: 'timestamp', type: 'uint', required: true },
-    { name: 'data', type: 'buffer', required: true },
-    { name: 'sessionId', type: 'string', required: false }
-  ]
-})
-
-docs.register({
-  name: 'snapshot',
-  compact: false,
-  fields: [
-    { name: 'rev', type: 'uint', required: true },
-    { name: 'createdAt', type: 'uint', required: true },
-    { name: 'compression', type: 'string', required: false },
-    { name: 'data', type: 'buffer', required: true },
-    { name: 'hash', type: 'buffer', required: false },
-    { name: 'stateVector', type: 'buffer', required: false }
-  ]
-})
-
-docs.register({
-  name: 'awareness',
-  compact: false,
-  fields: [
-    { name: 'rev', type: 'uint', required: true },
-    { name: 'timestamp', type: 'uint', required: true },
-    { name: 'data', type: 'buffer', required: true },
-    { name: 'clientId', type: 'string', required: false }
-  ]
-})
-
-docs.register({
-  name: 'awareness-entry',
-  compact: false,
-  fields: [
-    { name: 'timestamp', type: 'uint', required: true },
-    { name: 'data', type: 'buffer', required: true },
-    { name: 'clientId', type: 'string', required: false }
   ]
 })
 
@@ -425,26 +374,12 @@ const dbBuilder = HyperdbBuilder.from(schemaDir, dbDir)
 extendDb(dbBuilder)
 
 const docsDb = dbBuilder.namespace('bonk-docs')
+extendYjsDb(dbBuilder, { namespace: 'bonk-docs' })
 
 docsDb.collections.register({
   name: 'metadata',
   schema: '@bonk-docs/metadata',
   key: ['id']
-})
-docsDb.collections.register({
-  name: 'updates',
-  schema: '@bonk-docs/update',
-  key: ['rev']
-})
-docsDb.collections.register({
-  name: 'snapshots',
-  schema: '@bonk-docs/snapshot',
-  key: ['rev']
-})
-docsDb.collections.register({
-  name: 'awareness',
-  schema: '@bonk-docs/awareness',
-  key: ['rev']
 })
 const localDb = dbBuilder.namespace('local')
 
@@ -461,23 +396,14 @@ const dispatch = Hyperdispatch.from(schemaDir, dispatchDir)
 extendDispatch(dispatch)
 
 const docDispatch = dispatch.namespace('bonk-docs')
+extendYjsDispatch(dispatch, {
+  namespace: 'bonk-docs',
+  awarenessDispatchId: 14
+})
 
 docDispatch.register({
   name: 'metadata-upsert',
   requestType: '@bonk-docs/metadata'
-})
-docDispatch.register({
-  name: 'update-append',
-  requestType: '@bonk-docs/update-entry'
-})
-docDispatch.register({
-  name: 'snapshot-save',
-  requestType: '@bonk-docs/snapshot'
-})
-docDispatch.register({
-  name: 'awareness-append',
-  requestType: '@bonk-docs/awareness-entry',
-  id: 14
 })
 Hyperdispatch.toDisk(dispatch)
 

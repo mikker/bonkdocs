@@ -3,10 +3,10 @@ import { mkdir } from 'fs/promises'
 import { DocManager } from '../../core/doc-manager.js'
 import { ensurePear } from '../../lib/pear-env.js'
 ensurePear()
+import { YjsSyncEngine } from 'autobonk-yjs'
 import z32 from 'z32'
 import * as Y from 'yjs'
 import {
-  Awareness,
   applyAwarenessUpdate,
   encodeAwarenessUpdate
 } from 'y-protocols/awareness'
@@ -24,9 +24,6 @@ import {
   toUint8Array
 } from '../../lib/codec.js'
 
-const SNAPSHOT_OPS_INTERVAL = 50
-const SNAPSHOT_TIME_INTERVAL = 60_000
-const MAX_BROADCAST_UPDATES = 200
 const REMOTE_ORIGIN = 'remote'
 
 function isCoreClosingError(error) {
@@ -40,27 +37,19 @@ function isCoreClosingError(error) {
   )
 }
 
-async function eachCursor(cursor, handler) {
-  if (!cursor) return
-  if (typeof cursor[Symbol.asyncIterator] === 'function') {
-    for await (const record of cursor) {
-      await handler(record)
-    }
-    return
-  }
-  const records = await cursor.toArray()
-  for (const record of records) {
-    await handler(record)
-  }
-}
-
 export class DocWorker {
   constructor(options = {}) {
     this.baseDir = options.baseDir
     this.watchers = new Map()
-    this.syncs = new Map()
-    this.syncQueues = new Map()
     this.subscriptions = new Map()
+    this.syncEngine = new YjsSyncEngine({
+      namespace: 'bonk-docs',
+      toUint8Array,
+      remoteOrigin: REMOTE_ORIGIN,
+      onSnapshotError: (error) => {
+        console.warn('[doc-worker] failed to persist snapshot', error)
+      }
+    })
 
     if (options.ensureStorage !== false) {
       void mkdir(this.baseDir, { recursive: true }).catch(() => {})
@@ -92,16 +81,7 @@ export class DocWorker {
       } catch {}
     }
     this.subscriptions.clear()
-    for (const sync of this.syncs.values()) {
-      try {
-        sync.awareness?.destroy?.()
-      } catch {}
-      try {
-        sync.doc?.destroy?.()
-      } catch {}
-    }
-    this.syncs.clear()
-    this.syncQueues.clear()
+    await this.syncEngine.close()
     await this.manager.close()
   }
 
@@ -633,210 +613,37 @@ export class DocWorker {
   }
 
   async _ensureSync(context) {
-    const keyHex = bufferToHex(context.key)
-    const existing = this.syncs.get(keyHex)
-    if (existing && existing.ready) return existing
-    if (existing && existing.loading) {
-      return await existing.loading
-    }
-
-    const sync = {
-      doc: new Y.Doc(),
-      awareness: null,
-      lastRev: 0,
-      lastAwarenessRev: 0,
-      lastUpdateAt: 0,
-      lastSnapshotAt: 0,
-      updatesSinceSnapshot: 0,
-      loading: null,
-      ready: false
-    }
-    sync.awareness = new Awareness(sync.doc)
-
-    sync.loading = (async () => {
-      let snapshotRecord = null
-      try {
-        snapshotRecord = await context.base.view.findOne(
-          '@bonk-docs/snapshots',
-          { reverse: true, limit: 1 }
-        )
-      } catch {}
-
-      if (snapshotRecord?.data) {
-        const snapshotUpdate = toUint8Array(snapshotRecord.data)
-        if (snapshotUpdate) {
-          Y.applyUpdate(sync.doc, snapshotUpdate, REMOTE_ORIGIN)
-        }
-        if (typeof snapshotRecord.rev === 'number') {
-          sync.lastRev = snapshotRecord.rev
-        }
-        if (typeof snapshotRecord.createdAt === 'number') {
-          sync.lastSnapshotAt = snapshotRecord.createdAt
-        }
-      }
-
-      const cursor = context.base.view.find('@bonk-docs/updates', {
-        gt: { rev: sync.lastRev }
-      })
-      let recordsCount = 0
-      await eachCursor(cursor, (record) => {
-        const update = toUint8Array(record?.data)
-        if (update) {
-          Y.applyUpdate(sync.doc, update, REMOTE_ORIGIN)
-        }
-        if (typeof record.rev === 'number') {
-          sync.lastRev = record.rev
-        }
-        if (typeof record.timestamp === 'number') {
-          sync.lastUpdateAt = Math.max(sync.lastUpdateAt, record.timestamp)
-        }
-        recordsCount += 1
-      })
-
-      sync.updatesSinceSnapshot = recordsCount
-
-      try {
-        const latestAwareness = await context.base.view.findOne(
-          '@bonk-docs/awareness',
-          { reverse: true, limit: 1 }
-        )
-        sync.lastAwarenessRev =
-          typeof latestAwareness?.rev === 'number' ? latestAwareness.rev : 0
-      } catch {
-        sync.lastAwarenessRev = 0
-      }
-
-      sync.ready = true
-      sync.loading = null
-      return sync
-    })()
-
-    this.syncs.set(keyHex, sync)
-    return await sync.loading
+    return await this.syncEngine.ensure(context, bufferToHex(context.key))
   }
 
   async _refreshSync(context, sync) {
-    const latest = await context.base.view.findOne('@bonk-docs/updates', {
-      reverse: true,
-      limit: 1
-    })
-    const latestRev = typeof latest?.rev === 'number' ? latest.rev : 0
-    if (latestRev <= sync.lastRev) {
-      return { updates: [], syncUpdate: null, count: 0 }
-    }
-
-    const cursor = context.base.view.find('@bonk-docs/updates', {
-      gt: { rev: sync.lastRev },
-      lte: { rev: latestRev }
-    })
-    let updates = []
-    let truncated = false
-    let lastRev = sync.lastRev
-    let recordsCount = 0
-
-    await eachCursor(cursor, (record) => {
-      const update = toUint8Array(record?.data)
-      if (update) {
-        Y.applyUpdate(sync.doc, update, REMOTE_ORIGIN)
-      }
-      if (typeof record.timestamp === 'number') {
-        sync.lastUpdateAt = Math.max(sync.lastUpdateAt, record.timestamp)
-      }
-      if (typeof record.rev === 'number') {
-        lastRev = record.rev
-      }
-      recordsCount += 1
-
-      if (!truncated) {
-        if (updates.length < MAX_BROADCAST_UPDATES) {
-          updates.push(record)
-        } else {
-          truncated = true
-          updates = null
-        }
-      }
-    })
-
-    if (recordsCount > 0) {
-      sync.lastRev = lastRev
-      sync.updatesSinceSnapshot += recordsCount
-      await this._persistSnapshot(context, sync)
-    }
-
-    const syncUpdate =
-      truncated && recordsCount > 0 ? Y.encodeStateAsUpdate(sync.doc) : null
-
-    return {
-      updates: updates && updates.length > 0 ? updates : [],
-      syncUpdate,
-      count: recordsCount
-    }
+    return await this.syncEngine.refresh(
+      context,
+      bufferToHex(context.key),
+      sync
+    )
   }
 
   async _refreshAwareness(context, sync) {
-    const latest = await context.base.view.findOne('@bonk-docs/awareness', {
-      reverse: true,
-      limit: 1
-    })
-    const latestRev = typeof latest?.rev === 'number' ? latest.rev : 0
-    if (latestRev <= sync.lastAwarenessRev) {
-      return false
-    }
-
-    const cursor = context.base.view.find('@bonk-docs/awareness', {
-      gt: { rev: sync.lastAwarenessRev },
-      lte: { rev: latestRev }
-    })
-    let changed = false
-
-    await eachCursor(cursor, (record) => {
-      const update = toUint8Array(record?.data)
-      if (update) {
-        applyAwarenessUpdate(sync.awareness, update, REMOTE_ORIGIN)
-      }
-      changed = true
-    })
-
-    sync.lastAwarenessRev = latestRev
-    return changed
+    return await this.syncEngine.refreshAwareness(
+      context,
+      bufferToHex(context.key),
+      sync
+    )
   }
 
   async _persistSnapshot(context, sync, options = {}) {
-    const force = options.force === true
-    const now = Date.now()
-    const lastActivityAt = sync.lastSnapshotAt || sync.lastUpdateAt || 0
-    const timeReady =
-      lastActivityAt > 0 && now - lastActivityAt >= SNAPSHOT_TIME_INTERVAL
-    const shouldSnapshot =
-      force ||
-      sync.updatesSinceSnapshot >= SNAPSHOT_OPS_INTERVAL ||
-      (sync.updatesSinceSnapshot > 0 && timeReady)
-
-    if (!shouldSnapshot) return
-
-    try {
-      const update = Y.encodeStateAsUpdate(sync.doc)
-      const vector = Y.encodeStateVector(sync.doc)
-      await context.recordSnapshot({
-        rev: sync.lastRev,
-        createdAt: now,
-        data: Buffer.from(update),
-        stateVector: Buffer.from(vector)
-      })
-      sync.lastSnapshotAt = now
-      sync.updatesSinceSnapshot = 0
-    } catch (error) {
-      console.warn('[doc-worker] failed to persist snapshot', error)
-    }
+    return await this.syncEngine.persistSnapshot(
+      context,
+      bufferToHex(context.key),
+      options,
+      sync
+    )
   }
 
   _queueBroadcast(context) {
     const keyHex = bufferToHex(context.key)
-    const previous = this.syncQueues.get(keyHex) ?? Promise.resolve()
-    const next = previous
-      .catch(() => {})
-      .then(() => this._broadcastUpdates(context))
-    this.syncQueues.set(keyHex, next)
+    this.syncEngine.queue(keyHex, () => this._broadcastUpdates(context))
   }
 
   async _broadcastUpdates(context) {
@@ -945,28 +752,7 @@ export class DocWorker {
   }
 
   _releaseSync(keyHex) {
-    const sync = this.syncs.get(keyHex)
-    if (!sync) return
-
-    this.syncs.delete(keyHex)
-    this.syncQueues.delete(keyHex)
-
-    const destroy = () => {
-      try {
-        sync.awareness?.destroy?.()
-      } catch {}
-      try {
-        sync.doc?.destroy?.()
-      } catch {}
-    }
-
-    if (sync.loading) {
-      Promise.resolve(sync.loading)
-        .catch(() => {})
-        .finally(destroy)
-    } else {
-      destroy()
-    }
+    this.syncEngine.release(keyHex)
   }
 
   _teardownWatchers(keyHex) {
