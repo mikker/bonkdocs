@@ -11,7 +11,7 @@ npm install
 ## Development
 
 ```bash
-npm run dev
+npm run desktop:dev
 ```
 
 Runs Vite on `http://localhost:5173` and starts Electron with `pear-runtime`.
@@ -20,13 +20,13 @@ Like `hello-pear-electron`, development runs with OTA updates disabled and uses 
 For isolated manual testing, prefer an explicit storage directory:
 
 ```bash
-npm run start -- --storage /tmp/bonk-docs-test
+npm run desktop:start -- --storage /tmp/bonk-docs-test
 ```
 
 ## Build
 
 ```bash
-npm run build
+npm run desktop:build
 ```
 
 Builds the renderer into `renderer/dist`.
@@ -34,7 +34,7 @@ Builds the renderer into `renderer/dist`.
 ## Package (local)
 
 ```bash
-npm run package
+npm run desktop:package
 ```
 
 Creates a local packaged Electron app with Electron Forge.

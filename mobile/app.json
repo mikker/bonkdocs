@@ -1,0 +1,15 @@
+{
+  "expo": {
+    "name": "Bonk Docs Mobile",
+    "slug": "bonkdocs-mobile",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "plugins": [["pear-runtime-react-native/plugin"]],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "to.holepunch.bonkdocs.mobile"
+    }
+  }
+}

@@ -31,3 +31,11 @@
 - Integrate asset permissions and upload/download HRPC routes.
 - Document extension hooks for future features (templates, export).
 - Conduct broader reliability testing (offline → online transitions, large doc playback).
+
+## Phase 4 — Hybrid Hosts
+
+- Extract the shared backend into `packages/bonkdocs-core`.
+- Keep the current Electron app as the first `desktop` host over that package.
+- Scaffold a React Native `mobile` host using the local `hello-pear-react-native` layout.
+- Reuse the same worker/runtime and HRPC contract across desktop and mobile.
+- Decide first-pass mobile editor strategy after watch/sync flows are stable.

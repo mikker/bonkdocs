@@ -6,6 +6,7 @@
 - Keep all non-renderer code plain JavaScript running on Bare runtime shims.
 - Power collaborative editing with Yjs CRDT updates while preserving offline resilience.
 - Reuse Autobonk invite flows so document access stays consistent across apps.
+- Extract the shared backend so desktop and mobile hosts can run the same sync engine.
 
 ## Key Decisions
 
@@ -18,22 +19,27 @@
 
 ## System Overview
 
-### Autobonk Domain (core/)
+### Shared Backend (`packages/bonkdocs-core`)
 
-- `doc-context.js`: Extends `Context`, wires schema routes, seeds roles, manages snapshots.
-- `doc-manager.js`: Wraps Autobonk `Manager`, handles invite lifecycle, local metadata.
+- `domain/doc-context.js`: Extends `Context`, wires schema routes, seeds roles, manages snapshots.
+- `domain/doc-manager.js`: Wraps Autobonk `Manager`, handles invite lifecycle, local metadata.
 - Yjs update log stored in `@bonk-docs/updates`, plus periodic snapshots under `@bonk-docs/snapshots`.
+- `service/doc-worker.js`: Local backend used by every host UI.
+- `worker-runtime.js`: Boots HRPC against the shared worker in a Bare runtime.
 
 ### Desktop Shell (electron/)
 
 - `main.js`: Boots Electron, starts `pear-runtime`, and wires worker IPC to renderer preload bridge.
 - `preload.js`: Exposes `window.bridge` APIs used by renderer RPC transport.
 
+### Mobile Shell (planned)
+
+- React Native host starts a bundled Bare worklet using the same shared worker runtime.
+- The worklet owns `pear-mobile`, storage, and mobile OTA behavior.
+
 ### Worker Layer (worker/)
 
-- `doc-worker.js`: HRPC handlers (`initialize`, `listDocs`, `createDoc`, `joinDoc`, `watchDoc`, `applyUpdates`, `applyAwareness`, `issueInvite`, `revokeInvite`, `addComment` later).
-- Streams Yjs updates to renderers via `watchDoc`; applies incoming updates to Autobase log.
-- Maintains an in-memory Y.Doc per active context plus periodic snapshots for fast rehydration.
+- `worker/` now serves as a compatibility wrapper around `packages/bonkdocs-core` while the desktop host is migrated.
 
 ### Renderer Layer (renderer/)
 
@@ -58,4 +64,5 @@
 
 - `brittle` suites cover Yjs update flows, worker HRPC handlers (`test/worker`), and presence timing edges.
 - Schema updates go through `npm run schema:build` (already wired) to regenerate dispatch/db/hrpc bundles.
+- Desktop manual development now runs through `npm run desktop:dev`.
 - Linting/formatting remains whatever the repo currently enforces; avoid introducing TypeScript outside `renderer/`.

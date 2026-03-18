@@ -1,0 +1,32 @@
+{
+  "name": "bonkdocs-mobile",
+  "private": true,
+  "version": "0.1.0",
+  "main": "index.ts",
+  "scripts": {
+    "bundle:bare": "npx bare-pack --host ios-arm64 --host ios-arm64-simulator --host ios-x64-simulator --linked --out ./src/worker.bundle.js ./pearend/worker.js",
+    "prebuild": "npx expo prebuild --platform ios",
+    "preios": "npm run bundle:bare",
+    "ios": "expo run:ios",
+    "lint": "lunte",
+    "format": "prettier . --write",
+    "test": "prettier . --check && lunte"
+  },
+  "dependencies": {
+    "expo": "~54.0.33",
+    "expo-status-bar": "~3.0.9",
+    "graceful-goodbye": "^1.3.3",
+    "pear-mobile": "^4.0.0",
+    "pear-runtime-react-native": "^2.0.1",
+    "react": "19.1.0",
+    "react-native": "0.81.5"
+  },
+  "devDependencies": {
+    "@types/react": "~19.1.0",
+    "bare-pack": "^2.0.0",
+    "lunte": "^1.6.0",
+    "prettier": "^3.8.1",
+    "prettier-config-holepunch": "^2.0.0",
+    "typescript": "~5.9.2"
+  }
+}

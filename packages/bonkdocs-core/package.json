@@ -1,0 +1,6 @@
+{
+  "name": "bonkdocs-core",
+  "private": true,
+  "type": "module",
+  "main": "./index.js"
+}
