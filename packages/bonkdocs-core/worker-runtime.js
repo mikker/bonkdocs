@@ -106,7 +106,7 @@ function createBareIpcStream() {
   return stream
 }
 
-async function bootstrapWithRuntime() {
+export async function bootstrapWorkerRuntime() {
   const ipcStream = createBareIpcStream()
   if (!ipcStream) return
 
@@ -127,5 +127,3 @@ async function bootstrapWithRuntime() {
   ipcStream.on('close', cleanup)
   ipcStream.on('error', () => {})
 }
-
-void bootstrapWithRuntime()
