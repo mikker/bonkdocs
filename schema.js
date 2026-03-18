@@ -4,11 +4,7 @@ import HyperdbBuilder from 'hyperdb/builder'
 import Hyperdispatch from 'hyperdispatch'
 import HRPCBuilder from 'hrpc'
 import { extendSchema, extendDb, extendDispatch } from 'autobonk'
-import {
-  extendYjsSchema,
-  extendYjsDb,
-  extendYjsDispatch
-} from 'autobonk-yjs'
+import { extendYjsSchema, extendYjsDb, extendYjsDispatch } from 'autobonk-yjs'
 
 const specRoot = './spec'
 const schemaDir = specRoot + '/schema'

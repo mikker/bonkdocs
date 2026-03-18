@@ -72,7 +72,8 @@ export class DocContext extends Context {
       namespace: 'bonk-docs',
       requireUpdatePermission: (writerKey) =>
         this.requireDocPermission(writerKey, PERMISSIONS.DOC_EDIT),
-      requireAwarenessPermission: (writerKey) => this.requireDocMember(writerKey),
+      requireAwarenessPermission: (writerKey) =>
+        this.requireDocMember(writerKey),
       requireSnapshotPermission: (writerKey) =>
         this.requireDocPermission(writerKey, PERMISSIONS.DOC_SNAPSHOT)
     })
