@@ -4,7 +4,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { readFileSync } from 'node:fs'
 import PearRuntime from 'pear-runtime'
-import { isMac, isLinux } from 'which-runtime'
+import { isMac, isLinux, isWindows } from 'which-runtime'
 import { command, flag } from 'paparam'
 
 const __filename = fileURLToPath(import.meta.url)
@@ -73,34 +73,47 @@ function resolveDefaultStorageDir() {
     return path.join(os.homedir(), '.config', appName)
   }
 
-  return path.join(os.homedir(), 'AppData', 'Roaming', appName)
+  return path.join(os.homedir(), 'AppData', 'Local', appName)
 }
 
 function getAppPath() {
   if (!app.isPackaged) return null
   if (isLinux && process.env.APPIMAGE) return process.env.APPIMAGE
+  if (isWindows) return process.execPath
   return path.join(process.resourcesPath, '..', '..')
 }
 
-function getPearRuntimeName(appPath) {
-  return appPath ? path.basename(appPath) : appName
+function getPearRuntimeName() {
+  const extension = isLinux ? '.AppImage' : isMac ? '.app' : '.msix'
+  return `${appName}${extension}`
 }
 
 function getPear() {
   if (pear) return pear
 
   const appPath = getAppPath()
-  const dir = pearStore || resolveDefaultStorageDir()
+  let dir = null
+
+  if (pearStore) {
+    console.log('pear store: ' + pearStore)
+    dir = pearStore
+  } else if (appPath === null) {
+    dir = path.join(os.tmpdir(), 'pear', appName)
+  } else {
+    dir = resolveDefaultStorageDir()
+  }
 
   pear = new PearRuntime({
     dir,
     app: appPath,
-    name: getPearRuntimeName(appPath),
+    name: getPearRuntimeName(),
     updates: runtimeUpdates,
     version,
-    upgrade: runtimeUpgrade
+    upgrade: runtimeUpgrade,
+    win32: { restart: true }
   })
 
+  pear.on('error', console.error)
   return pear
 }
 
@@ -176,6 +189,28 @@ async function createWindow() {
     }
   })
 
+  const pearRuntime = getPear()
+
+  const onUpdating = () => {
+    if (!win.isDestroyed()) {
+      win.webContents.send('pear:event:updating')
+    }
+  }
+
+  const onUpdated = () => {
+    if (!win.isDestroyed()) {
+      win.webContents.send('pear:event:updated')
+    }
+  }
+
+  pearRuntime.updater.on('updating', onUpdating)
+  pearRuntime.updater.on('updated', onUpdated)
+
+  win.on('closed', () => {
+    pearRuntime.updater.removeListener('updating', onUpdating)
+    pearRuntime.updater.removeListener('updated', onUpdated)
+  })
+
   const devServerUrl = process.env.PEAR_DEV_SERVER_URL
 
   if (devServerUrl) {
@@ -189,10 +224,27 @@ async function createWindow() {
   )
 }
 
+ipcMain.handle('pear:applyUpdate', () => getPear().updater.applyUpdate())
 ipcMain.handle('pear:startWorker', (evt, filename) => {
   const specifier = filename.startsWith('/') ? filename : '/' + filename
   getWorker(specifier)
   return true
+})
+ipcMain.handle('app:restart', () => {
+  if (isLinux && process.env.APPIMAGE) {
+    app.relaunch({
+      execPath: process.env.APPIMAGE,
+      args: [
+        '--appimage-extract-and-run',
+        ...process.argv
+          .slice(1)
+          .filter((arg) => arg !== '--appimage-extract-and-run')
+      ]
+    })
+  } else {
+    app.relaunch()
+  }
+  app.exit(0)
 })
 
 function handleDeepLink(url) {

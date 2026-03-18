@@ -15,6 +15,13 @@ npm run dev
 ```
 
 Runs Vite on `http://localhost:5173` and starts Electron with `pear-runtime`.
+Like `hello-pear-electron`, development runs with OTA updates disabled and uses temporary Pear storage unless you pass an explicit `--storage` path.
+
+For isolated manual testing, prefer an explicit storage directory:
+
+```bash
+npm run start -- --storage /tmp/bonk-docs-test
+```
 
 ## Build
 

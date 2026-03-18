@@ -1,17 +1,20 @@
 const pkg = require('./package.json')
 const appName = pkg.productName ?? pkg.name
 
-module.exports = {
-  packagerConfig: {
-    protocols: [{ name: appName, schemes: [pkg.name] }],
-    osxSign: {
-      identity: 'Developer ID Application: Mikkel Malmberg (DDB8SQMXS9)'
-    },
-    osxNotarize: {
-      tool: 'notarytool',
-      keychainProfile: 'TunaNotary'
-    }
+const packagerConfig = {
+  protocols: [{ name: appName, schemes: [pkg.name] }],
+  derefSymlinks: true,
+  osxSign: {
+    identity: 'Developer ID Application: Mikkel Malmberg (DDB8SQMXS9)'
   },
+  osxNotarize: {
+    tool: 'notarytool',
+    keychainProfile: 'TunaNotary'
+  }
+}
+
+module.exports = {
+  packagerConfig,
 
   makers: [
     {
