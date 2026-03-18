@@ -82,6 +82,10 @@ function getAppPath() {
   return path.join(process.resourcesPath, '..', '..')
 }
 
+function getPearRuntimeName(appPath) {
+  return appPath ? path.basename(appPath) : appName
+}
+
 function getPear() {
   if (pear) return pear
 
@@ -91,6 +95,7 @@ function getPear() {
   pear = new PearRuntime({
     dir,
     app: appPath,
+    name: getPearRuntimeName(appPath),
     updates: runtimeUpdates,
     version,
     upgrade: runtimeUpgrade
