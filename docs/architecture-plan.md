@@ -17,6 +17,16 @@
 - **Runtime Modules:** Bare-compatible modules only (`bare-path`, `bare-fs`, etc.) outside the Vite renderer.
 - **Testing:** Use `brittle` for unit/integration coverage mirroring other Pear projects.
 
+## Naming Conventions
+
+- Use `core` for the shared backend under `packages/bonkdocs-core`.
+- Use `electron` for the desktop host in `electron/` plus `renderer/`.
+- Use `native` for the React Native host in `mobile/`.
+- Use `mobile editor bundle` for the embedded web editor under `renderer/src/mobile-editor/` that is generated into `mobile/src/generated/editor-web-bundle.ts`.
+- Do not use `mobile` to mean "small Electron window" when discussing bugs or feature work.
+
+See [nomenclature.md](./nomenclature.md) for the canonical wording.
+
 ## System Overview
 
 ### Shared Backend (`packages/bonkdocs-core`)
