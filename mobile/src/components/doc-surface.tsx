@@ -251,6 +251,7 @@ export function DocSurface({ doc }: DocSurfaceProps) {
     <View style={styles.frame}>
       <WebView
         ref={webViewRef}
+        style={styles.webView}
         originWhitelist={['*']}
         source={source}
         onMessage={(event) => void handleMessage(event)}
@@ -272,11 +273,11 @@ export function DocSurface({ doc }: DocSurfaceProps) {
 
 const styles = StyleSheet.create({
   frame: {
-    minHeight: 520,
-    overflow: 'hidden',
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: '#e5e5e5',
+    flex: 1,
+    backgroundColor: '#ffffff'
+  },
+  webView: {
+    flex: 1,
     backgroundColor: '#ffffff'
   },
   overlay: {

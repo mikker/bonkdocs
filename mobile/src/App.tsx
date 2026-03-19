@@ -5,18 +5,30 @@ import {
   ActionSheetIOS,
   Alert,
   Button,
-  Image,
   Linking,
+  Modal,
   Platform,
   Pressable,
   Share,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View
 } from 'react-native'
-import { NavigationContainer, DefaultTheme } from '@react-navigation/native'
+import {
+  createNavigationContainerRef,
+  DefaultTheme,
+  DrawerActions,
+  NavigationContainer,
+  NavigatorScreenParams,
+  StackActions
+} from '@react-navigation/native'
+import {
+  createDrawerNavigator,
+  DrawerContentScrollView,
+  DrawerItem,
+  type DrawerContentComponentProps
+} from '@react-navigation/drawer'
 import {
   createNativeStackNavigator,
   type NativeStackScreenProps
@@ -44,18 +56,22 @@ type RootStackParamList = {
   }
 }
 
-type HomeScreenProps = NativeStackScreenProps<RootStackParamList, 'Home'> & {
-  docs: MobileDocRecord[]
-  loading: boolean
-  refreshDocs: () => Promise<void>
-  upsertDoc: (doc: MobileDocRecord) => void
+type RootDrawerParamList = {
+  Main: NavigatorScreenParams<RootStackParamList> | undefined
+}
+
+type HomeScreenProps = {
   appError: string | null
+  hasDocs: boolean
 }
 
 type DocScreenProps = NativeStackScreenProps<RootStackParamList, 'Doc'> & {
   lookupDoc: (key: string) => MobileDocRecord | null
   upsertDoc: (doc: MobileDocRecord) => void
   updateDocEntry: (key: string, patch: Partial<MobileDocRecord>) => void
+  toggleSidebar: () => void
+  createPending: boolean
+  createNewDoc: () => Promise<void>
 }
 
 const WRITE_ROLE = 'doc-editor'
@@ -69,8 +85,10 @@ type RpcStream = {
   destroyed?: boolean
 }
 
+const Drawer = createDrawerNavigator<RootDrawerParamList>()
 const Stack = createNativeStackNavigator<RootStackParamList>()
-const bonkArt = require('../../icon.png')
+const navigationRef = createNavigationContainerRef<RootDrawerParamList>()
+const IOS_TINT = '#007aff'
 
 const navigationTheme = {
   ...DefaultTheme,
@@ -164,10 +182,152 @@ function parseInviteFromUrl(url: string | null | undefined) {
   }
 }
 
+function formatDocTimestamp(value: number | null | undefined) {
+  if (!value) return 'Unknown'
+
+  try {
+    return new Intl.DateTimeFormat(undefined, {
+      hour: 'numeric',
+      minute: '2-digit',
+      month: 'short',
+      day: 'numeric'
+    }).format(new Date(value))
+  } catch {
+    return 'Unknown'
+  }
+}
+
+function AppDrawerContent({
+  docs,
+  loading,
+  createPending,
+  joinInviteCode,
+  joinPending,
+  joinStatus,
+  sidebarPanel,
+  sidebarError,
+  setJoinInviteCode,
+  toggleJoinPanel,
+  createNewDoc,
+  openDoc,
+  submitJoin
+}: DrawerContentComponentProps & {
+  docs: MobileDocRecord[]
+  loading: boolean
+  createPending: boolean
+  joinInviteCode: string
+  joinPending: boolean
+  joinStatus: string | null
+  sidebarPanel: 'join' | null
+  sidebarError: string | null
+  setJoinInviteCode: (value: string) => void
+  toggleJoinPanel: () => void
+  createNewDoc: () => Promise<void>
+  openDoc: (doc: MobileDocRecord) => void
+  submitJoin: () => Promise<void>
+}) {
+  return (
+    <DrawerContentScrollView contentContainerStyle={styles.drawerContent}>
+      <View style={styles.drawerMain}>
+        {loading ? (
+          <View style={styles.loadingRow}>
+            <ActivityIndicator />
+            <Text style={styles.muted}>Loading local documents…</Text>
+          </View>
+        ) : docs.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyTitle}>No docs yet</Text>
+            <Text style={styles.empty}>
+              Create one or join one with an invite.
+            </Text>
+          </View>
+        ) : (
+          <View style={styles.drawerList}>
+            {docs.map((doc) => (
+              <DrawerItem
+                key={doc.key}
+                label={() => (
+                  <View style={styles.listLabel}>
+                    <Text style={styles.listTitle}>{friendlyTitle(doc)}</Text>
+                    {doc.lockedAt ? (
+                      <Text style={styles.listMeta}>Locked</Text>
+                    ) : null}
+                  </View>
+                )}
+                onPress={() => openDoc(doc)}
+              />
+            ))}
+          </View>
+        )}
+      </View>
+
+      <View style={styles.drawerFooter}>
+        {sidebarPanel === 'join' ? (
+          <View style={styles.card}>
+            <TextInput
+              value={joinInviteCode}
+              onChangeText={setJoinInviteCode}
+              placeholder='Paste invite code'
+              placeholderTextColor='#8c8c8c'
+              autoCapitalize='none'
+              autoCorrect={false}
+              style={[styles.input, styles.inputTall]}
+            />
+            <Pressable
+              accessibilityRole='button'
+              onPress={() => void submitJoin()}
+              disabled={joinPending}
+              style={({ pressed }) => [
+                styles.drawerActionButton,
+                pressed && !joinPending ? styles.iconButtonPressed : null
+              ]}
+            >
+              <Text style={styles.drawerActionIcon}>↘</Text>
+              <Text style={styles.drawerActionLabel}>
+                {joinPending ? 'Joining…' : 'Join doc'}
+              </Text>
+            </Pressable>
+            {joinStatus ? <Text style={styles.muted}>{joinStatus}</Text> : null}
+          </View>
+        ) : null}
+
+        <DrawerItem
+          label='Create doc'
+          icon={() => <Text style={styles.drawerItemIcon}>+</Text>}
+          onPress={() => {
+            if (createPending || joinPending) return
+            void createNewDoc()
+          }}
+        />
+        <DrawerItem
+          label={sidebarPanel === 'join' ? 'Hide join' : 'Join doc'}
+          icon={() => <Text style={styles.drawerItemIcon}>↘</Text>}
+          onPress={() => {
+            if (joinPending) return
+            toggleJoinPanel()
+          }}
+        />
+      </View>
+
+      {sidebarError ? (
+        <View style={styles.errorCard}>
+          <Text style={styles.error}>{sidebarError}</Text>
+        </View>
+      ) : null}
+    </DrawerContentScrollView>
+  )
+}
+
 export default function App() {
   const [docs, setDocs] = useState<MobileDocRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [appError, setAppError] = useState<string | null>(null)
+  const [joinInviteCode, setJoinInviteCode] = useState('')
+  const [createPending, setCreatePending] = useState(false)
+  const [joinPending, setJoinPending] = useState(false)
+  const [joinStatus, setJoinStatus] = useState<string | null>(null)
+  const [sidebarPanel, setSidebarPanel] = useState<'join' | null>(null)
+  const [sidebarError, setSidebarError] = useState<string | null>(null)
 
   const refreshDocs = useCallback(async () => {
     setLoading(true)
@@ -226,106 +386,76 @@ export default function App() {
     [docs]
   )
 
-  return (
-    <SafeAreaProvider>
-      <StatusBar style='dark' />
-      <NavigationContainer theme={navigationTheme}>
-        <Stack.Navigator
-          screenOptions={{
-            contentStyle: { backgroundColor: '#ffffff' },
-            headerBackButtonDisplayMode: 'minimal',
-            headerShadowVisible: true,
-            headerStyle: {
-              backgroundColor: '#ffffff'
-            },
-            headerTintColor: '#1a1a1a',
-            headerTitleStyle: {
-              fontWeight: '600'
-            }
-          }}
-        >
-          <Stack.Screen name='Home' options={{ headerShown: false }}>
-            {(props) => (
-              <HomeScreen
-                {...props}
-                appError={appError}
-                docs={docs}
-                loading={loading}
-                refreshDocs={refreshDocs}
-                upsertDoc={upsertDoc}
-              />
-            )}
-          </Stack.Screen>
-          <Stack.Screen
-            name='Doc'
-            options={{
-              title: 'Document'
-            }}
-          >
-            {(props) => (
-              <DocScreen
-                {...props}
-                lookupDoc={lookupDoc}
-                updateDocEntry={updateDocEntry}
-                upsertDoc={upsertDoc}
-              />
-            )}
-          </Stack.Screen>
-        </Stack.Navigator>
-      </NavigationContainer>
-    </SafeAreaProvider>
+  const closeSidebar = useCallback(() => {
+    if (!navigationRef.isReady()) return
+    navigationRef.dispatch(DrawerActions.closeDrawer())
+  }, [])
+
+  const toggleSidebar = useCallback(() => {
+    if (!navigationRef.isReady()) return
+    navigationRef.dispatch(DrawerActions.toggleDrawer())
+  }, [])
+
+  const openDoc = useCallback(
+    (doc: MobileDocRecord) => {
+      upsertDoc(doc)
+      setSidebarPanel(null)
+
+      if (!navigationRef.isReady()) return
+
+      const currentRoute = navigationRef.getCurrentRoute()
+      if (currentRoute?.name === 'Doc') {
+        if (currentRoute.params?.key === doc.key) {
+          closeSidebar()
+          return
+        }
+        navigationRef.dispatch(StackActions.replace('Doc', { key: doc.key }))
+      } else {
+        navigationRef.navigate('Main', {
+          screen: 'Doc',
+          params: { key: doc.key }
+        })
+      }
+
+      closeSidebar()
+    },
+    [closeSidebar, upsertDoc]
   )
-}
 
-function HomeScreen({
-  navigation,
-  docs,
-  loading,
-  refreshDocs,
-  upsertDoc,
-  appError
-}: HomeScreenProps) {
-  const [joinInviteCode, setJoinInviteCode] = useState('')
-  const [createPending, setCreatePending] = useState(false)
-  const [joinPending, setJoinPending] = useState(false)
-  const [joinStatus, setJoinStatus] = useState<string | null>(null)
-  const [listPanel, setListPanel] = useState<'join' | null>(null)
-  const [screenError, setScreenError] = useState<string | null>(null)
-
-  const openDoc = (doc: MobileDocRecord) => {
-    upsertDoc(doc)
-    navigation.navigate('Doc', { key: doc.key })
-  }
-
-  const handleCreate = async () => {
+  const handleCreate = useCallback(async () => {
     if (createPending) return
+
     setCreatePending(true)
-    setScreenError(null)
+    setSidebarError(null)
 
     try {
       const doc = await createDoc()
       openDoc(doc)
     } catch (nextError) {
-      setScreenError(
+      const message =
         nextError instanceof Error
           ? nextError.message
           : 'Failed to create document'
-      )
+      setSidebarError(message)
+      Alert.alert('Create failed', message)
     } finally {
       setCreatePending(false)
     }
-  }
+  }, [createPending, openDoc])
 
   const startJoin = useCallback(
     async (rawInvite: string) => {
       const invite = rawInvite.trim()
       if (!invite || joinPending) return
 
+      if (navigationRef.isReady()) {
+        navigationRef.dispatch(DrawerActions.openDrawer())
+      }
       setJoinPending(true)
       setJoinInviteCode(invite)
-      setListPanel('join')
+      setSidebarPanel('join')
       setJoinStatus('Starting pairing…')
-      setScreenError(null)
+      setSidebarError(null)
 
       const stream = pairInvite(invite) as RpcStream
 
@@ -351,11 +481,12 @@ function HomeScreen({
           setJoinStatus(formatJoinStatus(status.message, status.progress))
 
           if (status.state === 'joined' && status.doc) {
+            const joinedDoc = status.doc
             finish(() => {
               setJoinInviteCode('')
               setJoinStatus(null)
-              setListPanel(null)
-              openDoc(status.doc)
+              setSidebarPanel(null)
+              openDoc(joinedDoc)
               resolve()
             })
           }
@@ -385,7 +516,7 @@ function HomeScreen({
         stream.on('error', handleError)
         stream.on('close', handleClose)
       }).catch((nextError) => {
-        setScreenError(
+        setSidebarError(
           nextError instanceof Error ? nextError.message : 'Failed to join doc'
         )
       })
@@ -396,9 +527,9 @@ function HomeScreen({
     [joinPending, openDoc]
   )
 
-  const handleJoin = async () => {
+  const handleJoin = useCallback(async () => {
     await startJoin(joinInviteCode)
-  }
+  }, [joinInviteCode, startJoin])
 
   useEffect(() => {
     let disposed = false
@@ -423,141 +554,136 @@ function HomeScreen({
     }
   }, [startJoin])
 
-  const error = screenError || appError
+  return (
+    <SafeAreaProvider>
+      <StatusBar style='dark' />
+      <View style={styles.appShell}>
+        <NavigationContainer theme={navigationTheme} ref={navigationRef}>
+          <Drawer.Navigator
+            screenListeners={{
+              transitionEnd: (event) => {
+                if (!event.data.closing) {
+                  void refreshDocs()
+                }
+              }
+            }}
+            screenOptions={{
+              headerShown: false,
+              drawerType: 'front'
+            }}
+            drawerContent={(props) => (
+              <AppDrawerContent
+                {...props}
+                createNewDoc={handleCreate}
+                createPending={createPending}
+                docs={docs}
+                joinInviteCode={joinInviteCode}
+                joinPending={joinPending}
+                joinStatus={joinStatus}
+                loading={loading}
+                openDoc={openDoc}
+                setJoinInviteCode={setJoinInviteCode}
+                sidebarError={sidebarError || appError}
+                sidebarPanel={sidebarPanel}
+                submitJoin={handleJoin}
+                toggleJoinPanel={() =>
+                  setSidebarPanel((current) =>
+                    current === 'join' ? null : 'join'
+                  )
+                }
+              />
+            )}
+          >
+            <Drawer.Screen name='Main'>
+              {() => (
+                <Stack.Navigator
+                  screenOptions={{
+                    contentStyle: { backgroundColor: '#ffffff' },
+                    headerBackButtonDisplayMode: 'minimal',
+                    headerBackVisible: false,
+                    headerShadowVisible: true,
+                    headerStyle: {
+                      backgroundColor: '#ffffff'
+                    },
+                    headerTintColor: IOS_TINT,
+                    headerTitleStyle: {
+                      fontWeight: '600',
+                      color: '#1a1a1a'
+                    }
+                  }}
+                >
+                  <Stack.Screen
+                    name='Home'
+                    options={{
+                      title: 'Bonk Docs',
+                      headerLeft: () => (
+                        <HeaderIconButton
+                          icon='☰'
+                          label='Menu'
+                          onPress={() => toggleSidebar()}
+                        />
+                      ),
+                      headerRight: () => (
+                        <HeaderIconButton
+                          icon={createPending ? '…' : '+'}
+                          label='New document'
+                          onPress={() => void handleCreate()}
+                          disabled={createPending}
+                        />
+                      )
+                    }}
+                  >
+                    {() => (
+                      <HomeScreen
+                        appError={appError}
+                        hasDocs={docs.length > 0}
+                      />
+                    )}
+                  </Stack.Screen>
+                  <Stack.Screen name='Doc' options={{ title: 'Document' }}>
+                    {(props) => (
+                      <DocScreen
+                        {...props}
+                        createNewDoc={handleCreate}
+                        createPending={createPending}
+                        lookupDoc={lookupDoc}
+                        toggleSidebar={toggleSidebar}
+                        updateDocEntry={updateDocEntry}
+                        upsertDoc={upsertDoc}
+                      />
+                    )}
+                  </Stack.Screen>
+                </Stack.Navigator>
+              )}
+            </Drawer.Screen>
+          </Drawer.Navigator>
+        </NavigationContainer>
+      </View>
+    </SafeAreaProvider>
+  )
+}
 
+function HomeScreen({ appError, hasDocs }: HomeScreenProps) {
   return (
     <SafeAreaView edges={['top', 'bottom']} style={styles.safeArea}>
-      <ScrollView
-        contentContainerStyle={styles.listContainer}
-        contentInsetAdjustmentBehavior='automatic'
-        automaticallyAdjustKeyboardInsets
-        keyboardDismissMode='on-drag'
-        keyboardShouldPersistTaps='handled'
-      >
-        <View style={styles.heroPanel}>
-          <Text style={styles.eyebrow}>Bonk Docs</Text>
-          <View style={styles.artFrame}>
-            <Image source={bonkArt} resizeMode='contain' style={styles.art} />
-          </View>
-          <View style={styles.heroCopy}>
-            <Text style={styles.title}>Create or join a doc</Text>
-            <Text style={styles.body}>
-              Docs can be fun on your own but they're even better with friends
-            </Text>
-          </View>
-          <View style={styles.actionRow}>
-            <Pressable
-              disabled={createPending}
-              onPress={() => void handleCreate()}
-              style={[
-                styles.button,
-                styles.primaryButton,
-                createPending && styles.buttonDisabled
-              ]}
-            >
-              <Text style={styles.primaryButtonLabel}>
-                {createPending ? 'Creating…' : 'Create doc'}
-              </Text>
-            </Pressable>
-            <Pressable
-              disabled={joinPending}
-              onPress={() =>
-                setListPanel((current) => (current === 'join' ? null : 'join'))
-              }
-              style={[
-                styles.button,
-                styles.secondaryButton,
-                joinPending && styles.buttonDisabled
-              ]}
-            >
-              <Text style={styles.secondaryButtonLabel}>
-                {joinPending ? 'Joining…' : 'Join doc'}
-              </Text>
-            </Pressable>
-          </View>
+      <View style={styles.homeState}>
+        <View style={styles.homeCopy}>
+          <Text style={styles.title}>
+            {hasDocs ? 'Pick a doc from the menu' : 'Start a new doc'}
+          </Text>
+          <Text style={styles.body}>
+            {hasDocs
+              ? 'Use the menu to switch documents.'
+              : 'Use + to create a doc or open the menu to join one.'}
+          </Text>
         </View>
+      </View>
 
-        {listPanel === 'join' ? (
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Join document</Text>
-            <Text style={styles.cardBody}>
-              Paste an invite code to join an existing doc.
-            </Text>
-            <TextInput
-              value={joinInviteCode}
-              onChangeText={setJoinInviteCode}
-              placeholder='Paste invite code'
-              placeholderTextColor='#8c8c8c'
-              autoCapitalize='none'
-              autoCorrect={false}
-              style={[styles.input, styles.inputTall]}
-            />
-            <Pressable
-              disabled={joinPending}
-              onPress={() => void handleJoin()}
-              style={[
-                styles.button,
-                styles.primaryButton,
-                joinPending && styles.buttonDisabled
-              ]}
-            >
-              <Text style={styles.primaryButtonLabel}>
-                {joinPending ? 'Joining…' : 'Join doc'}
-              </Text>
-            </Pressable>
-            {joinStatus ? <Text style={styles.muted}>{joinStatus}</Text> : null}
-          </View>
-        ) : null}
-
-        <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <View style={styles.sectionHeading}>
-              <Text style={styles.cardTitle}>Your docs</Text>
-              <Text style={styles.cardBody}>On this device</Text>
-            </View>
-            <Pressable onPress={() => void refreshDocs()} style={styles.ghost}>
-              <Text style={styles.ghostLabel}>Reload</Text>
-            </Pressable>
-          </View>
-
-          {loading ? (
-            <View style={styles.loadingRow}>
-              <ActivityIndicator />
-              <Text style={styles.muted}>Loading local documents…</Text>
-            </View>
-          ) : docs.length === 0 ? (
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyTitle}>No docs yet</Text>
-              <Text style={styles.empty}>
-                Create one or join one with an invite.
-              </Text>
-            </View>
-          ) : (
-            <View style={styles.list}>
-              {docs.map((doc) => (
-                <Pressable
-                  key={doc.key}
-                  onPress={() => openDoc(doc)}
-                  style={styles.listItem}
-                >
-                  <Text style={styles.listTitle}>{friendlyTitle(doc)}</Text>
-                  <Text style={styles.listMeta}>
-                    Rev {doc.lastRevision ?? 0}
-                    {doc.lockedAt ? ' • Locked' : ''}
-                  </Text>
-                  <Text style={styles.listKey}>{doc.key.slice(0, 20)}…</Text>
-                </Pressable>
-              ))}
-            </View>
-          )}
+      {appError ? (
+        <View style={styles.homeError}>
+          <Text style={styles.error}>{appError}</Text>
         </View>
-
-        {error ? (
-          <View style={styles.errorCard}>
-            <Text style={styles.error}>{error}</Text>
-          </View>
-        ) : null}
-      </ScrollView>
+      ) : null}
     </SafeAreaView>
   )
 }
@@ -567,7 +693,10 @@ function DocScreen({
   route,
   lookupDoc,
   upsertDoc,
-  updateDocEntry
+  updateDocEntry,
+  toggleSidebar,
+  createPending,
+  createNewDoc
 }: DocScreenProps) {
   const key = route.params.key
   const [activeDoc, setActiveDoc] = useState<MobileDocRecord | null>(
@@ -576,12 +705,12 @@ function DocScreen({
   const [activeView, setActiveView] = useState<MobileDocView | null>(null)
   const [docLoading, setDocLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [renameValue, setRenameValue] = useState(
+  const [renameDraft, setRenameDraft] = useState(
     friendlyTitle(lookupDoc(key) || null)
   )
+  const [renameModalVisible, setRenameModalVisible] = useState(false)
   const [renamePending, setRenamePending] = useState(false)
   const [sharePending, setSharePending] = useState(false)
-  const [renameError, setRenameError] = useState<string | null>(null)
 
   const watchStreamRef = useRef<RpcStream | null>(null)
 
@@ -640,22 +769,8 @@ function DocScreen({
   }, [activeDoc, activeView, sharePending])
 
   useEffect(() => {
-    navigation.setOptions({
-      title: friendlyTitle(activeView || activeDoc),
-      headerRight: () => (
-        <Button
-          title={sharePending ? 'Sharing…' : 'Share'}
-          onPress={() => void handleShare()}
-          disabled={sharePending}
-        />
-      )
-    })
-  }, [activeDoc, activeView, handleShare, navigation, sharePending])
-
-  useEffect(() => {
     if (!activeDoc) return
-    setRenameValue(friendlyTitle(activeDoc))
-    setRenameError(null)
+    setRenameDraft(friendlyTitle(activeDoc))
   }, [activeDoc?.key, activeDoc?.title])
 
   useEffect(() => {
@@ -746,164 +861,284 @@ function DocScreen({
     }
   }, [key, updateDocEntry, upsertDoc])
 
-  const handleRename = async () => {
-    if (!activeDoc || renamePending) return
+  const handleRename = useCallback(
+    async (value: string) => {
+      if (!activeDoc || renamePending) return
 
+      const currentTitle = friendlyTitle(activeView || activeDoc)
+      const nextTitle = value.trim()
+
+      if ((nextTitle || 'Untitled document') === currentTitle) {
+        setRenameModalVisible(false)
+        return
+      }
+
+      setRenamePending(true)
+
+      try {
+        const renamed = await renameDoc(activeDoc.key, nextTitle)
+
+        setRenameDraft(renamed.title)
+        setActiveDoc((current) =>
+          current && current.key === activeDoc.key
+            ? {
+                ...current,
+                title: renamed.title
+              }
+            : current
+        )
+        setActiveView((current) =>
+          current && current.key === activeDoc.key
+            ? {
+                ...current,
+                title: renamed.title,
+                updatedAt: renamed.updatedAt ?? current.updatedAt
+              }
+            : current
+        )
+        updateDocEntry(activeDoc.key, {
+          title: renamed.title
+        })
+      } catch (nextError) {
+        Alert.alert(
+          'Rename failed',
+          nextError instanceof Error
+            ? nextError.message
+            : 'Failed to rename document'
+        )
+      } finally {
+        setRenamePending(false)
+        setRenameModalVisible(false)
+      }
+    },
+    [activeDoc, activeView, renamePending, updateDocEntry]
+  )
+
+  const showStats = useCallback(() => {
+    Alert.alert(
+      'Document stats',
+      [
+        `Title: ${friendlyTitle(activeView || activeDoc)}`,
+        `Revision: ${activeView?.revision ?? activeDoc?.lastRevision ?? 0}`,
+        `Access: ${activeView?.canEdit ? 'Editable' : 'Read only'}`,
+        `Locked: ${activeView?.lockedAt ? 'Yes' : 'No'}`,
+        `Updated: ${formatDocTimestamp(activeView?.updatedAt)}`,
+        `Key: ${activeDoc?.key ?? key}`
+      ].join('\n')
+    )
+  }, [activeDoc, activeView, key])
+
+  const openRenamePrompt = useCallback(() => {
     const currentTitle = friendlyTitle(activeView || activeDoc)
-    const nextTitle = renameValue.trim()
+    setRenameDraft(currentTitle)
 
-    if ((nextTitle || 'Untitled document') === currentTitle) {
-      setRenameError(null)
+    if (Platform.OS === 'ios') {
+      Alert.prompt(
+        'Rename document',
+        'Change the title.',
+        [
+          {
+            text: 'Cancel',
+            style: 'cancel'
+          },
+          {
+            text: 'Save',
+            onPress: (value?: string) => {
+              void handleRename(value ?? currentTitle)
+            }
+          }
+        ],
+        'plain-text',
+        currentTitle
+      )
       return
     }
 
-    setRenamePending(true)
-    setRenameError(null)
+    setRenameModalVisible(true)
+  }, [activeDoc, activeView, handleRename])
 
-    try {
-      const renamed = await renameDoc(activeDoc.key, nextTitle)
-
-      setRenameValue(renamed.title)
-      setActiveDoc((current) =>
-        current && current.key === activeDoc.key
-          ? {
-              ...current,
-              title: renamed.title
-            }
-          : current
+  const handleMoreMenu = useCallback(() => {
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options: ['Cancel', 'Share', 'Rename', 'Stats'],
+          cancelButtonIndex: 0
+        },
+        (buttonIndex) => {
+          if (buttonIndex === 1) void handleShare()
+          if (buttonIndex === 2) openRenamePrompt()
+          if (buttonIndex === 3) showStats()
+        }
       )
-      setActiveView((current) =>
-        current && current.key === activeDoc.key
-          ? {
-              ...current,
-              title: renamed.title,
-              updatedAt: renamed.updatedAt ?? current.updatedAt
-            }
-          : current
-      )
-      updateDocEntry(activeDoc.key, {
-        title: renamed.title
-      })
-    } catch (nextError) {
-      setRenameError(
-        nextError instanceof Error
-          ? nextError.message
-          : 'Failed to rename document'
-      )
-    } finally {
-      setRenamePending(false)
+      return
     }
-  }
+
+    Alert.alert(friendlyTitle(activeView || activeDoc), undefined, [
+      {
+        text: 'Share',
+        onPress: () => void handleShare()
+      },
+      {
+        text: 'Rename',
+        onPress: openRenamePrompt
+      },
+      {
+        text: 'Stats',
+        onPress: showStats
+      }
+    ])
+  }, [activeDoc, activeView, handleShare, openRenamePrompt, showStats])
+
+  useEffect(() => {
+    navigation.setOptions({
+      title: friendlyTitle(activeView || activeDoc),
+      headerLeft: () => (
+        <HeaderIconButton
+          icon='☰'
+          label='Menu'
+          onPress={() => toggleSidebar()}
+        />
+      ),
+      headerRight: () => (
+        <View style={styles.headerActions}>
+          <HeaderIconButton
+            icon='…'
+            label='More actions'
+            onPress={() => void handleMoreMenu()}
+            disabled={sharePending || renamePending}
+          />
+          <HeaderIconButton
+            icon={createPending ? '…' : '+'}
+            label='New document'
+            onPress={() => void createNewDoc()}
+            disabled={createPending}
+          />
+        </View>
+      )
+    })
+  }, [
+    activeDoc,
+    activeView,
+    createNewDoc,
+    createPending,
+    handleMoreMenu,
+    navigation,
+    renamePending,
+    sharePending,
+    toggleSidebar
+  ])
 
   return (
-    <SafeAreaView edges={['bottom']} style={styles.safeArea}>
-      <ScrollView
-        style={styles.docScroll}
-        contentContainerStyle={styles.docContent}
-        contentInsetAdjustmentBehavior='automatic'
-        automaticallyAdjustKeyboardInsets
-        keyboardDismissMode='on-drag'
-        keyboardShouldPersistTaps='handled'
-      >
-        {activeView ? (
-          <View style={styles.statusRow}>
-            <View style={styles.statusChip}>
-              <Text style={styles.statusChipText}>
-                Rev {activeView.revision}
-              </Text>
-            </View>
-            <View style={styles.statusChip}>
-              <Text style={styles.statusChipText}>
-                {activeView.canEdit ? 'Editable' : 'Read only'}
-              </Text>
-            </View>
-            {activeView.lockedAt ? (
-              <View style={styles.statusChip}>
-                <Text style={styles.statusChipText}>Locked</Text>
-              </View>
-            ) : null}
-          </View>
-        ) : null}
+    <SafeAreaView edges={['bottom']} style={styles.docSafeArea}>
+      {activeView ? <DocSurface doc={activeView} /> : null}
 
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Rename document</Text>
-          <Text style={styles.cardBody}>
-            You can change the title any time.
-          </Text>
-          <TextInput
-            value={renameValue}
-            onChangeText={setRenameValue}
-            placeholder='Untitled document'
-            placeholderTextColor='#8c8c8c'
-            style={styles.input}
-          />
-          <Pressable
-            disabled={renamePending}
-            onPress={() => void handleRename()}
-            style={[
-              styles.button,
-              styles.secondaryButton,
-              renamePending && styles.buttonDisabled
-            ]}
-          >
-            <Text style={styles.secondaryButtonLabel}>
-              {renamePending ? 'Saving…' : 'Save title'}
-            </Text>
-          </Pressable>
-          {renameError ? <Text style={styles.error}>{renameError}</Text> : null}
+      {docLoading && !activeView ? (
+        <View style={styles.docState}>
+          <ActivityIndicator />
+          <Text style={styles.muted}>Opening document…</Text>
         </View>
+      ) : null}
 
-        {docLoading && !activeView ? (
-          <View style={styles.card}>
-            <View style={styles.loadingRow}>
-              <ActivityIndicator />
-              <Text style={styles.muted}>Opening document…</Text>
+      {error && !activeView ? (
+        <View style={styles.docState}>
+          <Text style={styles.error}>{error}</Text>
+        </View>
+      ) : null}
+
+      {error && activeView ? (
+        <View style={styles.docErrorBanner}>
+          <Text style={styles.error}>{error}</Text>
+        </View>
+      ) : null}
+
+      <Modal
+        visible={renameModalVisible}
+        transparent
+        animationType='fade'
+        onRequestClose={() => setRenameModalVisible(false)}
+      >
+        <Pressable
+          style={styles.modalBackdrop}
+          onPress={() => setRenameModalVisible(false)}
+        >
+          <Pressable style={styles.modalCard} onPress={() => {}}>
+            <Text style={styles.cardTitle}>Rename document</Text>
+            <TextInput
+              value={renameDraft}
+              onChangeText={setRenameDraft}
+              placeholder='Untitled document'
+              placeholderTextColor='#8c8c8c'
+              style={styles.input}
+              autoFocus
+            />
+            <View style={styles.modalActions}>
+              <Button
+                title='Cancel'
+                onPress={() => setRenameModalVisible(false)}
+              />
+              <Button
+                title={renamePending ? 'Saving…' : 'Save'}
+                onPress={() => void handleRename(renameDraft)}
+                disabled={renamePending}
+              />
             </View>
-          </View>
-        ) : null}
-
-        {activeView ? <DocSurface doc={activeView} /> : null}
-
-        {error ? (
-          <View style={styles.errorCard}>
-            <Text style={styles.error}>{error}</Text>
-          </View>
-        ) : null}
-      </ScrollView>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   )
 }
 
+function HeaderIconButton({
+  icon,
+  label,
+  onPress,
+  disabled = false
+}: {
+  icon: string
+  label: string
+  onPress: () => void
+  disabled?: boolean
+}) {
+  return (
+    <Pressable
+      accessibilityRole='button'
+      accessibilityLabel={label}
+      hitSlop={8}
+      onPress={onPress}
+      disabled={disabled}
+      style={({ pressed }) => [
+        styles.iconButton,
+        pressed && !disabled ? styles.iconButtonPressed : null,
+        disabled ? styles.iconButtonDisabled : null
+      ]}
+    >
+      <Text style={styles.iconButtonText}>{icon}</Text>
+    </Pressable>
+  )
+}
+
 const styles = StyleSheet.create({
+  appShell: {
+    flex: 1
+  },
   safeArea: {
     flex: 1,
     backgroundColor: '#ffffff'
   },
-  listContainer: {
-    flexGrow: 1,
-    padding: 24,
-    gap: 16,
-    justifyContent: 'center'
-  },
-  heroPanel: {
+  homeState: {
+    flex: 1,
     alignItems: 'center',
-    gap: 20,
-    paddingVertical: 16
+    justifyContent: 'center',
+    padding: 24
   },
-  heroCopy: {
+  homeCopy: {
     gap: 8,
     maxWidth: 360,
     alignItems: 'center'
   },
-  eyebrow: {
-    fontSize: 12,
-    fontWeight: '700',
-    letterSpacing: 1.4,
-    textTransform: 'uppercase',
-    color: '#7d7d7d'
-  },
   title: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: '700',
     color: '#1a1a1a',
     textAlign: 'center'
@@ -915,34 +1150,67 @@ const styles = StyleSheet.create({
     color: '#707070',
     textAlign: 'center'
   },
-  artFrame: {
-    width: 240,
-    height: 240,
-    padding: 20,
-    borderRadius: 24,
-    backgroundColor: '#f5f5f5',
-    alignItems: 'center',
-    justifyContent: 'center'
+  homeError: {
+    paddingHorizontal: 24,
+    paddingBottom: 24
   },
-  art: {
-    width: '100%',
-    height: '100%'
-  },
-  actionRow: {
-    width: '100%',
-    maxWidth: 320,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
+  drawerContent: {
+    flexGrow: 1,
+    paddingVertical: 12,
+    justifyContent: 'space-between',
     gap: 12
   },
-  docScroll: {
-    flex: 1
+  drawerList: {
+    gap: 2
   },
-  docContent: {
-    padding: 20,
-    gap: 16,
-    paddingBottom: 32
+  drawerMain: {
+    gap: 8
+  },
+  drawerFooter: {
+    gap: 8,
+    paddingTop: 8
+  },
+  docSafeArea: {
+    flex: 1,
+    backgroundColor: '#ffffff'
+  },
+  docState: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+    gap: 10
+  },
+  docErrorBanner: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    bottom: 16,
+    backgroundColor: '#fff6f5',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#f0c7c2',
+    padding: 14
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(17, 24, 39, 0.18)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24
+  },
+  modalCard: {
+    width: '100%',
+    maxWidth: 360,
+    backgroundColor: '#ffffff',
+    borderRadius: 18,
+    padding: 18,
+    gap: 14
+  },
+  modalActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 12
   },
   card: {
     backgroundColor: '#ffffff',
@@ -953,20 +1221,12 @@ const styles = StyleSheet.create({
     gap: 14
   },
   errorCard: {
+    marginHorizontal: 16,
     backgroundColor: '#fff6f5',
     borderRadius: 16,
     borderWidth: 1,
     borderColor: '#f0c7c2',
     padding: 14
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    gap: 12
-  },
-  sectionHeading: {
-    gap: 2
   },
   cardTitle: {
     fontSize: 18,
@@ -992,42 +1252,28 @@ const styles = StyleSheet.create({
     minHeight: 72,
     textAlignVertical: 'top'
   },
-  button: {
-    minWidth: 132,
-    borderRadius: 12,
-    paddingHorizontal: 18,
-    paddingVertical: 11,
+  iconButton: {
+    minWidth: 28,
+    minHeight: 28,
     alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1
+    justifyContent: 'center'
   },
-  primaryButton: {
-    backgroundColor: '#1a1a1a',
-    borderColor: '#1a1a1a'
+  iconButtonPressed: {
+    opacity: 0.45
   },
-  secondaryButton: {
-    backgroundColor: '#ffffff',
-    borderColor: '#dddddd'
+  iconButtonDisabled: {
+    opacity: 0.35
   },
-  buttonDisabled: {
-    opacity: 0.55
+  iconButtonText: {
+    fontSize: 28,
+    lineHeight: 28,
+    color: IOS_TINT,
+    fontWeight: '400'
   },
-  primaryButtonLabel: {
-    color: '#ffffff',
-    fontWeight: '600'
-  },
-  secondaryButtonLabel: {
-    color: '#1a1a1a',
-    fontWeight: '600'
-  },
-  ghost: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: 2,
-    paddingVertical: 4
-  },
-  ghostLabel: {
-    color: '#6d6d6d',
-    fontWeight: '600'
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14
   },
   loadingRow: {
     flexDirection: 'row',
@@ -1046,7 +1292,8 @@ const styles = StyleSheet.create({
   },
   emptyState: {
     alignItems: 'flex-start',
-    gap: 4
+    gap: 4,
+    paddingHorizontal: 16
   },
   emptyTitle: {
     fontSize: 16,
@@ -1058,16 +1305,8 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     color: '#707070'
   },
-  list: {
-    gap: 10
-  },
-  listItem: {
-    gap: 4,
-    backgroundColor: '#fafafa',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#ececec',
-    padding: 14
+  listLabel: {
+    gap: 4
   },
   listTitle: {
     fontSize: 16,
@@ -1078,26 +1317,30 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#707070'
   },
-  listKey: {
-    fontSize: 13,
-    color: '#8a8a8a'
+  drawerItemIcon: {
+    width: 20,
+    textAlign: 'center',
+    fontSize: 19,
+    lineHeight: 22,
+    color: '#1a1a1a'
   },
-  statusRow: {
+  drawerActionButton: {
+    minHeight: 44,
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 14
   },
-  statusChip: {
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: '#e5e5e5',
-    backgroundColor: '#f7f7f7',
-    paddingHorizontal: 12,
-    paddingVertical: 7
+  drawerActionIcon: {
+    width: 20,
+    textAlign: 'center',
+    fontSize: 19,
+    lineHeight: 22,
+    color: IOS_TINT
   },
-  statusChipText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#555555'
+  drawerActionLabel: {
+    fontSize: 17,
+    lineHeight: 22,
+    color: IOS_TINT
   }
 })

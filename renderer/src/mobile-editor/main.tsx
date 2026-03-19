@@ -21,12 +21,8 @@ type EditorUser = {
 
 type EditorMeta = {
   key: string | null
-  title: string
-  revision: number
-  updatedAt: number | null
   canEdit: boolean
   lockedAt: number | null
-  roles: string[]
   writerKey: string | null
 }
 
@@ -67,7 +63,13 @@ function postMessage(message: OutgoingMessage) {
 }
 
 function asUint8Array(
-  value: number[] | Record<string, unknown> | Uint8Array | ArrayBuffer | null | undefined
+  value:
+    | number[]
+    | Record<string, unknown>
+    | Uint8Array
+    | ArrayBuffer
+    | null
+    | undefined
 ) {
   if (!value) return null
   if (value instanceof Uint8Array) return value
@@ -128,51 +130,6 @@ function userFromWriterKey(writerKey: string | null | undefined): EditorUser {
   }
 }
 
-function formatUpdatedAt(value: number | null) {
-  if (!value) return 'Waiting for sync'
-
-  try {
-    return new Intl.DateTimeFormat(undefined, {
-      hour: 'numeric',
-      minute: '2-digit',
-      month: 'short',
-      day: 'numeric'
-    }).format(new Date(value))
-  } catch {
-    return 'Recently updated'
-  }
-}
-
-function ToolbarButton({
-  active = false,
-  label,
-  onClick
-}: {
-  active?: boolean
-  label: string
-  onClick: () => void
-}) {
-  return (
-    <button
-      type='button'
-      onClick={onClick}
-      data-active={active ? 'true' : 'false'}
-      style={{
-        appearance: 'none',
-        border: '1px solid #dadada',
-        background: active ? '#1a1a1a' : '#ffffff',
-        color: active ? '#ffffff' : '#1a1a1a',
-        borderRadius: 10,
-        padding: '8px 10px',
-        fontSize: 14,
-        fontWeight: 600
-      }}
-    >
-      {label}
-    </button>
-  )
-}
-
 function App() {
   const docRef = useRef<Y.Doc | null>(null)
   const awarenessRef = useRef<Awareness | null>(null)
@@ -190,12 +147,8 @@ function App() {
 
   const [meta, setMeta] = useState<EditorMeta>({
     key: null,
-    title: 'Untitled document',
-    revision: 0,
-    updatedAt: null,
     canEdit: false,
     lockedAt: null,
-    roles: [],
     writerKey: null
   })
   const [user, setUser] = useState<EditorUser>({
@@ -203,8 +156,6 @@ function App() {
     color: '#111827',
     key: ''
   })
-  const [connected, setConnected] = useState(false)
-
   const editable = meta.canEdit && !meta.lockedAt
   const cursorUser = useMemo(
     () => ({
@@ -332,22 +283,8 @@ function App() {
         applyAwarenessUpdate(awareness, awarenessUpdate, REMOTE_ORIGIN)
       }
 
-      const roles = Array.isArray(next.capabilities?.roles)
-        ? next.capabilities?.roles.filter(
-            (role): role is string => typeof role === 'string' && role.length > 0
-          )
-        : []
-
       setMeta((current) => ({
         key: typeof next.key === 'string' ? next.key : current.key,
-        title:
-          typeof next.title === 'string' && next.title.trim().length > 0
-            ? next.title
-            : current.title,
-        revision:
-          typeof next.revision === 'number' ? next.revision : current.revision,
-        updatedAt:
-          typeof next.updatedAt === 'number' ? next.updatedAt : current.updatedAt,
         canEdit:
           next.capabilities?.canEdit === true ||
           (next.capabilities?.canEdit === false ? false : current.canEdit),
@@ -357,16 +294,15 @@ function App() {
             : next.lockedAt === null
               ? null
               : current.lockedAt,
-        roles: roles.length > 0 ? roles : current.roles,
         writerKey:
-          typeof next.writerKey === 'string' ? next.writerKey : current.writerKey
+          typeof next.writerKey === 'string'
+            ? next.writerKey
+            : current.writerKey
       }))
 
       if (typeof next.writerKey === 'string' && next.writerKey.length > 0) {
         setUser(userFromWriterKey(next.writerKey))
       }
-
-      setConnected(true)
     }
 
     window.addEventListener('message', handleMessage)
@@ -395,52 +331,35 @@ function App() {
         }
         html, body, #root {
           margin: 0;
+          height: 100%;
           min-height: 100%;
-          background: var(--panel);
+          background: var(--paper);
           color: var(--ink);
           font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+          overflow: hidden;
         }
         button, input, textarea {
           font: inherit;
         }
         .mobile-editor-shell {
-          min-height: 100vh;
-          display: grid;
-          grid-template-rows: auto auto 1fr;
-          gap: 12px;
-          padding: 16px;
+          display: flex;
+          min-height: 100%;
+          height: 100%;
+          background: var(--paper);
         }
         .mobile-editor-panel {
+          flex: 1;
           background: var(--paper);
-          border: 1px solid var(--edge);
-          border-radius: 18px;
-        }
-        .mobile-editor-header {
-          padding: 16px 16px 12px;
-          display: grid;
-          gap: 4px;
-        }
-        .mobile-editor-title {
-          margin: 0;
-          font-size: 22px;
-          line-height: 1.15;
-        }
-        .mobile-editor-subtitle {
-          margin: 0;
-          font-size: 14px;
-          color: var(--muted);
-        }
-        .mobile-editor-toolbar {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 8px;
-          padding: 0 16px 12px;
         }
         .mobile-editor-frame {
+          display: flex;
+          flex: 1;
           overflow: hidden;
+          min-height: 100%;
         }
         .mobile-editor-content {
-          min-height: 52vh;
+          flex: 1;
+          min-height: 100%;
           padding: 16px;
           outline: none;
           font-size: 18px;
@@ -501,45 +420,6 @@ function App() {
         }
       `}</style>
       <div className='mobile-editor-shell'>
-        <section className='mobile-editor-panel'>
-          <div className='mobile-editor-header'>
-            <h1 className='mobile-editor-title'>{meta.title}</h1>
-            <p className='mobile-editor-subtitle'>
-              {connected
-                ? `${editable ? 'Editable' : 'Read only'} • Rev ${meta.revision} • ${formatUpdatedAt(meta.updatedAt)}`
-                : 'Connecting to Bonk Docs…'}
-            </p>
-          </div>
-          {editable ? (
-            <div className='mobile-editor-toolbar'>
-              <ToolbarButton
-                label='Bold'
-                active={editor?.isActive('bold') === true}
-                onClick={() => editor?.chain().focus().toggleBold().run()}
-              />
-              <ToolbarButton
-                label='Italic'
-                active={editor?.isActive('italic') === true}
-                onClick={() => editor?.chain().focus().toggleItalic().run()}
-              />
-              <ToolbarButton
-                label='Bullet'
-                active={editor?.isActive('bulletList') === true}
-                onClick={() => editor?.chain().focus().toggleBulletList().run()}
-              />
-              <ToolbarButton
-                label='Numbered'
-                active={editor?.isActive('orderedList') === true}
-                onClick={() => editor?.chain().focus().toggleOrderedList().run()}
-              />
-              <ToolbarButton
-                label='Quote'
-                active={editor?.isActive('blockquote') === true}
-                onClick={() => editor?.chain().focus().toggleBlockquote().run()}
-              />
-            </div>
-          ) : null}
-        </section>
         <section className='mobile-editor-panel mobile-editor-frame'>
           <EditorContent editor={editor} />
         </section>

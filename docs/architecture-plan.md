@@ -42,10 +42,12 @@ See [nomenclature.md](./nomenclature.md) for the canonical wording.
 - `main.js`: Boots Electron, starts `pear-runtime`, and wires worker IPC to renderer preload bridge.
 - `preload.js`: Exposes `window.bridge` APIs used by renderer RPC transport.
 
-### Mobile Shell (planned)
+### Mobile Shell (native/)
 
 - React Native host starts a bundled Bare worklet using the same shared worker runtime.
 - The worklet owns `pear-mobile`, storage, and mobile OTA behavior.
+- Root navigation uses React Navigation drawer + native stack so the docs list lives in the drawer and document chrome stays in the native header.
+- The editor itself stays inside the mobile editor bundle WebView, with native controls limited to document-level actions.
 
 ### Worker Layer (worker/)
 

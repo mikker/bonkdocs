@@ -36,6 +36,6 @@
 
 - Extract the shared backend into `packages/bonkdocs-core`.
 - Keep the current Electron app as the first `desktop` host over that package.
-- Scaffold a React Native `mobile` host using the local `hello-pear-react-native` layout.
+- Land the first React Native `native` host with drawer-based doc navigation and a WebView-backed editor surface.
 - Reuse the same worker/runtime and HRPC contract across desktop and mobile.
-- Decide first-pass mobile editor strategy after watch/sync flows are stable.
+- Keep simplifying native chrome so document-level actions stay in the platform header and the editor surface remains minimal.
