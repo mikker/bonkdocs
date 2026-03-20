@@ -110,6 +110,15 @@ export async function renameDoc(key: string, title: string) {
   }
 }
 
+export async function abandonDoc(key: string) {
+  const rpc = getRpc()
+  const response = await rpc.removeDoc({ key })
+
+  if (response?.removed !== true) {
+    throw new Error('Failed to abandon document')
+  }
+}
+
 export async function createDocInvite(key: string, roles: string[] = []) {
   const rpc = getRpc()
   const response = await rpc.createInvite({

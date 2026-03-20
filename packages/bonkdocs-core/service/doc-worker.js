@@ -31,9 +31,12 @@ function isCoreClosingError(error) {
   if (error.code === 'SESSION_CLOSED') return true
   const message = typeof error.message === 'string' ? error.message : ''
   return (
+    message.includes('Hyperdb is closed') ||
+    message.includes('HyperDB is closed') ||
     message.includes('Autobase is closing') ||
     message.includes('core is closing') ||
-    message.includes('closing core')
+    message.includes('closing core') ||
+    message.includes('Database is closed')
   )
 }
 
@@ -88,7 +91,13 @@ export class DocWorker {
   async listDocs() {
     await this.ready()
     const records = await this.manager.listDocs()
-    return records.map((record) => this.normalizeDocRecord(record))
+    const docs = []
+
+    for (const record of records) {
+      docs.push(await this._resolveDocRecord(record))
+    }
+
+    return docs
   }
 
   async createDoc(options = {}) {
@@ -109,6 +118,9 @@ export class DocWorker {
       isCreator: true
     }
     const docRecord = this.normalizeDocRecord(fallback, metadata)
+    await this._updateStoredContextRecord(keyHex, {
+      title: docRecord?.title || null
+    })
 
     try {
       const sync = await this._ensureSync(context)
@@ -143,6 +155,9 @@ export class DocWorker {
       isCreator: false
     }
     const docRecord = this.normalizeDocRecord(fallback, metadata)
+    await this._updateStoredContextRecord(keyHex, {
+      title: docRecord?.title || null
+    })
 
     return {
       doc: docRecord,
@@ -196,6 +211,9 @@ export class DocWorker {
       inputTitle.length > 0 ? inputTitle.slice(0, 256) : DEFAULT_TITLE
 
     const metadata = await context.updateMetadata({ title: nextTitle })
+    await this._updateStoredContextRecord(request.key, {
+      title: metadata?.title || nextTitle
+    })
 
     return {
       key: request.key,
@@ -384,6 +402,14 @@ export class DocWorker {
     })
 
     let aborted = false
+    let pairingClosed = false
+
+    const closePairingResources = async () => {
+      if (pairingClosed) return
+      pairingClosed = true
+      await pairer.close().catch(() => {})
+      await tempStore.close?.().catch(() => {})
+    }
 
     const safeEmit = async (status) => {
       if (aborted) return
@@ -394,7 +420,7 @@ export class DocWorker {
       if (aborted) return
       aborted = true
       void safeEmit({ state: 'cancelled', message: 'Pairing cancelled' })
-      void pairer.close().catch(() => {})
+      void closePairingResources()
     }
 
     if (signal) {
@@ -463,6 +489,7 @@ export class DocWorker {
       const now = Date.now()
 
       await provisional.close()
+      await closePairingResources()
 
       const finalStore = manager.corestore.namespace(namespaceFinal)
       const context = new manager.ContextClass(finalStore, {
@@ -492,6 +519,9 @@ export class DocWorker {
 
       const metadata = await context.getMetadata()
       const doc = this.normalizeDocRecord(record, metadata)
+      await this._updateStoredContextRecord(keyHex, {
+        title: doc?.title || null
+      })
 
       await safeEmit({
         state: 'joined',
@@ -516,7 +546,7 @@ export class DocWorker {
       if (signal) {
         signal.removeEventListener('abort', handleAbort)
       }
-      await pairer.close().catch(() => {})
+      await closePairingResources()
     }
   }
 
@@ -651,21 +681,37 @@ export class DocWorker {
     const watchers = this.watchers.get(keyHex)
     if (!watchers || watchers.size === 0) return
 
-    const sync = await this._ensureSync(context)
-    const refresh = await this._refreshSync(context, sync)
-    const awarenessChanged = await this._refreshAwareness(context, sync)
-    const awarenessUpdate = awarenessChanged
-      ? encodeAwarenessUpdate(
-          sync.awareness,
-          Array.from(sync.awareness.getStates().keys())
-        )
-      : null
-    const payload = await this.buildDocUpdate(context, sync, {
-      updates:
-        refresh.updates && refresh.updates.length > 0 ? refresh.updates : null,
-      syncUpdate: refresh.syncUpdate,
-      awareness: awarenessUpdate
-    })
+    let payload = null
+
+    try {
+      const sync = await this._ensureSync(context)
+      const refresh = await this._refreshSync(context, sync)
+      const awarenessChanged = await this._refreshAwareness(context, sync)
+      const awarenessUpdate = awarenessChanged
+        ? encodeAwarenessUpdate(
+            sync.awareness,
+            Array.from(sync.awareness.getStates().keys())
+          )
+        : null
+
+      payload = await this.buildDocUpdate(context, sync, {
+        updates:
+          refresh.updates && refresh.updates.length > 0
+            ? refresh.updates
+            : null,
+        syncUpdate: refresh.syncUpdate,
+        awareness: awarenessUpdate
+      })
+    } catch (error) {
+      if (isCoreClosingError(error)) {
+        this._teardownWatchers(keyHex)
+        this._releaseSync(keyHex)
+        return
+      }
+
+      console.warn('[doc-worker] failed to prepare doc update broadcast', error)
+      return
+    }
 
     for (const watcher of watchers) {
       if (watcher.closed) continue
@@ -812,6 +858,42 @@ export class DocWorker {
     return doc
   }
 
+  async _resolveDocRecord(record = {}) {
+    const doc = this.normalizeDocRecord(record)
+
+    if (!this._shouldPrefetchTitle(record)) {
+      return doc
+    }
+
+    try {
+      const context = await this.manager.getDoc(record.key)
+      if (!context) return doc
+
+      const metadata = await context.getMetadata()
+      const hydrated = this.normalizeDocRecord(record, metadata)
+
+      await this._updateStoredContextRecord(record.key, {
+        title: hydrated?.title || null
+      })
+
+      return hydrated
+    } catch (error) {
+      console.warn('[doc-worker] failed to prefetch doc title', record?.key, error)
+      return doc
+    }
+  }
+
+  _shouldPrefetchTitle(record = {}) {
+    if (!record || typeof record.key !== 'string' || record.key.length === 0) {
+      return false
+    }
+
+    if (typeof record.title !== 'string') return true
+
+    const title = record.title.trim()
+    return title.length === 0 || title === DEFAULT_TITLE
+  }
+
   async _listWriterRoles(context) {
     const acl = await context.base.view.get('@autobonk/acl-entry', {
       subjectKey: context.writerKey
@@ -902,5 +984,24 @@ export class DocWorker {
     } catch {
       return null
     }
+  }
+
+  async _updateStoredContextRecord(keyHex, patch = {}) {
+    if (!keyHex) return
+
+    const current = await this._getStoredContextRecord(keyHex)
+    if (!current) return
+
+    const next = { ...current }
+    let changed = false
+
+    for (const [field, value] of Object.entries(patch)) {
+      if (value === undefined || next[field] === value) continue
+      next[field] = value
+      changed = true
+    }
+
+    if (!changed || !this.manager.localDb) return
+    await this.manager.localDb.put(`contexts/${keyHex}`, next)
   }
 }

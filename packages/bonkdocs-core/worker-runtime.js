@@ -28,7 +28,17 @@ export async function initializeWorker(options = {}) {
     rpcInstance = createRpcServer(options.rpc, workerInstance)
   }
 
-  await workerInstance.ready()
+  try {
+    await workerInstance.ready()
+  } catch (error) {
+    try {
+      await workerInstance?.close()
+    } catch {}
+    workerInstance = null
+    rpcInstance = null
+    throw error
+  }
+
   return workerInstance
 }
 

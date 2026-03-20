@@ -5,6 +5,7 @@ import {
   ActionSheetIOS,
   Alert,
   Button,
+  Image,
   Linking,
   Modal,
   Platform,
@@ -36,6 +37,7 @@ import {
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context'
 import { DocSurface } from './components/doc-surface'
 import {
+  abandonDoc,
   createDocInvite,
   createDoc,
   getDoc,
@@ -72,6 +74,7 @@ type DocScreenProps = NativeStackScreenProps<RootStackParamList, 'Doc'> & {
   toggleSidebar: () => void
   createPending: boolean
   createNewDoc: () => Promise<void>
+  refreshDocs: () => Promise<void>
 }
 
 const WRITE_ROLE = 'doc-editor'
@@ -89,6 +92,7 @@ const Drawer = createDrawerNavigator<RootDrawerParamList>()
 const Stack = createNativeStackNavigator<RootStackParamList>()
 const navigationRef = createNavigationContainerRef<RootDrawerParamList>()
 const IOS_TINT = '#007aff'
+const bonkArt = require('../../icon.png')
 
 const navigationTheme = {
   ...DefaultTheme,
@@ -431,6 +435,7 @@ export default function App() {
     try {
       const doc = await createDoc()
       openDoc(doc)
+      await refreshDocs()
     } catch (nextError) {
       const message =
         nextError instanceof Error
@@ -441,7 +446,7 @@ export default function App() {
     } finally {
       setCreatePending(false)
     }
-  }, [createPending, openDoc])
+  }, [createPending, openDoc, refreshDocs])
 
   const startJoin = useCallback(
     async (rawInvite: string) => {
@@ -647,6 +652,7 @@ export default function App() {
                         createNewDoc={handleCreate}
                         createPending={createPending}
                         lookupDoc={lookupDoc}
+                        refreshDocs={refreshDocs}
                         toggleSidebar={toggleSidebar}
                         updateDocEntry={updateDocEntry}
                         upsertDoc={upsertDoc}
@@ -667,6 +673,9 @@ function HomeScreen({ appError, hasDocs }: HomeScreenProps) {
   return (
     <SafeAreaView edges={['top', 'bottom']} style={styles.safeArea}>
       <View style={styles.homeState}>
+        <View style={styles.artFrame}>
+          <Image source={bonkArt} resizeMode='contain' style={styles.art} />
+        </View>
         <View style={styles.homeCopy}>
           <Text style={styles.title}>
             {hasDocs ? 'Pick a doc from the menu' : 'Start a new doc'}
@@ -696,7 +705,8 @@ function DocScreen({
   updateDocEntry,
   toggleSidebar,
   createPending,
-  createNewDoc
+  createNewDoc,
+  refreshDocs
 }: DocScreenProps) {
   const key = route.params.key
   const [activeDoc, setActiveDoc] = useState<MobileDocRecord | null>(
@@ -711,6 +721,7 @@ function DocScreen({
   const [renameModalVisible, setRenameModalVisible] = useState(false)
   const [renamePending, setRenamePending] = useState(false)
   const [sharePending, setSharePending] = useState(false)
+  const [abandonPending, setAbandonPending] = useState(false)
 
   const watchStreamRef = useRef<RpcStream | null>(null)
 
@@ -767,6 +778,27 @@ function DocScreen({
       }
     )
   }, [activeDoc, activeView, sharePending])
+
+  const handleAbandon = useCallback(async () => {
+    if (!activeDoc || abandonPending) return
+
+    setAbandonPending(true)
+
+    try {
+      await abandonDoc(activeDoc.key)
+      await refreshDocs()
+      navigation.dispatch(StackActions.replace('Home'))
+    } catch (nextError) {
+      Alert.alert(
+        'Abandon failed',
+        nextError instanceof Error
+          ? nextError.message
+          : 'Failed to abandon document'
+      )
+    } finally {
+      setAbandonPending(false)
+    }
+  }, [abandonPending, activeDoc, navigation, refreshDocs])
 
   useEffect(() => {
     if (!activeDoc) return
@@ -865,6 +897,22 @@ function DocScreen({
     async (value: string) => {
       if (!activeDoc || renamePending) return
 
+      if (activeView?.lockedAt) {
+        Alert.alert(
+          'Rename unavailable',
+          'Unlock the document before renaming it.'
+        )
+        return
+      }
+
+      if (activeView && !activeView.canEdit) {
+        Alert.alert(
+          'Rename unavailable',
+          'You can only rename documents you can edit.'
+        )
+        return
+      }
+
       const currentTitle = friendlyTitle(activeView || activeDoc)
       const nextTitle = value.trim()
 
@@ -899,6 +947,7 @@ function DocScreen({
         updateDocEntry(activeDoc.key, {
           title: renamed.title
         })
+        await refreshDocs()
       } catch (nextError) {
         Alert.alert(
           'Rename failed',
@@ -911,7 +960,7 @@ function DocScreen({
         setRenameModalVisible(false)
       }
     },
-    [activeDoc, activeView, renamePending, updateDocEntry]
+    [activeDoc, activeView, refreshDocs, renamePending, updateDocEntry]
   )
 
   const showStats = useCallback(() => {
@@ -929,6 +978,22 @@ function DocScreen({
   }, [activeDoc, activeView, key])
 
   const openRenamePrompt = useCallback(() => {
+    if (activeView?.lockedAt) {
+      Alert.alert(
+        'Rename unavailable',
+        'Unlock the document before renaming it.'
+      )
+      return
+    }
+
+    if (activeView && !activeView.canEdit) {
+      Alert.alert(
+        'Rename unavailable',
+        'You can only rename documents you can edit.'
+      )
+      return
+    }
+
     const currentTitle = friendlyTitle(activeView || activeDoc)
     setRenameDraft(currentTitle)
 
@@ -961,13 +1026,31 @@ function DocScreen({
     if (Platform.OS === 'ios') {
       ActionSheetIOS.showActionSheetWithOptions(
         {
-          options: ['Cancel', 'Share', 'Rename', 'Stats'],
-          cancelButtonIndex: 0
+          options: ['Cancel', 'Share', 'Rename', 'Stats', 'Abandon doc'],
+          cancelButtonIndex: 0,
+          destructiveButtonIndex: 4
         },
         (buttonIndex) => {
           if (buttonIndex === 1) void handleShare()
           if (buttonIndex === 2) openRenamePrompt()
           if (buttonIndex === 3) showStats()
+          if (buttonIndex === 4) {
+            Alert.alert(
+              'Abandon document',
+              'Remove it from this device? It may still exist elsewhere.',
+              [
+                {
+                  text: 'Cancel',
+                  style: 'cancel'
+                },
+                {
+                  text: abandonPending ? 'Abandoning…' : 'Abandon doc',
+                  style: 'destructive',
+                  onPress: () => void handleAbandon()
+                }
+              ]
+            )
+          }
         }
       )
       return
@@ -985,9 +1068,37 @@ function DocScreen({
       {
         text: 'Stats',
         onPress: showStats
+      },
+      {
+        text: abandonPending ? 'Abandoning…' : 'Abandon doc',
+        style: 'destructive',
+        onPress: () =>
+          Alert.alert(
+            'Abandon document',
+            'Remove it from this device? It may still exist elsewhere.',
+            [
+              {
+                text: 'Cancel',
+                style: 'cancel'
+              },
+              {
+                text: abandonPending ? 'Abandoning…' : 'Abandon doc',
+                style: 'destructive',
+                onPress: () => void handleAbandon()
+              }
+            ]
+          )
       }
     ])
-  }, [activeDoc, activeView, handleShare, openRenamePrompt, showStats])
+  }, [
+    abandonPending,
+    activeDoc,
+    activeView,
+    handleAbandon,
+    handleShare,
+    openRenamePrompt,
+    showStats
+  ])
 
   useEffect(() => {
     navigation.setOptions({
@@ -1005,7 +1116,7 @@ function DocScreen({
             icon='…'
             label='More actions'
             onPress={() => void handleMoreMenu()}
-            disabled={sharePending || renamePending}
+            disabled={abandonPending || sharePending || renamePending}
           />
           <HeaderIconButton
             icon={createPending ? '…' : '+'}
@@ -1024,6 +1135,7 @@ function DocScreen({
     handleMoreMenu,
     navigation,
     renamePending,
+    abandonPending,
     sharePending,
     toggleSidebar
   ])
@@ -1130,12 +1242,26 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 24
+    padding: 24,
+    gap: 20
   },
   homeCopy: {
     gap: 8,
     maxWidth: 360,
     alignItems: 'center'
+  },
+  artFrame: {
+    width: 240,
+    height: 240,
+    padding: 20,
+    borderRadius: 24,
+    backgroundColor: '#f5f5f5',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  art: {
+    width: '100%',
+    height: '100%'
   },
   title: {
     fontSize: 28,

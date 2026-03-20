@@ -2,7 +2,7 @@
 
 // @ts-ignore
 import HRPC from '../../../spec/hrpc/index.js'
-import PearRuntime from 'pear-runtime-react-native'
+import { Worklet } from 'react-native-bare-kit'
 import bundle from '../worker.bundle.js'
 
 type RpcClient = any
@@ -12,6 +12,7 @@ type IpcStream = {
   off?: (event: string, listener: IpcListener) => void
   removeListener?: (event: string, listener: IpcListener) => void
   write: (data: Uint8Array) => void
+  destroy?: () => void
 }
 
 let rpcInstance: RpcClient | null = null
@@ -33,11 +34,13 @@ function removeIpcListener(
 
 class MobileWorkerStream {
   destroyed = false
+  private readonly worklet: Worklet
   private readonly ipc: IpcStream
 
   constructor() {
-    const pear = new PearRuntime()
-    this.ipc = pear.run('/worker.bundle', bundle, [String(__DEV__)])
+    this.worklet = new Worklet()
+    this.worklet.start('/worker.bundle', bundle, [String(__DEV__)])
+    this.ipc = this.worklet.IPC
   }
 
   on(event: string, listener: IpcListener) {
@@ -57,14 +60,39 @@ class MobileWorkerStream {
   }
 
   destroy() {
+    if (this.destroyed) return this
     this.destroyed = true
+    this.ipc.destroy?.()
+    this.worklet.terminate()
     return this
   }
 }
 
+type GlobalRpcState = typeof globalThis & {
+  __BONKDOCS_MOBILE_RPC__?: RpcClient | null
+  __BONKDOCS_MOBILE_WORKER__?: MobileWorkerStream | null
+}
+
+const globalRpcState = globalThis as GlobalRpcState
+
+export function destroyRpc() {
+  rpcInstance = null
+  globalRpcState.__BONKDOCS_MOBILE_RPC__ = null
+  globalRpcState.__BONKDOCS_MOBILE_WORKER__?.destroy()
+  globalRpcState.__BONKDOCS_MOBILE_WORKER__ = null
+}
+
 export function getRpc() {
-  if (!rpcInstance) {
-    rpcInstance = new HRPC(new MobileWorkerStream())
+  if (globalRpcState.__BONKDOCS_MOBILE_RPC__) {
+    rpcInstance = globalRpcState.__BONKDOCS_MOBILE_RPC__
   }
+
+  if (!rpcInstance) {
+    const worker = new MobileWorkerStream()
+    rpcInstance = new HRPC(worker)
+    globalRpcState.__BONKDOCS_MOBILE_RPC__ = rpcInstance
+    globalRpcState.__BONKDOCS_MOBILE_WORKER__ = worker
+  }
+
   return rpcInstance
 }
