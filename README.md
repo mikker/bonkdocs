@@ -1,4 +1,4 @@
-# Bonk Docs
+# Bonk Docs (EXPERIMENTAL 🚧)
 
 Peer-to-peer collaborative docs built on Autobonk, Yjs, and Pear runtimes.
 
