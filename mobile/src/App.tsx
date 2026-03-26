@@ -27,7 +27,6 @@ import {
 import {
   createDrawerNavigator,
   DrawerContentScrollView,
-  DrawerItem,
   type DrawerContentComponentProps
 } from '@react-navigation/drawer'
 import {
@@ -203,6 +202,7 @@ function formatDocTimestamp(value: number | null | undefined) {
 
 function AppDrawerContent({
   docs,
+  activeDocKey,
   loading,
   createPending,
   joinInviteCode,
@@ -217,6 +217,7 @@ function AppDrawerContent({
   submitJoin
 }: DrawerContentComponentProps & {
   docs: MobileDocRecord[]
+  activeDocKey: string | null
   loading: boolean
   createPending: boolean
   joinInviteCode: string
@@ -231,8 +232,31 @@ function AppDrawerContent({
   submitJoin: () => Promise<void>
 }) {
   return (
-    <DrawerContentScrollView contentContainerStyle={styles.drawerContent}>
+    <DrawerContentScrollView
+      contentContainerStyle={styles.drawerContent}
+      style={styles.drawerScroll}
+    >
       <View style={styles.drawerMain}>
+        <View style={styles.drawerToolbar}>
+          <HeaderIconButton
+            icon='↘'
+            label={sidebarPanel === 'join' ? 'Hide join' : 'Join doc'}
+            onPress={toggleJoinPanel}
+            disabled={joinPending}
+            variant='toolbar'
+          />
+          <HeaderIconButton
+            icon={createPending ? '…' : '+'}
+            label='Create doc'
+            onPress={() => {
+              if (createPending || joinPending) return
+              void createNewDoc()
+            }}
+            disabled={createPending || joinPending}
+            variant='toolbar'
+          />
+        </View>
+
         {loading ? (
           <View style={styles.loadingRow}>
             <ActivityIndicator />
@@ -247,27 +271,39 @@ function AppDrawerContent({
           </View>
         ) : (
           <View style={styles.drawerList}>
+            <Text style={styles.drawerSectionLabel}>Docs</Text>
             {docs.map((doc) => (
-              <DrawerItem
+              <Pressable
                 key={doc.key}
-                label={() => (
-                  <View style={styles.listLabel}>
-                    <Text style={styles.listTitle}>{friendlyTitle(doc)}</Text>
-                    {doc.lockedAt ? (
-                      <Text style={styles.listMeta}>Locked</Text>
-                    ) : null}
-                  </View>
-                )}
                 onPress={() => openDoc(doc)}
-              />
+                style={({ pressed }) => [
+                  styles.docRow,
+                  activeDocKey === doc.key ? styles.docRowActive : null,
+                  pressed ? styles.docRowPressed : null
+                ]}
+              >
+                <View style={styles.listLabel}>
+                  <Text
+                    numberOfLines={1}
+                    style={[
+                      styles.listTitle,
+                      activeDocKey === doc.key ? styles.listTitleActive : null
+                    ]}
+                  >
+                    {friendlyTitle(doc)}
+                  </Text>
+                  {doc.lockedAt ? (
+                    <Text style={styles.listMeta}>Locked</Text>
+                  ) : null}
+                </View>
+              </Pressable>
             ))}
           </View>
         )}
-      </View>
 
-      <View style={styles.drawerFooter}>
         {sidebarPanel === 'join' ? (
-          <View style={styles.card}>
+          <View style={styles.joinCard}>
+            <Text style={styles.cardTitle}>Join via invite</Text>
             <TextInput
               value={joinInviteCode}
               onChangeText={setJoinInviteCode}
@@ -286,7 +322,6 @@ function AppDrawerContent({
                 pressed && !joinPending ? styles.iconButtonPressed : null
               ]}
             >
-              <Text style={styles.drawerActionIcon}>↘</Text>
               <Text style={styles.drawerActionLabel}>
                 {joinPending ? 'Joining…' : 'Join doc'}
               </Text>
@@ -294,23 +329,6 @@ function AppDrawerContent({
             {joinStatus ? <Text style={styles.muted}>{joinStatus}</Text> : null}
           </View>
         ) : null}
-
-        <DrawerItem
-          label='Create doc'
-          icon={() => <Text style={styles.drawerItemIcon}>+</Text>}
-          onPress={() => {
-            if (createPending || joinPending) return
-            void createNewDoc()
-          }}
-        />
-        <DrawerItem
-          label={sidebarPanel === 'join' ? 'Hide join' : 'Join doc'}
-          icon={() => <Text style={styles.drawerItemIcon}>↘</Text>}
-          onPress={() => {
-            if (joinPending) return
-            toggleJoinPanel()
-          }}
-        />
       </View>
 
       {sidebarError ? (
@@ -324,6 +342,7 @@ function AppDrawerContent({
 
 export default function App() {
   const [docs, setDocs] = useState<MobileDocRecord[]>([])
+  const [activeDocKey, setActiveDocKey] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [appError, setAppError] = useState<string | null>(null)
   const [joinInviteCode, setJoinInviteCode] = useState('')
@@ -403,6 +422,7 @@ export default function App() {
   const openDoc = useCallback(
     (doc: MobileDocRecord) => {
       upsertDoc(doc)
+      setActiveDocKey(doc.key)
       setSidebarPanel(null)
 
       if (!navigationRef.isReady()) return
@@ -574,11 +594,21 @@ export default function App() {
             }}
             screenOptions={{
               headerShown: false,
-              drawerType: 'front'
+              drawerType: 'front',
+              drawerStyle: {
+                width: 300,
+                backgroundColor: '#f6f6f3',
+                borderRightWidth: 1,
+                borderRightColor: '#e5e5df'
+              },
+              sceneStyle: {
+                backgroundColor: '#fcfcfa'
+              }
             }}
             drawerContent={(props) => (
               <AppDrawerContent
                 {...props}
+                activeDocKey={activeDocKey}
                 createNewDoc={handleCreate}
                 createPending={createPending}
                 docs={docs}
@@ -603,14 +633,25 @@ export default function App() {
               {() => (
                 <Stack.Navigator
                   screenOptions={{
-                    contentStyle: { backgroundColor: '#ffffff' },
+                    contentStyle: { backgroundColor: '#fcfcfa' },
                     headerBackButtonDisplayMode: 'minimal',
                     headerBackVisible: false,
                     headerShadowVisible: true,
-                    headerStyle: {
-                      backgroundColor: '#ffffff'
+                    headerTitleAlign: 'left',
+                    headerLeftContainerStyle: {
+                      paddingLeft: 10
                     },
-                    headerTintColor: IOS_TINT,
+                    headerRightContainerStyle: {
+                      paddingRight: 10
+                    },
+                    headerTitleContainerStyle: {
+                      left: 70,
+                      right: 112
+                    },
+                    headerStyle: {
+                      backgroundColor: '#fcfcfa'
+                    },
+                    headerTintColor: '#1a1a1a',
                     headerTitleStyle: {
                       fontWeight: '600',
                       color: '#1a1a1a'
@@ -620,12 +661,15 @@ export default function App() {
                   <Stack.Screen
                     name='Home'
                     options={{
-                      title: 'Bonk Docs',
+                      headerTitle: () => (
+                        <HeaderTitle muted title='Bonk Docs' />
+                      ),
                       headerLeft: () => (
                         <HeaderIconButton
                           icon='☰'
                           label='Menu'
                           onPress={() => toggleSidebar()}
+                          variant='toolbar'
                         />
                       ),
                       headerRight: () => (
@@ -634,6 +678,7 @@ export default function App() {
                           label='New document'
                           onPress={() => void handleCreate()}
                           disabled={createPending}
+                          variant='toolbar'
                         />
                       )
                     }}
@@ -1101,28 +1146,33 @@ function DocScreen({
   ])
 
   useEffect(() => {
+    const currentTitle = friendlyTitle(activeView || activeDoc)
+
     navigation.setOptions({
-      title: friendlyTitle(activeView || activeDoc),
       headerLeft: () => (
         <HeaderIconButton
           icon='☰'
           label='Menu'
           onPress={() => toggleSidebar()}
+          variant='toolbar'
         />
       ),
+      headerTitle: () => <HeaderTitle title={currentTitle} />,
       headerRight: () => (
         <View style={styles.headerActions}>
           <HeaderIconButton
-            icon='…'
+            icon='⋯'
             label='More actions'
             onPress={() => void handleMoreMenu()}
             disabled={abandonPending || sharePending || renamePending}
+            variant='toolbar'
           />
           <HeaderIconButton
             icon={createPending ? '…' : '+'}
             label='New document'
             onPress={() => void createNewDoc()}
             disabled={createPending}
+            variant='toolbar'
           />
         </View>
       )
@@ -1205,12 +1255,14 @@ function HeaderIconButton({
   icon,
   label,
   onPress,
-  disabled = false
+  disabled = false,
+  variant = 'plain'
 }: {
   icon: string
   label: string
   onPress: () => void
   disabled?: boolean
+  variant?: 'plain' | 'toolbar'
 }) {
   return (
     <Pressable
@@ -1221,12 +1273,45 @@ function HeaderIconButton({
       disabled={disabled}
       style={({ pressed }) => [
         styles.iconButton,
+        variant === 'toolbar' ? styles.toolbarButton : null,
         pressed && !disabled ? styles.iconButtonPressed : null,
         disabled ? styles.iconButtonDisabled : null
       ]}
     >
-      <Text style={styles.iconButtonText}>{icon}</Text>
+      <Text
+        style={[
+          styles.iconButtonText,
+          variant === 'toolbar' ? styles.toolbarButtonText : null
+        ]}
+      >
+        {icon}
+      </Text>
     </Pressable>
+  )
+}
+
+function HeaderTitle({
+  title,
+  muted = false
+}: {
+  title: string
+  muted?: boolean
+}) {
+  return (
+    <View style={styles.headerTitleWrap}>
+      <View style={styles.headerTitleIcon}>
+        <View style={styles.headerTitleIconDivider} />
+      </View>
+      <Text
+        numberOfLines={1}
+        style={[
+          styles.headerTitleText,
+          muted ? styles.headerTitleTextMuted : null
+        ]}
+      >
+        {title}
+      </Text>
+    </View>
   )
 }
 
@@ -1236,7 +1321,7 @@ const styles = StyleSheet.create({
   },
   safeArea: {
     flex: 1,
-    backgroundColor: '#ffffff'
+    backgroundColor: '#fcfcfa'
   },
   homeState: {
     flex: 1,
@@ -1282,23 +1367,36 @@ const styles = StyleSheet.create({
   },
   drawerContent: {
     flexGrow: 1,
+    paddingHorizontal: 12,
     paddingVertical: 12,
-    justifyContent: 'space-between',
-    gap: 12
+    gap: 14
+  },
+  drawerScroll: {
+    backgroundColor: '#f6f6f3'
   },
   drawerList: {
-    gap: 2
+    gap: 6
   },
   drawerMain: {
-    gap: 8
+    flex: 1,
+    gap: 14
   },
-  drawerFooter: {
-    gap: 8,
-    paddingTop: 8
+  drawerToolbar: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 10,
+    paddingBottom: 2
+  },
+  drawerSectionLabel: {
+    paddingHorizontal: 10,
+    fontSize: 12,
+    lineHeight: 16,
+    color: '#6e6e69',
+    fontWeight: '500'
   },
   docSafeArea: {
     flex: 1,
-    backgroundColor: '#ffffff'
+    backgroundColor: '#fcfcfa'
   },
   docState: {
     flex: 1,
@@ -1338,14 +1436,6 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     gap: 12
   },
-  card: {
-    backgroundColor: '#ffffff',
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: '#e5e5e5',
-    padding: 18,
-    gap: 14
-  },
   errorCard: {
     marginHorizontal: 16,
     backgroundColor: '#fff6f5',
@@ -1359,6 +1449,15 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#1a1a1a'
   },
+  joinCard: {
+    marginTop: 'auto',
+    backgroundColor: '#fbfbfa',
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: '#e4e4de',
+    padding: 18,
+    gap: 12
+  },
   cardBody: {
     fontSize: 14,
     lineHeight: 20,
@@ -1366,7 +1465,7 @@ const styles = StyleSheet.create({
   },
   input: {
     backgroundColor: '#ffffff',
-    borderRadius: 14,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: '#dddddd',
     color: '#1a1a1a',
@@ -1384,6 +1483,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center'
   },
+  toolbarButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#e1e1db',
+    shadowColor: '#1a1a1a',
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    shadowOffset: {
+      width: 0,
+      height: 2
+    },
+    elevation: 1
+  },
   iconButtonPressed: {
     opacity: 0.45
   },
@@ -1396,10 +1511,48 @@ const styles = StyleSheet.create({
     color: IOS_TINT,
     fontWeight: '400'
   },
+  toolbarButtonText: {
+    fontSize: 19,
+    lineHeight: 22,
+    color: '#1a1a1a',
+    fontWeight: '500'
+  },
   headerActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14
+    gap: 10
+  },
+  headerTitleWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9,
+    maxWidth: 280
+  },
+  headerTitleIcon: {
+    width: 18,
+    height: 14,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: '#1a1a1a',
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    overflow: 'hidden'
+  },
+  headerTitleIconDivider: {
+    width: 1,
+    backgroundColor: '#1a1a1a',
+    marginLeft: 7
+  },
+  headerTitleText: {
+    flexShrink: 1,
+    fontSize: 16,
+    lineHeight: 20,
+    color: '#1a1a1a',
+    fontWeight: '700'
+  },
+  headerTitleTextMuted: {
+    color: '#7a7a73',
+    fontWeight: '600'
   },
   loadingRow: {
     flexDirection: 'row',
@@ -1419,7 +1572,7 @@ const styles = StyleSheet.create({
   emptyState: {
     alignItems: 'flex-start',
     gap: 4,
-    paddingHorizontal: 16
+    paddingHorizontal: 12
   },
   emptyTitle: {
     fontSize: 16,
@@ -1434,39 +1587,41 @@ const styles = StyleSheet.create({
   listLabel: {
     gap: 4
   },
+  docRow: {
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 12
+  },
+  docRowActive: {
+    backgroundColor: '#ecece8'
+  },
+  docRowPressed: {
+    opacity: 0.7
+  },
   listTitle: {
     fontSize: 16,
     fontWeight: '600',
     color: '#1a1a1a'
   },
-  listMeta: {
-    fontSize: 14,
-    color: '#707070'
+  listTitleActive: {
+    fontWeight: '700'
   },
-  drawerItemIcon: {
-    width: 20,
-    textAlign: 'center',
-    fontSize: 19,
-    lineHeight: 22,
-    color: '#1a1a1a'
+  listMeta: {
+    fontSize: 13,
+    color: '#7c7c76'
   },
   drawerActionButton: {
     minHeight: 44,
-    flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    justifyContent: 'center',
+    borderRadius: 16,
+    backgroundColor: '#1a1a1a',
     paddingHorizontal: 14
   },
-  drawerActionIcon: {
-    width: 20,
-    textAlign: 'center',
-    fontSize: 19,
-    lineHeight: 22,
-    color: IOS_TINT
-  },
   drawerActionLabel: {
-    fontSize: 17,
+    fontSize: 15,
     lineHeight: 22,
-    color: IOS_TINT
+    color: '#ffffff',
+    fontWeight: '600'
   }
 })
