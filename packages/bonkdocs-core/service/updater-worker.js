@@ -2,20 +2,12 @@ import PearRuntime from 'pear-runtime'
 
 export class UpdaterWorker {
   /**
-   * @param {object} config Options for `pear-runtime`, or `{ existingPear }` when the host already opened it (avoids a second Corestore in the same process on mobile).
+   * @param {object} config Options for `pear-runtime`
    * @param {new (config: object) => { updater: object, ready?: () => Promise<void>, close?: () => Promise<void> }} [PearRuntimeClass] Tests may inject a mock.
    */
-  constructor(config = {}, PearRuntimeClass = PearRuntime) {
-    if (config.existingPear) {
-      this._ownsPear = false
-      this.config = config
-      this.pear = config.existingPear
-      this.updater = this.pear.updater
-      return
-    }
-    this._ownsPear = true
+  constructor(config = {}) {
     this.config = config
-    this.pear = new PearRuntimeClass(config)
+    this.pear = new PearRuntime(config)
     this.updater = this.pear.updater
   }
 

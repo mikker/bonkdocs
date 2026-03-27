@@ -103,14 +103,7 @@ export async function initializeWorker(options = {}) {
   }
 
   if (!updaterWorkerInstance) {
-    const pearRuntimeConfig = options.pearRuntime ?? updaterConfig ?? {}
-    if (options.existingPear) {
-      updaterWorkerInstance = new UpdaterWorker({
-        existingPear: options.existingPear
-      })
-    } else if (shouldOpenPearRuntime(pearRuntimeConfig)) {
-      updaterWorkerInstance = new UpdaterWorker(pearRuntimeConfig)
-    }
+    if (shouldOpenPearRuntime(updaterConfig)) updaterWorkerInstance = new UpdaterWorker(updaterConfig)
   }
 
   if (!workerInstance) {
@@ -238,7 +231,7 @@ function createBareIpcStream() {
   return stream
 }
 
-export async function bootstrapWorkerRuntime(options = {}) {
+export async function bootstrapWorkerRuntime() {
   const ipcStream = createBareIpcStream()
   if (!ipcStream) return
 
@@ -251,8 +244,7 @@ export async function bootstrapWorkerRuntime(options = {}) {
       await initializeWorker({
         baseDir: resolveBaseDir(),
         ensureStorage: true,
-        rpc: ipcStream,
-        ...options
+        rpc: ipcStream
       })
       break
     } catch (error) {
