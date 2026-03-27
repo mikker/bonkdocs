@@ -58,6 +58,12 @@
     "url": {
       "bare": "bare-url",
       "default": "url"
+    },
+    "pear-runtime": {
+      "ios": "pear-mobile",
+      "android": "pear-mobile",
+      "simulator": "pear-mobile",
+      "default": "pear-runtime"
     }
   },
   "dependencies": {
@@ -92,6 +98,7 @@
     "hrpc": "^4.3.0",
     "lucide-react": "^0.577.0",
     "paparam": "^1.10.1",
+    "pear-mobile": "^4.2.0",
     "pear-runtime": "^1.1.0",
     "protomux-wakeup": "^2.9.0",
     "ready-resource": "^1.2.0",
