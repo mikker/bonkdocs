@@ -35,7 +35,7 @@ test('UpdaterWorker applyUpdate throws when updater missing', async (t) => {
   }, /Updater is not available/)
 })
 
-test('UpdaterWorker subscribeStatus forwards events and unsubscribes', async (t) => {
+test('UpdaterWorker subscribeStatus streams events and destroy unsubscribes', async (t) => {
   t.plan(4)
 
   const ee = new EventEmitter()
@@ -45,18 +45,24 @@ test('UpdaterWorker subscribeStatus forwards events and unsubscribes', async (t)
   const w = new UpdaterWorker({}, createMockPearClass(ee))
   const seen = []
 
-  const unsub = w.subscribeStatus((e) => {
-    seen.push(e.event)
+  const stream = w.subscribeStatus()
+  stream.on('data', (e) => {
+    seen.push(e.type)
   })
+  stream.resume()
+
+  await new Promise((resolve) => stream.once('open', resolve))
 
   ee.emit('updating')
   ee.emit('updated')
+  await new Promise((r) => setImmediate(r))
   t.is(seen.length, 2)
   t.is(seen[0], 'updating')
   t.is(seen[1], 'updated')
 
-  unsub()
+  stream.destroy()
   ee.emit('updating')
+  await new Promise((r) => setImmediate(r))
   t.is(seen.length, 2)
 })
 

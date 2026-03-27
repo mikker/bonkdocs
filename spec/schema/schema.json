@@ -1,5 +1,5 @@
 {
-  "version": 3,
+  "version": 4,
   "schema": [
     {
       "name": "writer",
@@ -1261,13 +1261,19 @@
       "name": "updater-status-event",
       "namespace": "bonk-docs-rpc",
       "compact": false,
-      "flagsPosition": -1,
+      "flagsPosition": 1,
       "fields": [
         {
-          "name": "event",
+          "name": "type",
           "required": true,
           "type": "string",
           "version": 3
+        },
+        {
+          "name": "data",
+          "required": false,
+          "type": "buffer",
+          "version": 4
         }
       ]
     }

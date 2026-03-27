@@ -54,10 +54,15 @@ import { colorFromKey } from '@/lib/user-colors'
 import { getRpc } from './lib/rpc'
 
 const rpc = getRpc()
-const updater = rpc.updaterStatus()
-console.log('test')
-updater.on('data', (data) => console.log(data))
-updater.on('updating', () => console.log('updatiiiiiiiiiiiiiiing'))
+const updaterStatusStream = rpc.updaterStatus()
+updaterStatusStream.on('data', (data: { type?: string }) => {
+  if (data?.type === 'updating') {
+    console.log(
+      '[bonkdocs:updater:updating] app: HRPC RPCStream "data" (type=updating)',
+      data
+    )
+  }
+})
 
 
 function useDocState<T>(

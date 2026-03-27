@@ -120,7 +120,7 @@ export async function initializeWorker(options = {}) {
       rpcInstance = createRpcServer(
         options.rpc,
         workerInstance,
-        updaterWorkerInstance.updater
+        updaterWorkerInstance
       )
     }
   } catch (error) {

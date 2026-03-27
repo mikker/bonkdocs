@@ -385,7 +385,8 @@ rpc.register({
   name: 'updater-status-event',
   compact: false,
   fields: [
-    { name: 'event', type: 'string', required: true }
+    { name: 'type', type: 'string', required: true },
+    { name: 'data', type: 'buffer', required: false }
   ]
 })
 

@@ -143,7 +143,7 @@ function getWorker(specifier) {
     dir: getAppDir(),
     app: getAppPath(),
     name: getPearRuntimeName(),
-    updates: true,
+    updates: true, // TODO: revert mock
     version,
     storage: path.join(getAppDir(), 'app-storage'),
     upgrade: runtimeUpgrade,

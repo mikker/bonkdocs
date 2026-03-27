@@ -59,54 +59,86 @@ function createAbortController() {
   return createLocalAbortController()
 }
 
-export function createRpcServer(stream, worker, updater) {
+export function createRpcServer(stream, worker, updaterWorker) {
   const rpc = new HRPC(stream)
 
   rpc.onApplyUpdate(async () => {
-    console.log('[worker] applying runtime update')
-    if (!updater || typeof updater.applyUpdate !== 'function') {
+    if (!updaterWorker || typeof updaterWorker.applyUpdate !== 'function') {
       throw new Error('Updater is not available')
     }
-    await updater.applyUpdate()
+    await updaterWorker.applyUpdate()
     return {}
   })
 
   rpc.onUpdaterStatus((hrpcStream) => {
-    console.log('teeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeest')
-    let unsubscribe = () => {}
-    let cleaned = false
-
-    const cleanup = () => {
-      if (cleaned) return
-      cleaned = true
-      try {
-        unsubscribe()
-      } catch {}
-    }
-
-    try {
-      if (!updater || typeof updater.subscribeStatus !== 'function') {
-        hrpcStream.destroy(new Error('Updater is not available'))
-        return
-      }
-      updater.on('updating', () => console.log('wooooooooooooooooooooooooooooooooooork'))
-      unsubscribe = updater.subscribeStatus((payload) => {
-        if (hrpcStream.destroyed) {
-          cleanup()
-          return
-        }
-        try {
-          hrpcStream.write(payload)
-        } catch (err) {
-          cleanup()
-          if (!hrpcStream.destroyed) hrpcStream.destroy(err)
-        }
-      })
-    } catch (err) {
-      hrpcStream.destroy(err instanceof Error ? err : new Error(String(err)))
+    if (!updaterWorker || typeof updaterWorker.subscribeStatus !== 'function') {
+      hrpcStream.destroy(new Error('Updater is not available'))
       return
     }
 
+    let src
+    try {
+      src = updaterWorker.subscribeStatus()
+    } catch (err) {
+      hrpcStream.destroy(
+        err instanceof Error ? err : new Error(String(err))
+      )
+      return
+    }
+
+    const cleanup = () => {
+      try {
+        src?.destroy?.()
+      } catch {}
+    }
+
+    src.on('data', (chunk) => {
+      if (hrpcStream.destroyed) return cleanup()
+      if (!chunk || typeof chunk !== 'object') return
+
+      const { type, data } = chunk
+      if (type === 'updating') {
+        console.log(
+          '[bonkdocs:updater:updating] rpc-server: subscribeStatus Readable chunk (type=updating)'
+        )
+      }
+      let wire
+      if (type === 'error') {
+        const msg =
+          data instanceof Error ? data.message : String(data ?? 'error')
+        wire = { type: 'error', data: Buffer.from(msg, 'utf8') }
+      } else if (type === 'updating-delta' && data != null) {
+        const d = data
+        wire = {
+          type: 'updating-delta',
+          data: Buffer.isBuffer(d)
+            ? d
+            : Buffer.from(
+                typeof d === 'string' ? d : JSON.stringify(d),
+                'utf8'
+              )
+        }
+      } else if (type === 'updating' || type === 'updated') {
+        wire = { type }
+      }
+
+      if (!wire) return
+      if (wire.type === 'updating') {
+        console.log(
+          '[bonkdocs:updater:updating] rpc-server: HRPC response stream write (type=updating)'
+        )
+      }
+      try {
+        hrpcStream.write(wire)
+      } catch (err) {
+        cleanup()
+        if (!hrpcStream.destroyed) hrpcStream.destroy(err)
+      }
+    })
+    src.on('error', (err) => {
+      cleanup()
+      if (!hrpcStream.destroyed) hrpcStream.destroy(err)
+    })
     hrpcStream.on('close', cleanup)
     hrpcStream.on('error', cleanup)
   })
