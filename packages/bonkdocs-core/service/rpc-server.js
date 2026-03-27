@@ -72,6 +72,7 @@ export function createRpcServer(stream, worker, updater) {
   })
 
   rpc.onUpdaterStatus((hrpcStream) => {
+    console.log('teeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeest')
     let unsubscribe = () => {}
     let cleaned = false
 
@@ -88,6 +89,7 @@ export function createRpcServer(stream, worker, updater) {
         hrpcStream.destroy(new Error('Updater is not available'))
         return
       }
+      updater.on('updating', () => console.log('wooooooooooooooooooooooooooooooooooork'))
       unsubscribe = updater.subscribeStatus((payload) => {
         if (hrpcStream.destroyed) {
           cleanup()

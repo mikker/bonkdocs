@@ -1,7 +1,7 @@
 import SystemLog from 'bare-system-logger'
 import Console from 'bare-console'
-global.console = new Console(new SystemLog())
-console.log('teeeeeeeeeeeeeeeeeest')
+global.console = new Console(new SystemLog()) // NOTE: passes logs to system logs
+
 import process from 'process'
 import { join } from 'path'
 import Hyperswarm from 'hyperswarm'
@@ -12,7 +12,6 @@ import { UpdaterWorker } from './service/updater-worker.js'
 
 const updaterConfig = JSON.parse(globalThis.Bare.argv.pop()) // NOTE: doing pop cause not sure how other args are handled
 
-/** Open pear-runtime in the worker when Electron sent a real upgrade link (ignore updates flag — host may mock updates:true for dev). */
 function shouldOpenPearRuntime(cfg) {
   const up = cfg.upgrade
   if (!up || String(up) === 'pear://updates-disabled') return false
@@ -100,14 +99,6 @@ export async function initializeWorker(options = {}) {
     })
   }
 
-  if (options.rpc && rpcInstance === null) {
-    rpcInstance = createRpcServer(
-      options.rpc,
-      workerInstance,
-      updaterWorkerInstance ?? null
-    )
-  }
-
   try {
     await workerInstance.ready()
     if (!updaterWorkerInstance) {
@@ -124,7 +115,14 @@ export async function initializeWorker(options = {}) {
           client: true
         })
       }
-    } 
+    }
+    if (options.rpc && rpcInstance === null) {
+      rpcInstance = createRpcServer(
+        options.rpc,
+        workerInstance,
+        updaterWorkerInstance.updater
+      )
+    }
   } catch (error) {
     try {
       await teardownWorkerRuntime('initialize failed')

@@ -51,6 +51,14 @@ import {
 import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
 import { colorFromKey } from '@/lib/user-colors'
+import { getRpc } from './lib/rpc'
+
+const rpc = getRpc()
+const updater = rpc.updaterStatus()
+console.log('test')
+updater.on('data', (data) => console.log(data))
+updater.on('updating', () => console.log('updatiiiiiiiiiiiiiiing'))
+
 
 function useDocState<T>(
   selector: (state: ReturnType<typeof useDocStore.getState>) => T
