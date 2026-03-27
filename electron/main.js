@@ -17,6 +17,7 @@ const { name, productName, version, upgrade } = pkg
 
 const protocol = name
 const appName = productName ?? name
+const sharedIconPath = path.join(__dirname, '..', 'icon.png')
 
 const workers = new Map()
 let pear = null
@@ -179,7 +180,7 @@ async function createWindow() {
     height: 900,
     minWidth: 400,
     minHeight: 300,
-    icon: path.join(__dirname, '..', 'icon.png'),
+    icon: sharedIconPath,
     titleBarStyle: 'hidden',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -269,6 +270,10 @@ if (!lock) {
   })
 
   app.whenReady().then(() => {
+    if (process.platform === 'darwin') {
+      app.dock.setIcon(sharedIconPath)
+    }
+
     createWindow().catch((err) => {
       console.error('Failed to create window:', err)
       app.quit()

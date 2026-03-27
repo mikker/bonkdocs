@@ -3,6 +3,7 @@
     "name": "Bonk Docs Mobile",
     "slug": "bonkdocs-mobile",
     "version": "0.1.0",
+    "icon": "../icon.png",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
