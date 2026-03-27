@@ -97,11 +97,6 @@ export function createRpcServer(stream, worker, updaterWorker) {
       if (!chunk || typeof chunk !== 'object') return
 
       const { type, data } = chunk
-      if (type === 'updating') {
-        console.log(
-          '[bonkdocs:updater:updating] rpc-server: subscribeStatus Readable chunk (type=updating)'
-        )
-      }
       let wire
       if (type === 'error') {
         const msg =
@@ -123,11 +118,6 @@ export function createRpcServer(stream, worker, updaterWorker) {
       }
 
       if (!wire) return
-      if (wire.type === 'updating') {
-        console.log(
-          '[bonkdocs:updater:updating] rpc-server: HRPC response stream write (type=updating)'
-        )
-      }
       try {
         hrpcStream.write(wire)
       } catch (err) {

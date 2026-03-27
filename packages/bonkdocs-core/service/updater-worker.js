@@ -54,12 +54,7 @@ export class UpdaterWorker {
           if (!u || typeof u.on !== 'function' || onUpdating) return
 
           onError = (err) => stream.push({ type: 'error', data: err })
-          onUpdating = () => {
-            console.log(
-              '[bonkdocs:updater:updating] UpdaterWorker: pear.updater emitted "updating"'
-            )
-            stream.push({ type: 'updating' })
-          }
+          onUpdating = () => stream.push({ type: 'updating' })
           onUpdatingDelta = (data) =>
             stream.push({ type: 'updating-delta', data })
           onUpdated = () => stream.push({ type: 'updated' })

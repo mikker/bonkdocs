@@ -55,12 +55,15 @@ import { getRpc } from './lib/rpc'
 
 const rpc = getRpc()
 const updaterStatusStream = rpc.updaterStatus()
-updaterStatusStream.on('data', (data: { type?: string }) => {
+updaterStatusStream.on('data', async (data: { type?: string }) => {
   if (data?.type === 'updating') {
-    console.log(
-      '[bonkdocs:updater:updating] app: HRPC RPCStream "data" (type=updating)',
-      data
-    )
+    console.log('[bonkdocs:pear-runtime]: updating app')
+  }
+  if (data?.type === 'updated') {
+    console.log('[bonkdocs:pear-runtime]: updated app')
+    console.log('[bonkdocs:pear-runtime]: applying update')
+    await rpc.applyUpdate()
+    console.log('[bonkdocs:pear-runtime]: update applied, ready to restart app')
   }
 })
 
