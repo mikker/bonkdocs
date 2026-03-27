@@ -2,3 +2,5 @@ dist/
 bonk-docs-data/
 -/
 renderer/dist-mobile-editor/
+node_modules
+.DS_Store

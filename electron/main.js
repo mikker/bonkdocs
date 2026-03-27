@@ -6,6 +6,7 @@ import { readFileSync } from 'node:fs'
 import PearRuntime from 'pear-runtime'
 import { isMac, isLinux, isWindows } from 'which-runtime'
 import { command, flag } from 'paparam'
+import storageDir from 'bare-storage'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -62,22 +63,11 @@ ipcMain.on('pkg', (evt) => {
 })
 
 function resolveDefaultStorageDir() {
-  if (process.env.PEAR_APP_DATA) {
-    return process.env.PEAR_APP_DATA
-  }
-
-  if (isMac) {
-    return path.join(os.homedir(), 'Library', 'Application Support', appName)
-  }
-
-  if (isLinux) {
-    return path.join(os.homedir(), '.config', appName)
-  }
-
-  return path.join(os.homedir(), 'AppData', 'Local', appName)
+  return path.join(storageDir.persistent(), appName)
 }
 
 function getAppPath() {
+  return '/Users/geordangesink/Desktop/Bonk Docs.app'// TODO: revert appPath mock
   if (!app.isPackaged) return null
   if (isLinux && process.env.APPIMAGE) return process.env.APPIMAGE
   if (isWindows) return process.execPath
@@ -89,26 +79,26 @@ function getPearRuntimeName() {
   return `${appName}${extension}`
 }
 
+function getAppDir() {
+  const appPath = getAppPath()
+  if (pearStore) {
+    console.log('pear store: ' + pearStore)
+    return pearStore
+  } else if (appPath === null) {
+    return path.join(os.tmpdir(), 'pear', appName)
+  } else {
+    return resolveDefaultStorageDir()
+  }
+}
+
 function getPear() {
   if (pear) return pear
 
-  const appPath = getAppPath()
-  let dir = null
-
-  if (pearStore) {
-    console.log('pear store: ' + pearStore)
-    dir = pearStore
-  } else if (appPath === null) {
-    dir = path.join(os.tmpdir(), 'pear', appName)
-  } else {
-    dir = resolveDefaultStorageDir()
-  }
-
   pear = new PearRuntime({
-    dir,
-    app: appPath,
+    dir: getAppDir(),
+    app: getAppPath(),
     name: getPearRuntimeName(),
-    updates: runtimeUpdates,
+    updates: true || runtimeUpdates, // TODO: revert mock (true)
     version,
     upgrade: runtimeUpgrade,
     win32: { restart: true }
@@ -129,9 +119,20 @@ function sendToAll(channel, data) {
 function getWorker(specifier) {
   if (workers.has(specifier)) return workers.get(specifier)
 
-  const pearRuntime = getPear()
+  const updaterConfig = { 
+    dir: getAppDir(),
+    app: getAppPath(),
+    name: getPearRuntimeName(),
+    updates: true || runtimeUpdates, // TODO: revert mock (true)
+    version,
+    storage: path.join(getAppDir(), 'app-storage'),
+    upgrade: runtimeUpgrade,
+    win32: { restart: true }
+  }
+
   const workerPath = path.resolve(__dirname, '..' + specifier)
-  const worker = pearRuntime.run(workerPath, [pearRuntime.storage])
+  console.log('starting worker')
+  const worker = PearRuntime.run(workerPath, [updaterConfig.storage, JSON.stringify(updaterConfig)])
 
   function sendWorkerStdout(data) {
     sendToAll('pear:worker:stdout:' + specifier, data)
@@ -190,27 +191,27 @@ async function createWindow() {
     }
   })
 
-  const pearRuntime = getPear()
+  // const pearRuntime = getPear()
 
-  const onUpdating = () => {
-    if (!win.isDestroyed()) {
-      win.webContents.send('pear:event:updating')
-    }
-  }
+  // const onUpdating = () => {
+  //   if (!win.isDestroyed()) {
+  //     win.webContents.send('pear:event:updating')
+  //   }
+  // }
 
-  const onUpdated = () => {
-    if (!win.isDestroyed()) {
-      win.webContents.send('pear:event:updated')
-    }
-  }
+  // const onUpdated = () => {
+  //   if (!win.isDestroyed()) {
+  //     win.webContents.send('pear:event:updated')
+  //   }
+  // }
 
-  pearRuntime.updater.on('updating', onUpdating)
-  pearRuntime.updater.on('updated', onUpdated)
+  // pearRuntime.updater.on('updating', onUpdating)
+  // pearRuntime.updater.on('updated', onUpdated)
 
-  win.on('closed', () => {
-    pearRuntime.updater.removeListener('updating', onUpdating)
-    pearRuntime.updater.removeListener('updated', onUpdated)
-  })
+  // win.on('closed', () => {
+  //   pearRuntime.updater.removeListener('updating', onUpdating)
+  //   pearRuntime.updater.removeListener('updated', onUpdated)
+  // })
 
   const devServerUrl = process.env.PEAR_DEV_SERVER_URL
 
@@ -225,7 +226,22 @@ async function createWindow() {
   )
 }
 
-ipcMain.handle('pear:applyUpdate', () => getPear().updater.applyUpdate())
+ipcMain.on('GET_EXEC_PATH', (event) => {
+  event.returnValue = getAppPath()
+})
+
+ipcMain.on('GET_APP_STORAGE_DIR', (event) => {
+  event.returnValue = IS_PRODUCTION ? keetStorage : IS_INTERNAL ? keetInternalStorage : os.tmpdir()
+})
+
+ipcMain.on('GET_APPLING_EXTENSION', (event) => {
+  event.returnValue = isMac ? '.app' : isLinux ? '.AppImage' : '.msix'
+})
+
+ipcMain.on('GET_OTA_BOOTSTRAP', (event) => {
+  event.returnValue = process.env.OTA_BOOTSTRAP ? JSON.parse(process.env.OTA_BOOTSTRAP) : undefined
+})
+
 ipcMain.handle('pear:startWorker', (evt, filename) => {
   const specifier = filename.startsWith('/') ? filename : '/' + filename
   getWorker(specifier)

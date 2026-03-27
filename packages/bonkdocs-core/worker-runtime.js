@@ -1,10 +1,18 @@
+import SystemLog from 'bare-system-logger'
+import Console from 'bare-console'
+global.console = new Console(new SystemLog())
+console.log('teeeeeeeeeeeeeeeeeest')
 import process from 'process'
 import { join } from 'path'
 
 import { DocWorker } from './service/doc-worker.js'
 import { createRpcServer } from './service/rpc-server.js'
+// import { UpdaterWorker } from './service/updater-worker.js'
+import PearRuntime from 'pear-runtime'
 
-let workerInstance = null
+const updaterConfig = Bare.argv[1] && JSON.parse(Bare.argv.pop()) // TODO: maybe chage: its index 1 but set to pop() because unsure how index 0 is retrived
+
+let updaterInstance, workerInstance = null
 let rpcInstance = null
 
 function normalizeStorageRoot(value) {
@@ -24,22 +32,36 @@ export async function initializeWorker(options = {}) {
     })
   }
 
-  if (options.rpc && rpcInstance === null) {
-    rpcInstance = createRpcServer(options.rpc, workerInstance)
-  }
-
   try {
     await workerInstance.ready()
+    // if (!updaterInstance) {
+    //   const swarm = workerInstance.manager.contexts.values().next().value.swarm // just taking the swarm from first context ... there should probably be only one swarm in general
+    //   const pear = new PearRuntime({
+    //     ...updaterConfig,
+    //     store: workerInstance.manager.corestore,
+    //     swarm
+    //   })
+    //   await pear.ready()
+    //   updaterInstance = pear.updater
+    //   swarm.join(updaterInstance.drive.core.discoveryKey, {
+    //     server: false,
+    //     client: true
+    //   })
+    // }
+    if (options.rpc && rpcInstance === null) {
+      rpcInstance = createRpcServer(options.rpc, workerInstance, updaterInstance)
+    }
   } catch (error) {
     try {
+      await updaterInstance?.ready()
       await workerInstance?.close()
     } catch {}
-    workerInstance = null
+    updaterInstance, workerInstance = null
     rpcInstance = null
     throw error
   }
 
-  return workerInstance
+  return { workerInstance, updaterInstance,  }
 }
 
 function resolveStorageRoot(explicitStorageRoot = null) {
@@ -129,8 +151,9 @@ export async function bootstrapWorkerRuntime() {
   const cleanup = async () => {
     try {
       await workerInstance?.close()
+      await updaterInstance?.close()
     } catch {}
-    workerInstance = null
+    updaterInstance, workerInstance = null
     rpcInstance = null
   }
 

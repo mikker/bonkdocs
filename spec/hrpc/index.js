@@ -35,7 +35,11 @@ const methods = new Map([
   ['@bonk-docs/rename-doc', 13],
   [13, '@bonk-docs/rename-doc'],
   ['@bonk-docs/lock-doc', 14],
-  [14, '@bonk-docs/lock-doc']
+  [14, '@bonk-docs/lock-doc'],
+  ['@bonk-docs/apply-update', 15],
+  [15, '@bonk-docs/apply-update'],
+  ['@bonk-docs/updater-status', 16],
+  [16, '@bonk-docs/updater-status']
 ])
 
 class HRPC {
@@ -57,7 +61,9 @@ class HRPC {
       ['@bonk-docs/create-invite', getEncoding('@bonk-docs-rpc/create-invite-request')],
       ['@bonk-docs/revoke-invite', getEncoding('@bonk-docs-rpc/revoke-invite-request')],
       ['@bonk-docs/rename-doc', getEncoding('@bonk-docs-rpc/rename-doc-request')],
-      ['@bonk-docs/lock-doc', getEncoding('@bonk-docs-rpc/lock-doc-request')]
+      ['@bonk-docs/lock-doc', getEncoding('@bonk-docs-rpc/lock-doc-request')],
+      ['@bonk-docs/apply-update', getEncoding('@bonk-docs-rpc/apply-update-request')],
+      ['@bonk-docs/updater-status', getEncoding('@bonk-docs-rpc/updater-status-request')]
     ])
     this._responseEncodings = new Map([
       ['@bonk-docs/initialize', getEncoding('@bonk-docs-rpc/initialize-response')],
@@ -74,7 +80,9 @@ class HRPC {
       ['@bonk-docs/create-invite', getEncoding('@bonk-docs-rpc/create-invite-response')],
       ['@bonk-docs/revoke-invite', getEncoding('@bonk-docs-rpc/revoke-invite-response')],
       ['@bonk-docs/rename-doc', getEncoding('@bonk-docs-rpc/rename-doc-response')],
-      ['@bonk-docs/lock-doc', getEncoding('@bonk-docs-rpc/lock-doc-response')]
+      ['@bonk-docs/lock-doc', getEncoding('@bonk-docs-rpc/lock-doc-response')],
+      ['@bonk-docs/apply-update', getEncoding('@bonk-docs-rpc/apply-update-response')],
+      ['@bonk-docs/updater-status', getEncoding('@bonk-docs-rpc/updater-status-event')]
     ])
     this._rpc = new RPC(stream, async (req) => {
       const command = methods.get(req.command)
@@ -232,6 +240,14 @@ class HRPC {
     return this._call('@bonk-docs/lock-doc', args)
   }
 
+  async applyUpdate(args) {
+    return this._call('@bonk-docs/apply-update', args)
+  }
+
+  updaterStatus(args) {
+    return this._callSync('@bonk-docs/updater-status', args)
+  }
+
   onInitialize(responseFn) {
     this._handlers['@bonk-docs/initialize'] = responseFn
   }
@@ -292,6 +308,14 @@ class HRPC {
     this._handlers['@bonk-docs/lock-doc'] = responseFn
   }
 
+  onApplyUpdate(responseFn) {
+    this._handlers['@bonk-docs/apply-update'] = responseFn
+  }
+
+  onUpdaterStatus(responseFn) {
+    this._handlers['@bonk-docs/updater-status'] = responseFn
+  }
+
   _requestIsStream(command) {
     return [
     ].includes(command)
@@ -300,7 +324,8 @@ class HRPC {
   _responseIsStream(command) {
     return [
       '@bonk-docs/pair-invite',
-      '@bonk-docs/watch-doc'
+      '@bonk-docs/watch-doc',
+      '@bonk-docs/updater-status'
     ].includes(command)
   }
 

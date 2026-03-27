@@ -59,8 +59,55 @@ function createAbortController() {
   return createLocalAbortController()
 }
 
-export function createRpcServer(stream, worker) {
+export function createRpcServer(stream, worker, updater) {
   const rpc = new HRPC(stream)
+
+  rpc.onApplyUpdate(async () => {
+    console.log('[worker] applying runtime update')
+    if (!updater || typeof updater.applyUpdate !== 'function') {
+      throw new Error('Updater is not available')
+    }
+    await updater.applyUpdate()
+    return {}
+  })
+
+  rpc.onUpdaterStatus((hrpcStream) => {
+    let unsubscribe = () => {}
+    let cleaned = false
+
+    const cleanup = () => {
+      if (cleaned) return
+      cleaned = true
+      try {
+        unsubscribe()
+      } catch {}
+    }
+
+    try {
+      if (!updater || typeof updater.subscribeStatus !== 'function') {
+        hrpcStream.destroy(new Error('Updater is not available'))
+        return
+      }
+      unsubscribe = updater.subscribeStatus((payload) => {
+        if (hrpcStream.destroyed) {
+          cleanup()
+          return
+        }
+        try {
+          hrpcStream.write(payload)
+        } catch (err) {
+          cleanup()
+          if (!hrpcStream.destroyed) hrpcStream.destroy(err)
+        }
+      })
+    } catch (err) {
+      hrpcStream.destroy(err instanceof Error ? err : new Error(String(err)))
+      return
+    }
+
+    hrpcStream.on('close', cleanup)
+    hrpcStream.on('error', cleanup)
+  })
 
   rpc.onInitialize(async () => {
     console.log('[worker] initialize request')

@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "schema": [
     {
       "id": 0,
@@ -167,6 +167,29 @@
         "name": "@bonk-docs-rpc/lock-doc-response"
       },
       "version": 1
+    },
+    {
+      "id": 15,
+      "name": "@bonk-docs/apply-update",
+      "request": {
+        "name": "@bonk-docs-rpc/apply-update-request"
+      },
+      "response": {
+        "name": "@bonk-docs-rpc/apply-update-response"
+      },
+      "version": 2
+    },
+    {
+      "id": 16,
+      "name": "@bonk-docs/updater-status",
+      "request": {
+        "name": "@bonk-docs-rpc/updater-status-request"
+      },
+      "response": {
+        "name": "@bonk-docs-rpc/updater-status-event",
+        "stream": true
+      },
+      "version": 2
     }
   ]
 }

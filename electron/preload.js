@@ -4,7 +4,7 @@ contextBridge.exposeInMainWorld('bridge', {
   pkg() {
     return ipcRenderer.sendSync('pkg')
   },
-  applyUpdate: () => ipcRenderer.invoke('pear:applyUpdate'),
+  applyUpdate: () => ipcRenderer.invoke('pear:applyUpdate'),// TODO: change
   appRestart: () => ipcRenderer.invoke('app:restart'),
   onPearEvent: (name, listener) => {
     const wrap = (evt, eventName) => listener(eventName)

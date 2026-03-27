@@ -82,7 +82,9 @@ async function main() {
   const { bootstrapWorkerRuntime } =
     await import('../../packages/bonkdocs-core/worker-runtime.js')
 
-  await bootstrapWithRetry(bootstrapWorkerRuntime)
+  await bootstrapWithRetry(() =>
+    bootstrapWorkerRuntime({ existingPear: pear })
+  )
 }
 
 void main().catch((error) => {
