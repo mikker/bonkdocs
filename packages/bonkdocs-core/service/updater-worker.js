@@ -2,10 +2,18 @@ import PearRuntime from 'pear-runtime'
 
 export class UpdaterWorker {
   /**
-   * @param {object} config Options passed to `pear-runtime` (dir, upgrade, name, version, …).
-   * @param {new (config: object) => { updater: object, ready?: () => Promise<void>, close?: () => Promise<void> }} [PearRuntimeClass] Defaults to `pear-runtime`. Tests may pass a mock constructor.
+   * @param {object} config Options for `pear-runtime`, or `{ existingPear }` when the host already opened it (avoids a second Corestore in the same process on mobile).
+   * @param {new (config: object) => { updater: object, ready?: () => Promise<void>, close?: () => Promise<void> }} [PearRuntimeClass] Tests may inject a mock.
    */
   constructor(config = {}, PearRuntimeClass = PearRuntime) {
+    if (config.existingPear) {
+      this._ownsPear = false
+      this.config = config
+      this.pear = config.existingPear
+      this.updater = this.pear.updater
+      return
+    }
+    this._ownsPear = true
     this.config = config
     this.pear = new PearRuntimeClass(config)
     this.updater = this.pear.updater
@@ -21,6 +29,7 @@ export class UpdaterWorker {
   }
 
   async close() {
+    if (!this._ownsPear) return
     if (!this.pear || typeof this.pear.close !== 'function') return
     await this.pear.close()
   }
@@ -33,10 +42,6 @@ export class UpdaterWorker {
     await this.updater.applyUpdate()
   }
 
-  /**
-   * Subscribe to pear-runtime updater lifecycle events.
-   * Returns an unsubscribe function (always call when the HRPC status stream ends).
-   */
   subscribeStatus(onEvent) {
     if (typeof onEvent !== 'function') {
       return () => {}

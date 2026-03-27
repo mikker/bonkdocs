@@ -7,21 +7,112 @@ import { join } from 'path'
 
 import { DocWorker } from './service/doc-worker.js'
 import { createRpcServer } from './service/rpc-server.js'
-// import { UpdaterWorker } from './service/updater-worker.js'
-import PearRuntime from 'pear-runtime'
+import { UpdaterWorker } from './service/updater-worker.js'
 
-const updaterConfig = Bare.argv[1] && JSON.parse(Bare.argv.pop()) // TODO: maybe chage: its index 1 but set to pop() because unsure how index 0 is retrived
+function parseUpdaterConfigFromArgv() {
+  const a = globalThis.Bare?.argv
+  if (!Array.isArray(a) || a.length < 2) return null
+  const last = a[a.length - 1]
+  if (typeof last !== 'string' || !last.trim().startsWith('{')) return null
+  try {
+    return JSON.parse(last)
+  } catch {
+    return null
+  }
+}
 
-let updaterInstance, workerInstance = null
+const updaterConfig = parseUpdaterConfigFromArgv()
+
+/** Open pear-runtime in the worker when Electron sent a real upgrade link (ignore updates flag — host may mock updates:true for dev). */
+function shouldOpenPearRuntime(cfg) {
+  if (!cfg || typeof cfg !== 'object') return false
+  const up = cfg.upgrade
+  if (!up || String(up) === 'pear://updates-disabled') return false
+  return true
+}
+
+function isStorageLockError(error) {
+  if (!error) return false
+  const message = typeof error.message === 'string' ? error.message : ''
+  return message.includes('File descriptor could not be locked')
+}
+
+function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+let updaterWorkerInstance = null
+let workerInstance = null
 let rpcInstance = null
 
-function normalizeStorageRoot(value) {
-  if (typeof value !== 'string') return null
-  const trimmed = value.trim()
-  return trimmed.length > 0 ? trimmed : null
+let teardownPromise = null
+let teardownDone = false
+
+async function teardownWorkerRuntime(reason) {
+  if (teardownDone) return
+  if (teardownPromise) return teardownPromise
+
+  teardownPromise = (async () => {
+    try {
+      if (reason) {
+        console.warn('[worker] teardown:', reason)
+      }
+      rpcInstance = null
+
+      const doc = workerInstance
+      const upd = updaterWorkerInstance
+      workerInstance = null
+      updaterWorkerInstance = null
+
+      if (doc) {
+        try {
+          await doc.close()
+        } catch (err) {
+          console.error('[worker] DocWorker.close failed', err)
+        }
+      }
+      if (upd) {
+        try {
+          await upd.close()
+        } catch (err) {
+          console.error('[worker] UpdaterWorker.close failed', err)
+        }
+      }
+    } finally {
+      teardownDone = true
+      teardownPromise = null
+    }
+  })()
+
+  return teardownPromise
+}
+
+function registerProcessExitHooks() {
+  const hook = () => {
+    void teardownWorkerRuntime('process exit hook')
+  }
+  if (typeof process.once === 'function') {
+    process.once('SIGINT', hook)
+    process.once('SIGTERM', hook)
+  }
 }
 
 export async function initializeWorker(options = {}) {
+  if (teardownDone) {
+    teardownDone = false
+  }
+
+  if (!updaterWorkerInstance) {
+    const pearRuntimeConfig = options.pearRuntime ?? updaterConfig ?? {}
+    if (options.existingPear) {
+      updaterWorkerInstance = new UpdaterWorker({
+        existingPear: options.existingPear
+      })
+    } else if (shouldOpenPearRuntime(pearRuntimeConfig)) {
+      updaterWorkerInstance = new UpdaterWorker(pearRuntimeConfig)
+    }
+  }
+
   if (!workerInstance) {
     const baseDir = options.baseDir || resolveBaseDir(options.storageRoot)
     workerInstance = new DocWorker({
@@ -32,36 +123,37 @@ export async function initializeWorker(options = {}) {
     })
   }
 
+  if (options.rpc && rpcInstance === null) {
+    rpcInstance = createRpcServer(
+      options.rpc,
+      workerInstance,
+      updaterWorkerInstance ?? null
+    )
+  }
+
   try {
-    await workerInstance.ready()
-    // if (!updaterInstance) {
-    //   const swarm = workerInstance.manager.contexts.values().next().value.swarm // just taking the swarm from first context ... there should probably be only one swarm in general
-    //   const pear = new PearRuntime({
-    //     ...updaterConfig,
-    //     store: workerInstance.manager.corestore,
-    //     swarm
-    //   })
-    //   await pear.ready()
-    //   updaterInstance = pear.updater
-    //   swarm.join(updaterInstance.drive.core.discoveryKey, {
-    //     server: false,
-    //     client: true
-    //   })
-    // }
-    if (options.rpc && rpcInstance === null) {
-      rpcInstance = createRpcServer(options.rpc, workerInstance, updaterInstance)
+    if (updaterWorkerInstance) {
+      await updaterWorkerInstance.ready()
     }
+    await workerInstance.ready()
   } catch (error) {
     try {
-      await updaterInstance?.ready()
-      await workerInstance?.close()
+      await teardownWorkerRuntime('initialize failed')
     } catch {}
-    updaterInstance, workerInstance = null
-    rpcInstance = null
     throw error
   }
 
-  return { workerInstance, updaterInstance,  }
+  return {
+    workerInstance,
+    updaterInstance: updaterWorkerInstance?.updater,
+    updaterWorkerInstance
+  }
+}
+
+function normalizeStorageRoot(value) {
+  if (typeof value !== 'string') return null
+  const trimmed = value.trim()
+  return trimmed.length > 0 ? trimmed : null
 }
 
 function resolveStorageRoot(explicitStorageRoot = null) {
@@ -97,6 +189,14 @@ function resolveStorageRoot(explicitStorageRoot = null) {
 }
 
 function resolveBaseDir(storageRoot = null) {
+  const fromElectron =
+    updaterConfig && typeof updaterConfig.dir === 'string'
+      ? updaterConfig.dir.trim()
+      : null
+  if (fromElectron) {
+    return join(fromElectron, 'bonk-docs')
+  }
+
   const root = resolveStorageRoot(storageRoot)
   if (storageRoot === null && root === process.cwd()) {
     return join(root, 'bonk-docs-data')
@@ -138,25 +238,40 @@ function createBareIpcStream() {
   return stream
 }
 
-export async function bootstrapWorkerRuntime() {
+export async function bootstrapWorkerRuntime(options = {}) {
   const ipcStream = createBareIpcStream()
   if (!ipcStream) return
 
-  await initializeWorker({
-    baseDir: resolveBaseDir(),
-    ensureStorage: true,
-    rpc: ipcStream
-  })
+  registerProcessExitHooks()
 
-  const cleanup = async () => {
+  let attempt = 0
+  let delayMs = 100
+  while (true) {
     try {
-      await workerInstance?.close()
-      await updaterInstance?.close()
-    } catch {}
-    updaterInstance, workerInstance = null
-    rpcInstance = null
+      await initializeWorker({
+        baseDir: resolveBaseDir(),
+        ensureStorage: true,
+        rpc: ipcStream,
+        ...options
+      })
+      break
+    } catch (error) {
+      if (!isStorageLockError(error) || attempt >= 25) throw error
+      attempt += 1
+      if (attempt === 1 || attempt % 5 === 0) {
+        console.warn(
+          `[worker] storage lock busy, retry ${attempt} (another process may still be exiting)`
+        )
+      }
+      await delay(delayMs)
+      delayMs = Math.min(delayMs * 2, 2000)
+    }
   }
 
-  ipcStream.on('close', cleanup)
-  ipcStream.on('error', () => {})
+  const onIpcEnd = () => {
+    void teardownWorkerRuntime('ipc closed or errored')
+  }
+
+  ipcStream.on('close', onIpcEnd)
+  ipcStream.on('error', onIpcEnd)
 }

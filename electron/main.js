@@ -21,7 +21,40 @@ const appName = productName ?? name
 const sharedIconPath = path.join(__dirname, '..', 'icon.png')
 
 const workers = new Map()
+/** Bare sidecar PIDs — killed synchronously on process exit so children cannot outlive Electron. */
+const bareWorkerPids = new Set()
 let pear = null
+
+function killPid(pid) {
+  if (typeof pid !== 'number' || pid <= 0) return
+  try {
+    process.kill(pid, 'SIGKILL')
+  } catch (err) {
+    const code = err && typeof err === 'object' && 'code' in err ? err.code : null
+    if (code !== 'ESRCH') {
+      console.warn('[electron] kill pid', pid, err)
+    }
+  }
+}
+
+/**
+ * Tear down PearRuntime.run() sidecars aggressively. streamx destroy() only SIGTERM;
+ * bare can survive and keep RocksDB locks, so we SIGKILL the child process as well.
+ */
+function destroyAllPearWorkers() {
+  for (const [specifier, worker] of workers) {
+    const pid = worker._process?.pid
+    try {
+      worker.destroy()
+    } catch (err) {
+      console.error('[electron] worker.destroy failed', specifier, err)
+    }
+    if (typeof pid === 'number') {
+      killPid(pid)
+    }
+  }
+  workers.clear()
+}
 
 const cmd = command(
   appName,
@@ -91,23 +124,6 @@ function getAppDir() {
   }
 }
 
-function getPear() {
-  if (pear) return pear
-
-  pear = new PearRuntime({
-    dir: getAppDir(),
-    app: getAppPath(),
-    name: getPearRuntimeName(),
-    updates: true || runtimeUpdates, // TODO: revert mock (true)
-    version,
-    upgrade: runtimeUpgrade,
-    win32: { restart: true }
-  })
-
-  pear.on('error', console.error)
-  return pear
-}
-
 function sendToAll(channel, data) {
   for (const win of BrowserWindow.getAllWindows()) {
     if (!win.isDestroyed()) {
@@ -117,13 +133,17 @@ function sendToAll(channel, data) {
 }
 
 function getWorker(specifier) {
-  if (workers.has(specifier)) return workers.get(specifier)
+  if (workers.has(specifier)) {
+    const existing = workers.get(specifier)
+    if (existing && !existing.destroyed) return existing
+    workers.delete(specifier)
+  }
 
-  const updaterConfig = { 
+  const updaterConfig = {
     dir: getAppDir(),
     app: getAppPath(),
     name: getPearRuntimeName(),
-    updates: true || runtimeUpdates, // TODO: revert mock (true)
+    updates: true,
     version,
     storage: path.join(getAppDir(), 'app-storage'),
     upgrade: runtimeUpgrade,
@@ -132,7 +152,13 @@ function getWorker(specifier) {
 
   const workerPath = path.resolve(__dirname, '..' + specifier)
   console.log('starting worker')
-  const worker = PearRuntime.run(workerPath, [updaterConfig.storage, JSON.stringify(updaterConfig)])
+  const worker = PearRuntime.run(workerPath, [
+    updaterConfig.storage,
+    JSON.stringify(updaterConfig)
+  ])
+
+  const pid = worker._process?.pid
+  if (typeof pid === 'number') bareWorkerPids.add(pid)
 
   function sendWorkerStdout(data) {
     sendToAll('pear:worker:stdout:' + specifier, data)
@@ -150,17 +176,13 @@ function getWorker(specifier) {
     return worker.write(Buffer.from(data))
   })
 
-  const onBeforeQuit = () => {
-    if (!worker.destroyed) worker.destroy()
-  }
-
   workers.set(specifier, worker)
   worker.on('data', sendWorkerIPC)
   worker.stdout.on('data', sendWorkerStdout)
   worker.stderr.on('data', sendWorkerStderr)
 
   worker.once('exit', (code) => {
-    app.removeListener('before-quit', onBeforeQuit)
+    if (typeof pid === 'number') bareWorkerPids.delete(pid)
     ipcMain.removeHandler('pear:worker:writeIPC:' + specifier)
     worker.removeListener('data', sendWorkerIPC)
     worker.stdout.removeListener('data', sendWorkerStdout)
@@ -169,7 +191,6 @@ function getWorker(specifier) {
     workers.delete(specifier)
   })
 
-  app.on('before-quit', onBeforeQuit)
   return worker
 }
 
@@ -275,6 +296,12 @@ app.on('open-url', (evt, url) => {
   handleDeepLink(url)
 })
 
+process.on('exit', () => {
+  for (const pid of bareWorkerPids) {
+    killPid(pid)
+  }
+})
+
 const lock = app.requestSingleInstanceLock()
 
 if (!lock) {
@@ -284,6 +311,17 @@ if (!lock) {
     const url = args.find((arg) => arg.startsWith(protocol + '://'))
     if (url) handleDeepLink(url)
   })
+
+  app.on('before-quit', () => {
+    destroyAllPearWorkers()
+  })
+
+  const onMainSignal = () => {
+    destroyAllPearWorkers()
+    app.quit()
+  }
+  process.on('SIGINT', onMainSignal)
+  process.on('SIGTERM', onMainSignal)
 
   app.whenReady().then(() => {
     if (process.platform === 'darwin') {
