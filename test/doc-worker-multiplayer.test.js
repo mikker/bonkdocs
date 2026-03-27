@@ -205,6 +205,54 @@ test('DocWorker syncs updates between two clients', async (t) => {
   t.is(clientB.getText('body').toString(), 'hello world')
 })
 
+test('DocWorker preserves emoji between clients', async (t) => {
+  const { dir, cleanup } = await createTempDir('doc-worker-emoji')
+  t.teardown(cleanup)
+
+  const worker = new DocWorker({ baseDir: dir })
+  t.teardown(async () => {
+    await worker.close()
+  })
+
+  await worker.ready()
+
+  const { doc } = await worker.createDoc({ title: 'Emoji Doc' })
+
+  const clientA = new Y.Doc()
+  const clientB = new Y.Doc()
+
+  const watcherA = await startWatcher(worker, doc.key, clientA)
+  const watcherB = await startWatcher(worker, doc.key, clientB)
+
+  t.teardown(async () => {
+    await watcherA.stop()
+    await watcherB.stop()
+  })
+
+  await Promise.all([watcherA.ready, watcherB.ready])
+
+  const expected = '🙂 lol'
+  const update = await captureLocalUpdate(clientA, () => {
+    clientA.getText('body').insert(0, expected)
+  })
+
+  await worker.applyUpdates({
+    key: doc.key,
+    updates: [
+      {
+        clientId: 'client-a',
+        timestamp: Date.now(),
+        data: Buffer.from(update)
+      }
+    ]
+  })
+
+  await waitForText(clientB, expected)
+
+  t.is(clientA.getText('body').toString(), expected)
+  t.is(clientB.getText('body').toString(), expected)
+})
+
 test('DocWorker broadcasts awareness updates to watchers', async (t) => {
   const { dir, cleanup } = await createTempDir('doc-worker-awareness')
   t.teardown(cleanup)

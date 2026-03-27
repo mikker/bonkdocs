@@ -41,9 +41,8 @@ import {
   createDoc,
   getDoc,
   initializeDocs,
+  joinDoc,
   normalizeDocUpdate,
-  normalizePairStatus,
-  pairInvite,
   renameDoc,
   watchDoc,
   type MobileDocRecord,
@@ -125,12 +124,6 @@ function disposeStream(stream: RpcStream | null) {
   try {
     stream.destroy?.()
   } catch {}
-}
-
-function formatJoinStatus(message: string | null, progress: number | null) {
-  if (!message && progress === null) return null
-  if (progress === null) return message
-  return `${message || 'Pairing'} (${progress}%)`
 }
 
 function friendlyTitle(doc: MobileDocRecord | MobileDocView | null) {
@@ -479,75 +472,23 @@ export default function App() {
       setJoinPending(true)
       setJoinInviteCode(invite)
       setSidebarPanel('join')
-      setJoinStatus('Starting pairing…')
+      setJoinStatus('Joining document…')
       setSidebarError(null)
 
-      const stream = pairInvite(invite) as RpcStream
-
-      await new Promise<void>((resolve, reject) => {
-        let finished = false
-
-        const cleanup = () => {
-          detachStreamListener(stream, 'data', handleData)
-          detachStreamListener(stream, 'error', handleError)
-          detachStreamListener(stream, 'close', handleClose)
-          disposeStream(stream)
-        }
-
-        const finish = (callback: () => void) => {
-          if (finished) return
-          finished = true
-          cleanup()
-          callback()
-        }
-
-        const handleData = (payload: unknown) => {
-          const status = normalizePairStatus(payload)
-          setJoinStatus(formatJoinStatus(status.message, status.progress))
-
-          if (status.state === 'joined' && status.doc) {
-            const joinedDoc = status.doc
-            finish(() => {
-              setJoinInviteCode('')
-              setJoinStatus(null)
-              setSidebarPanel(null)
-              openDoc(joinedDoc)
-              resolve()
-            })
-          }
-
-          if (status.state === 'error') {
-            finish(() => {
-              reject(new Error(status.message || 'Failed to join document'))
-            })
-          }
-        }
-
-        const handleError = (nextError: unknown) => {
-          finish(() => {
-            reject(
-              nextError instanceof Error
-                ? nextError
-                : new Error('Failed to join document')
-            )
-          })
-        }
-
-        const handleClose = () => {
-          finish(() => reject(new Error('Pairing closed before completion')))
-        }
-
-        stream.on('data', handleData)
-        stream.on('error', handleError)
-        stream.on('close', handleClose)
-      }).catch((nextError) => {
+      try {
+        const joinedDoc = await joinDoc(invite)
+        setJoinInviteCode('')
+        setJoinStatus(null)
+        setSidebarPanel(null)
+        openDoc(joinedDoc)
+      } catch (nextError) {
         setSidebarError(
           nextError instanceof Error ? nextError.message : 'Failed to join doc'
         )
-      })
-
-      setJoinPending(false)
-      setJoinStatus(null)
+      } finally {
+        setJoinPending(false)
+        setJoinStatus(null)
+      }
     },
     [joinPending, openDoc]
   )
@@ -669,7 +610,7 @@ export default function App() {
                           icon='☰'
                           label='Menu'
                           onPress={() => toggleSidebar()}
-                          variant='toolbar'
+                          variant='header'
                         />
                       ),
                       headerRight: () => (
@@ -678,7 +619,7 @@ export default function App() {
                           label='New document'
                           onPress={() => void handleCreate()}
                           disabled={createPending}
-                          variant='toolbar'
+                          variant='header'
                         />
                       )
                     }}
@@ -1154,7 +1095,7 @@ function DocScreen({
           icon='☰'
           label='Menu'
           onPress={() => toggleSidebar()}
-          variant='toolbar'
+          variant='header'
         />
       ),
       headerTitle: () => <HeaderTitle title={currentTitle} />,
@@ -1165,14 +1106,14 @@ function DocScreen({
             label='More actions'
             onPress={() => void handleMoreMenu()}
             disabled={abandonPending || sharePending || renamePending}
-            variant='toolbar'
+            variant='header'
           />
           <HeaderIconButton
             icon={createPending ? '…' : '+'}
             label='New document'
             onPress={() => void createNewDoc()}
             disabled={createPending}
-            variant='toolbar'
+            variant='header'
           />
         </View>
       )
@@ -1262,7 +1203,7 @@ function HeaderIconButton({
   label: string
   onPress: () => void
   disabled?: boolean
-  variant?: 'plain' | 'toolbar'
+  variant?: 'plain' | 'header' | 'toolbar'
 }) {
   return (
     <Pressable
@@ -1273,6 +1214,7 @@ function HeaderIconButton({
       disabled={disabled}
       style={({ pressed }) => [
         styles.iconButton,
+        variant === 'header' ? styles.headerButton : null,
         variant === 'toolbar' ? styles.toolbarButton : null,
         pressed && !disabled ? styles.iconButtonPressed : null,
         disabled ? styles.iconButtonDisabled : null
@@ -1281,7 +1223,9 @@ function HeaderIconButton({
       <Text
         style={[
           styles.iconButtonText,
-          variant === 'toolbar' ? styles.toolbarButtonText : null
+          variant === 'header' ? styles.headerButtonText : null,
+          variant === 'toolbar' ? styles.toolbarButtonText : null,
+          variant === 'header' && icon === '+' ? styles.headerPlusText : null
         ]}
       >
         {icon}
@@ -1483,6 +1427,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center'
   },
+  headerButton: {
+    width: 40,
+    height: 40
+  },
   toolbarButton: {
     width: 40,
     height: 40,
@@ -1510,6 +1458,16 @@ const styles = StyleSheet.create({
     lineHeight: 28,
     color: IOS_TINT,
     fontWeight: '400'
+  },
+  headerButtonText: {
+    fontSize: 24,
+    lineHeight: 24,
+    color: '#1a1a1a',
+    fontWeight: '400',
+    textAlign: 'center'
+  },
+  headerPlusText: {
+    transform: [{ translateY: -1 }]
   },
   toolbarButtonText: {
     fontSize: 19,

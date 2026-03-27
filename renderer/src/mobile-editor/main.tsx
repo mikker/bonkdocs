@@ -325,6 +325,16 @@ function App() {
           --edge: #e5e5e5;
           --paper: #ffffff;
           --panel: #f7f7f7;
+          --font-sans:
+            -apple-system,
+            BlinkMacSystemFont,
+            "Segoe UI",
+            "Apple Color Emoji",
+            "Segoe UI Emoji",
+            "Segoe UI Symbol",
+            "Noto Color Emoji",
+            emoji,
+            sans-serif;
         }
         * {
           box-sizing: border-box;
@@ -335,7 +345,7 @@ function App() {
           min-height: 100%;
           background: var(--paper);
           color: var(--ink);
-          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+          font-family: var(--font-sans);
           overflow: hidden;
         }
         button, input, textarea {
@@ -365,7 +375,12 @@ function App() {
           font-size: 18px;
           line-height: 1.6;
           color: var(--ink);
+          font-family: var(--font-sans);
           white-space: pre-wrap;
+        }
+        .mobile-editor-content,
+        .mobile-editor-content * {
+          font-family: var(--font-sans);
         }
         .mobile-editor-content > *:first-child {
           margin-top: 0;

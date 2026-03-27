@@ -137,6 +137,16 @@ export async function createDocInvite(key: string, roles: string[] = []) {
   }
 }
 
+export async function joinDoc(invite: string, title?: string | null) {
+  const rpc = getRpc()
+  const response = await rpc.joinDoc({ invite, title: title || null })
+  const doc = asDocRecord(response?.doc)
+  if (!doc) {
+    throw new Error('Join doc response missing document')
+  }
+  return doc
+}
+
 export function pairInvite(invite: string) {
   return getRpc().pairInvite({ invite })
 }
