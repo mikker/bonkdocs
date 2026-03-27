@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { getRpc } from '../lib/rpc.ts'
 import { loadLastDocKey, saveLastDocKey } from './doc-persistence.js'
-import { DEFAULT_TITLE } from '../constants'
+import { DEFAULT_TITLE } from '../constants.ts'
 import { toUint8Array } from '../lib/codec.ts'
 import { colorFromKey } from '../lib/user-colors.ts'
 import * as Y from 'yjs'
@@ -80,6 +80,18 @@ export type DocPairStatus = {
   writerKey?: string | null
 }
 
+export type IdentityProfile = {
+  displayName?: string | null
+  bio?: string | null
+  updatedAt?: number | null
+}
+
+export type IdentitySummary = {
+  identityKey: string
+  writerKey: string
+  profile?: IdentityProfile | null
+}
+
 type JoinDocOptions = {
   onStatus?: (status: DocPairStatus) => void
   signal?: AbortSignal
@@ -107,11 +119,14 @@ type DocStore = {
   docs: DocRecord[]
   activeDoc: string | null
   currentUpdate: DocUpdate | null
+  identity: IdentitySummary | null
   loading: boolean
   error: string | null
   watcher: DocWatcher | null
   clientId: string
   localUser: LocalUser
+  linkingIdentity: boolean
+  identityError: string | null
   invites: Record<string, DocInvite[]>
   invitesLoading: boolean
   invitesError: string | null
@@ -119,6 +134,8 @@ type DocStore = {
   lockingDoc: boolean
   abandoningDoc: boolean
   initialize: () => Promise<void>
+  refreshIdentity: () => Promise<void>
+  linkIdentity: (invite: string) => Promise<void>
   refresh: () => Promise<void>
   selectDoc: (key: string | null) => Promise<void>
   createDoc: (title?: string) => Promise<void>
@@ -221,22 +238,44 @@ function userFromWriterKey(writerKey: string | null | undefined) {
   }
 }
 
-function updateLocalUserFromKey(
+function userFromIdentity(identity: IdentitySummary | null | undefined) {
+  const identityKey =
+    typeof identity?.identityKey === 'string' ? identity.identityKey.trim() : ''
+  if (!identityKey) return null
+
+  const displayName =
+    typeof identity?.profile?.displayName === 'string'
+      ? identity.profile.displayName.trim()
+      : ''
+
+  return {
+    name: displayName || shortLabel(identityKey),
+    color: colorFromKey(identityKey),
+    key: identityKey
+  }
+}
+
+function applyLocalUser(
   set: (next: Partial<DocStore>) => void,
   getState: () => DocStore,
-  writerKey: string | null | undefined
+  nextUser: LocalUser,
+  nextClientId?: string
 ) {
-  const nextUser = userFromWriterKey(writerKey)
-  if (!nextUser) return
   const currentUser = getState().localUser
   if (
     currentUser.name === nextUser.name &&
     currentUser.color === nextUser.color &&
-    currentUser.key === nextUser.key
+    currentUser.key === nextUser.key &&
+    (nextClientId === undefined || getState().clientId === nextClientId)
   ) {
     return
   }
-  set({ localUser: nextUser, clientId: nextUser.key })
+
+  const nextState: Partial<DocStore> = { localUser: nextUser }
+  if (nextClientId !== undefined) {
+    nextState.clientId = nextClientId
+  }
+  set(nextState)
 
   // Avoid mutating the active editor awareness here. TipTap's collaboration
   // cursor extension owns that lifecycle and updates it via editor command.
@@ -247,6 +286,27 @@ function updateLocalUserFromKey(
       session.awareness.setLocalStateField('user', nextUser)
     } catch {}
   }
+}
+
+function updateLocalUserFromKey(
+  set: (next: Partial<DocStore>) => void,
+  getState: () => DocStore,
+  writerKey: string | null | undefined
+) {
+  if (getState().identity?.identityKey) return
+  const nextUser = userFromWriterKey(writerKey)
+  if (!nextUser) return
+  applyLocalUser(set, getState, nextUser, nextUser.key)
+}
+
+function updateLocalUserFromIdentity(
+  set: (next: Partial<DocStore>) => void,
+  getState: () => DocStore,
+  identity: IdentitySummary | null | undefined
+) {
+  const nextUser = userFromIdentity(identity)
+  if (!nextUser) return
+  applyLocalUser(set, getState, nextUser)
 }
 
 const LOCAL_CLIENT_ID = randomId(16)
@@ -535,11 +595,14 @@ export const useDocStore = create<DocStore>((set, get) => ({
   docs: [],
   activeDoc: null,
   currentUpdate: null,
+  identity: null,
   loading: false,
   error: null,
   watcher: null,
   clientId: LOCAL_CLIENT_ID,
   localUser: LOCAL_USER,
+  linkingIdentity: false,
+  identityError: null,
   invites: {},
   invitesLoading: false,
   invitesError: null,
@@ -555,6 +618,7 @@ export const useDocStore = create<DocStore>((set, get) => ({
       const rpc = getRpc()
       const response = await rpc.initialize({})
       const docs = response?.docs ?? []
+      const identity = response?.identity ?? null
       let activeDoc = response?.activeDoc ?? null
 
       if (!activeDoc) {
@@ -564,7 +628,14 @@ export const useDocStore = create<DocStore>((set, get) => ({
         }
       }
 
-      set({ docs, activeDoc, loading: false })
+      set({
+        docs,
+        activeDoc,
+        identity,
+        identityError: null,
+        loading: false
+      })
+      updateLocalUserFromIdentity(set, get, identity)
       void prefetchDocTitles(docs, set)
 
       if (activeDoc) {
@@ -575,6 +646,49 @@ export const useDocStore = create<DocStore>((set, get) => ({
         loading: false,
         error: error instanceof Error ? error.message : String(error)
       })
+    }
+  },
+  refreshIdentity: async () => {
+    try {
+      const rpc = getRpc()
+      const response = await rpc.getIdentity({})
+      const identity = response?.identity ?? null
+      set({ identity, identityError: null })
+      updateLocalUserFromIdentity(set, get, identity)
+    } catch (error) {
+      set({
+        identityError: error instanceof Error ? error.message : String(error)
+      })
+    }
+  },
+  linkIdentity: async (invite) => {
+    const trimmed = typeof invite === 'string' ? invite.trim() : ''
+    if (!trimmed) {
+      throw new Error('Identity invite is required')
+    }
+
+    if (get().linkingIdentity) return
+
+    set({ linkingIdentity: true, identityError: null })
+
+    try {
+      const rpc = getRpc()
+      const response = await rpc.linkIdentity({ invite: trimmed })
+      const identity = response?.identity ?? null
+      if (!identity) {
+        throw new Error('Identity link response missing identity')
+      }
+      set({ identity, linkingIdentity: false, identityError: null })
+      updateLocalUserFromIdentity(set, get, identity)
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Failed to link identity'
+      set({
+        linkingIdentity: false,
+        identityError: message,
+        error: message
+      })
+      throw error instanceof Error ? error : new Error(message)
     }
   },
   refresh: async () => {

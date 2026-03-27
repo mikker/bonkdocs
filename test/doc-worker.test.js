@@ -4,6 +4,7 @@ import * as fs from 'fs/promises'
 
 import test from 'brittle'
 import * as Y from 'yjs'
+import { IdentityManager } from 'facebonk/src/index.js'
 import { DocManager } from '../core/doc-manager.js'
 import { DocWorker } from '../worker/src/doc-worker.js'
 
@@ -185,6 +186,43 @@ test('DocWorker persists snapshots', async (t) => {
   )
 
   t.ok(snapshotRecord?.data, 'snapshot data stored')
+})
+
+test('DocWorker links and reopens a Facebonk identity', async (t) => {
+  const { dir: facebonkDir, cleanup: cleanupFacebonk } =
+    await createTempDir('doc-worker-facebonk-source')
+  const { dir: bonkdocsDir, cleanup: cleanupBonkdocs } =
+    await createTempDir('doc-worker-facebonk-target')
+
+  t.teardown(cleanupFacebonk)
+  t.teardown(cleanupBonkdocs)
+
+  const steward = new IdentityManager(facebonkDir)
+  t.teardown(async () => {
+    await steward.close()
+  })
+  await steward.ready()
+
+  const sourceIdentity = await steward.initIdentity({
+    displayName: 'Alice Bonk',
+    bio: 'P2P profile'
+  })
+  const invite = await sourceIdentity.createLinkInvite()
+
+  const worker = new DocWorker({ baseDir: bonkdocsDir })
+  t.teardown(async () => {
+    await worker.close()
+  })
+
+  await worker.ready()
+
+  const linked = await worker.linkIdentity(invite)
+  t.is(linked?.identityKey, sourceIdentity.key.toString('hex'))
+  t.is(linked?.profile?.displayName, 'Alice Bonk')
+
+  const reopened = await worker.getIdentity()
+  t.is(reopened?.identityKey, sourceIdentity.key.toString('hex'))
+  t.is(reopened?.profile?.bio, 'P2P profile')
 })
 
 test('DocWorker listDocs prefetches document titles from metadata', async (t) => {

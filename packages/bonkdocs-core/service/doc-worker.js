@@ -1,9 +1,11 @@
 import { mkdir } from 'fs/promises'
+import { join } from 'path'
 
 import { DocManager } from '../domain/doc-manager.js'
 import { ensurePear } from '../../../lib/pear-env.js'
 ensurePear()
 import { YjsSyncEngine } from 'autobonk-yjs'
+import { IdentityManager } from 'facebonk/src/index.js'
 import z32 from 'z32'
 import * as Y from 'yjs'
 import {
@@ -43,6 +45,7 @@ function isCoreClosingError(error) {
 export class DocWorker {
   constructor(options = {}) {
     this.baseDir = options.baseDir
+    this.identityBaseDir = options.identityBaseDir || join(this.baseDir, 'facebonk')
     this.watchers = new Map()
     this.subscriptions = new Map()
     this.syncEngine = new YjsSyncEngine({
@@ -62,10 +65,14 @@ export class DocWorker {
       bootstrap: options.bootstrap,
       autobase: options.autobase
     })
+    this.identityManager = new IdentityManager(this.identityBaseDir, {
+      bootstrap: options.bootstrap,
+      autobase: options.autobase
+    })
   }
 
   async ready() {
-    await this.manager.ready()
+    await Promise.all([this.manager.ready(), this.identityManager.ready()])
   }
 
   async close() {
@@ -85,7 +92,24 @@ export class DocWorker {
     }
     this.subscriptions.clear()
     await this.syncEngine.close()
+    await this.identityManager.close()
     await this.manager.close()
+  }
+
+  async getIdentity() {
+    await this.ready()
+    return await this.identityManager.getSummary()
+  }
+
+  async linkIdentity(invite) {
+    await this.ready()
+
+    if (typeof invite !== 'string' || invite.trim().length === 0) {
+      throw new Error('Identity invite is required')
+    }
+
+    await this.identityManager.joinIdentity(invite.trim())
+    return await this.identityManager.getSummary()
   }
 
   async listDocs() {

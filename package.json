@@ -85,6 +85,7 @@
     "bare-url": "^2.3.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "facebonk": "file:../facebonk",
     "fs": "npm:bare-fs@^4.5.5",
     "hrpc": "^4.3.0",
     "lucide-react": "^0.577.0",

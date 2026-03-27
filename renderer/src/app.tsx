@@ -27,7 +27,14 @@ import {
   SidebarTrigger,
   useSidebar
 } from './components/ui/sidebar'
-import { FilePlus2, Lock, LogOut, MoreHorizontal, Pencil } from 'lucide-react'
+import {
+  FilePlus2,
+  Link2,
+  Lock,
+  LogOut,
+  MoreHorizontal,
+  Pencil
+} from 'lucide-react'
 import {
   Tooltip,
   TooltipContent,
@@ -539,6 +546,7 @@ function DocsSidebar({ ...props }) {
   const activeDoc = useDocState((state) => state.activeDoc)
   const docs = useDocState((state) => state.docs)
   const loading = useDocState((state) => state.loading)
+  const identity = useDocState((state) => state.identity)
   const selectDoc = useDocState((state) => state.selectDoc)
   const createDoc = useDocState((state) => state.createDoc)
   const creatingDoc = useDocState((state) => state.creatingDoc)
@@ -558,6 +566,7 @@ function DocsSidebar({ ...props }) {
   return (
     <Sidebar {...props}>
       <SidebarHeader className='flex-row border-b h-(--header-height) flex items-center justify-end'>
+        <FacebonkLinkDialog />
         <DocJoinDialog />
         <Tooltip>
           <TooltipTrigger asChild>
@@ -576,6 +585,12 @@ function DocsSidebar({ ...props }) {
       </SidebarHeader>
 
       <SidebarContent>
+        <SidebarGroup>
+          <SidebarGroupLabel>Facebonk</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <FacebonkIdentitySection identity={identity} />
+          </SidebarGroupContent>
+        </SidebarGroup>
         <SidebarGroup>
           <SidebarGroupLabel>Docs</SidebarGroupLabel>
           <SidebarGroupContent>
@@ -626,6 +641,130 @@ function DocsSidebar({ ...props }) {
       </SidebarContent>
       <SidebarRail />
     </Sidebar>
+  )
+}
+
+function FacebonkIdentitySection({
+  identity
+}: {
+  identity: ReturnType<typeof useDocStore.getState>['identity']
+}) {
+  const identityError = useDocState((state) => state.identityError)
+
+  if (!identity) {
+    return (
+      <div className='px-2 text-sm text-muted-foreground space-y-2'>
+        <p>Not linked yet.</p>
+        <p>Create an invite in Facebonk, keep `facebonk serve` running, then link here.</p>
+      </div>
+    )
+  }
+
+  const displayName =
+    typeof identity.profile?.displayName === 'string' &&
+    identity.profile.displayName.trim().length > 0
+      ? identity.profile.displayName.trim()
+      : identity.identityKey.slice(0, 12)
+
+  const bio =
+    typeof identity.profile?.bio === 'string' ? identity.profile.bio.trim() : ''
+
+  return (
+    <div className='px-2 text-sm space-y-1'>
+      <div className='font-medium truncate'>{displayName}</div>
+      <div className='text-muted-foreground font-mono text-xs truncate'>
+        {identity.identityKey}
+      </div>
+      {bio ? <p className='text-muted-foreground text-xs leading-5'>{bio}</p> : null}
+      {identityError ? (
+        <p className='text-destructive text-xs leading-5'>{identityError}</p>
+      ) : null}
+    </div>
+  )
+}
+
+function FacebonkLinkDialog() {
+  const linkIdentity = useDocState((state) => state.linkIdentity)
+  const linkingIdentity = useDocState((state) => state.linkingIdentity)
+  const identity = useDocState((state) => state.identity)
+  const identityError = useDocState((state) => state.identityError)
+
+  const [open, setOpen] = useState(false)
+  const [invite, setInvite] = useState('')
+
+  const handleSubmit = async (event?: FormEvent<HTMLFormElement>) => {
+    event?.preventDefault()
+
+    try {
+      await linkIdentity(invite)
+      setInvite('')
+      setOpen(false)
+      toast.success('Facebonk linked')
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Failed to link Facebonk'
+      toast.error('Facebonk link failed', { description: message })
+    }
+  }
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        setOpen(nextOpen)
+        if (!nextOpen) setInvite('')
+      }}
+    >
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <DialogTriggerButton onClick={() => setOpen(true)} linked={Boolean(identity)} />
+        </TooltipTrigger>
+        <TooltipContent>
+          {identity ? 'Linked with Facebonk' : 'Link Facebonk identity'}
+        </TooltipContent>
+      </Tooltip>
+
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Link Facebonk</DialogTitle>
+          <DialogDescription>
+            Create an invite in Facebonk with `facebonk link create`, keep `facebonk serve`
+            running, then paste the invite here.
+          </DialogDescription>
+        </DialogHeader>
+
+        <form className='space-y-4' onSubmit={handleSubmit}>
+          <Input
+            value={invite}
+            onChange={(event) => setInvite(event.target.value)}
+            placeholder='Paste Facebonk invite'
+            autoFocus
+          />
+          {identityError ? (
+            <p className='text-sm text-destructive'>{identityError}</p>
+          ) : null}
+          <DialogFooter>
+            <Button type='submit' disabled={linkingIdentity} aria-busy={linkingIdentity}>
+              {linkingIdentity ? 'Linking…' : 'Link identity'}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function DialogTriggerButton({
+  linked,
+  onClick
+}: {
+  linked: boolean
+  onClick: () => void
+}) {
+  return (
+    <Button size='icon-sm' variant={linked ? 'secondary' : 'outline'} onClick={onClick}>
+      <Link2 />
+    </Button>
   )
 }
 

@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "schema": [
     {
       "id": 0,
@@ -167,6 +167,28 @@
         "name": "@bonk-docs-rpc/lock-doc-response"
       },
       "version": 1
+    },
+    {
+      "id": 1,
+      "name": "@bonk-docs/get-identity",
+      "request": {
+        "name": "@bonk-docs-rpc/get-identity-request"
+      },
+      "response": {
+        "name": "@bonk-docs-rpc/get-identity-response"
+      },
+      "version": 2
+    },
+    {
+      "id": 2,
+      "name": "@bonk-docs/link-identity",
+      "request": {
+        "name": "@bonk-docs-rpc/link-identity-request"
+      },
+      "response": {
+        "name": "@bonk-docs-rpc/link-identity-response"
+      },
+      "version": 2
     }
   ]
 }

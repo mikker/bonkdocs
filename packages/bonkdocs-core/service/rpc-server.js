@@ -64,8 +64,23 @@ export function createRpcServer(stream, worker) {
 
   rpc.onInitialize(async () => {
     console.log('[worker] initialize request')
-    const docs = await worker.listDocs()
-    return { docs }
+    const [docs, identity] = await Promise.all([
+      worker.listDocs(),
+      worker.getIdentity()
+    ])
+    return { docs, identity: identity ?? undefined }
+  })
+
+  rpc.onGetIdentity(async () => {
+    console.log('[worker] get-identity request')
+    const identity = await worker.getIdentity()
+    return { identity: identity ?? undefined }
+  })
+
+  rpc.onLinkIdentity(async (request = {}) => {
+    console.log('[worker] link-identity request')
+    const identity = await worker.linkIdentity(request.invite)
+    return { identity }
   })
 
   rpc.onListDocs(async () => {

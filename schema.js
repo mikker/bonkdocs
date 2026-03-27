@@ -120,6 +120,30 @@ rpc.register({
 })
 
 rpc.register({
+  name: 'identity-profile',
+  compact: false,
+  fields: [
+    { name: 'displayName', type: 'string', required: false },
+    { name: 'bio', type: 'string', required: false },
+    { name: 'updatedAt', type: 'uint', required: false }
+  ]
+})
+
+rpc.register({
+  name: 'identity-summary',
+  compact: false,
+  fields: [
+    { name: 'identityKey', type: 'string', required: true },
+    { name: 'writerKey', type: 'string', required: true },
+    {
+      name: 'profile',
+      type: '@bonk-docs-rpc/identity-profile',
+      required: false
+    }
+  ]
+})
+
+rpc.register({
   name: 'initialize-request',
   compact: false,
   fields: []
@@ -130,7 +154,48 @@ rpc.register({
   compact: false,
   fields: [
     { name: 'docs', type: '@local/doc', array: true, required: true },
-    { name: 'activeDoc', type: 'string', required: false }
+    { name: 'activeDoc', type: 'string', required: false },
+    {
+      name: 'identity',
+      type: '@bonk-docs-rpc/identity-summary',
+      required: false
+    }
+  ]
+})
+
+rpc.register({
+  name: 'get-identity-request',
+  compact: false,
+  fields: []
+})
+
+rpc.register({
+  name: 'get-identity-response',
+  compact: false,
+  fields: [
+    {
+      name: 'identity',
+      type: '@bonk-docs-rpc/identity-summary',
+      required: false
+    }
+  ]
+})
+
+rpc.register({
+  name: 'link-identity-request',
+  compact: false,
+  fields: [{ name: 'invite', type: 'string', required: true }]
+})
+
+rpc.register({
+  name: 'link-identity-response',
+  compact: false,
+  fields: [
+    {
+      name: 'identity',
+      type: '@bonk-docs-rpc/identity-summary',
+      required: true
+    }
   ]
 })
 
@@ -412,6 +477,18 @@ workerRpc.register({
   name: 'initialize',
   request: { name: '@bonk-docs-rpc/initialize-request' },
   response: { name: '@bonk-docs-rpc/initialize-response' }
+})
+
+workerRpc.register({
+  name: 'get-identity',
+  request: { name: '@bonk-docs-rpc/get-identity-request' },
+  response: { name: '@bonk-docs-rpc/get-identity-response' }
+})
+
+workerRpc.register({
+  name: 'link-identity',
+  request: { name: '@bonk-docs-rpc/link-identity-request' },
+  response: { name: '@bonk-docs-rpc/link-identity-response' }
 })
 
 workerRpc.register({

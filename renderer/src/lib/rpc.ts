@@ -49,6 +49,7 @@ function toError(error: unknown): Error {
 
 class BridgeWorkerStream {
   destroyed = false
+  private readonly specifier: string
   private ready = false
 
   private listeners = new Map<string, Set<BridgeListener>>()
@@ -56,7 +57,8 @@ class BridgeWorkerStream {
   private offExit: (() => void) | null = null
   private pendingWrites: Uint8Array[] = []
 
-  constructor(private readonly specifier: string) {
+  constructor(specifier: string) {
+    this.specifier = specifier
     const bridge = getBridge()
 
     this.offIPC = bridge.onWorkerIPC(this.specifier, (data) => {

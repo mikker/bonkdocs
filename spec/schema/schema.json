@@ -1,5 +1,5 @@
 {
-  "version": 2,
+  "version": 3,
   "schema": [
     {
       "name": "writer",
@@ -720,6 +720,12 @@
           "required": false,
           "type": "string",
           "version": 1
+        },
+        {
+          "name": "identity",
+          "required": false,
+          "type": "@bonk-docs-rpc/identity-summary",
+          "version": 3
         }
       ]
     },
@@ -1233,6 +1239,107 @@
           "required": false,
           "type": "string",
           "version": 1
+        }
+      ]
+    },
+    {
+      "name": "identity-profile",
+      "namespace": "bonk-docs-rpc",
+      "compact": false,
+      "flagsPosition": 0,
+      "fields": [
+        {
+          "name": "displayName",
+          "required": false,
+          "type": "string",
+          "version": 3
+        },
+        {
+          "name": "bio",
+          "required": false,
+          "type": "string",
+          "version": 3
+        },
+        {
+          "name": "updatedAt",
+          "required": false,
+          "type": "uint",
+          "version": 3
+        }
+      ]
+    },
+    {
+      "name": "identity-summary",
+      "namespace": "bonk-docs-rpc",
+      "compact": false,
+      "flagsPosition": 2,
+      "fields": [
+        {
+          "name": "identityKey",
+          "required": true,
+          "type": "string",
+          "version": 3
+        },
+        {
+          "name": "writerKey",
+          "required": true,
+          "type": "string",
+          "version": 3
+        },
+        {
+          "name": "profile",
+          "required": false,
+          "type": "@bonk-docs-rpc/identity-profile",
+          "version": 3
+        }
+      ]
+    },
+    {
+      "name": "get-identity-request",
+      "namespace": "bonk-docs-rpc",
+      "compact": false,
+      "flagsPosition": -1,
+      "fields": []
+    },
+    {
+      "name": "get-identity-response",
+      "namespace": "bonk-docs-rpc",
+      "compact": false,
+      "flagsPosition": 0,
+      "fields": [
+        {
+          "name": "identity",
+          "required": false,
+          "type": "@bonk-docs-rpc/identity-summary",
+          "version": 3
+        }
+      ]
+    },
+    {
+      "name": "link-identity-request",
+      "namespace": "bonk-docs-rpc",
+      "compact": false,
+      "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "invite",
+          "required": true,
+          "type": "string",
+          "version": 3
+        }
+      ]
+    },
+    {
+      "name": "link-identity-response",
+      "namespace": "bonk-docs-rpc",
+      "compact": false,
+      "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "identity",
+          "required": true,
+          "type": "@bonk-docs-rpc/identity-summary",
+          "version": 3
         }
       ]
     }
