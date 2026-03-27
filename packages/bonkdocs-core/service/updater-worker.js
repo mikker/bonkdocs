@@ -1,4 +1,4 @@
-import PearRuntime from 'pear-runtime'
+import PearRuntime from '#pear'
 import { Readable } from 'streamx'
 
 export class UpdaterWorker {
