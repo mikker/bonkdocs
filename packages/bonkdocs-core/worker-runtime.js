@@ -4,28 +4,16 @@ global.console = new Console(new SystemLog())
 console.log('teeeeeeeeeeeeeeeeeest')
 import process from 'process'
 import { join } from 'path'
+import Hyperswarm from 'hyperswarm'
 
 import { DocWorker } from './service/doc-worker.js'
 import { createRpcServer } from './service/rpc-server.js'
 import { UpdaterWorker } from './service/updater-worker.js'
 
-function parseUpdaterConfigFromArgv() {
-  const a = globalThis.Bare?.argv
-  if (!Array.isArray(a) || a.length < 2) return null
-  const last = a[a.length - 1]
-  if (typeof last !== 'string' || !last.trim().startsWith('{')) return null
-  try {
-    return JSON.parse(last)
-  } catch {
-    return null
-  }
-}
-
-const updaterConfig = parseUpdaterConfigFromArgv()
+const updaterConfig = JSON.parse(globalThis.Bare.argv.pop()) // NOTE: doing pop cause not sure how other args are handled
 
 /** Open pear-runtime in the worker when Electron sent a real upgrade link (ignore updates flag — host may mock updates:true for dev). */
 function shouldOpenPearRuntime(cfg) {
-  if (!cfg || typeof cfg !== 'object') return false
   const up = cfg.upgrade
   if (!up || String(up) === 'pear://updates-disabled') return false
   return true
@@ -102,10 +90,6 @@ export async function initializeWorker(options = {}) {
     teardownDone = false
   }
 
-  if (!updaterWorkerInstance) {
-    if (shouldOpenPearRuntime(updaterConfig)) updaterWorkerInstance = new UpdaterWorker(updaterConfig)
-  }
-
   if (!workerInstance) {
     const baseDir = options.baseDir || resolveBaseDir(options.storageRoot)
     workerInstance = new DocWorker({
@@ -125,10 +109,22 @@ export async function initializeWorker(options = {}) {
   }
 
   try {
-    if (updaterWorkerInstance) {
-      await updaterWorkerInstance.ready()
-    }
     await workerInstance.ready()
+    if (!updaterWorkerInstance) {
+      const store = workerInstance.manager.corestore
+      const keyPair = await store.createKeyPair('BONK!')
+      const swarm = new Hyperswarm({keyPair})
+      const config = { ... updaterConfig, swarm, store }
+      if (shouldOpenPearRuntime(updaterConfig)) {
+        updaterWorkerInstance = new UpdaterWorker(config)
+        await updaterWorkerInstance.ready()
+        swarm.on('connection', (conn) => updaterWorkerInstance.updater.store.replicate(conn)) // NOTE: the store is passed and a sub namespace is created, when you move to one swarm arch and replicate the higher order store on connection somewher you dont need this line
+        swarm.join(updaterWorkerInstance.updater.drive.core.discoveryKey, {
+          server: false,
+          client: true
+        })
+      }
+    } 
   } catch (error) {
     try {
       await teardownWorkerRuntime('initialize failed')
