@@ -1,0 +1,12 @@
+name: PR Review Request
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+permissions:
+  pull-requests: write
+  contents: read
+
+jobs:
+  auto-review:
+    uses: holepunchto/actions/.github/workflows/auto-review-request.yml@auto-req-review
