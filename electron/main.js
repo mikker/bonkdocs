@@ -100,7 +100,6 @@ function resolveDefaultStorageDir() {
 }
 
 function getAppPath() {
-  return '/Users/geordangesink/Desktop/Bonk Docs.app'// TODO: revert appPath mock
   if (!app.isPackaged) return null
   if (isLinux && process.env.APPIMAGE) return process.env.APPIMAGE
   if (isWindows) return process.execPath
@@ -143,7 +142,7 @@ function getWorker(specifier) {
     dir: getAppDir(),
     app: getAppPath(),
     name: getPearRuntimeName(),
-    updates: true || runtimeUpdates, // TODO: revert mock
+    updates: runtimeUpdates,
     version,
     storage: path.join(getAppDir(), 'app-storage'),
     upgrade: runtimeUpgrade,
