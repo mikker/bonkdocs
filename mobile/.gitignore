@@ -2,3 +2,5 @@ node_modules/
 .expo/
 ios/
 src/worker.bundle.js
+ota/
+dist/

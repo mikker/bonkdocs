@@ -71,6 +71,21 @@ function asDocRecord(value: unknown): MobileDocRecord | null {
   }
 }
 
+const rpc = getRpc()
+const updaterStatusStream = rpc.updaterStatus()
+updaterStatusStream.on('data', async (data: { type?: string }) => {
+  if (data?.type === 'updating') {
+    console.log('[bonkdocs:pear-runtime]: updating app')
+  }
+  if (data?.type === 'updated') {
+    console.log('[bonkdocs:pear-runtime]: updated app')
+    console.log('[bonkdocs:pear-runtime]: applying update')
+    await rpc.applyUpdate()
+    console.log('[bonkdocs:pear-runtime]: update applied, ready to restart app')
+    // TODO: restart app
+  }
+})
+
 export async function initializeDocs() {
   const rpc = getRpc()
   const response = await rpc.initialize({})
