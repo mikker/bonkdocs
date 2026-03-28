@@ -211,28 +211,6 @@ async function createWindow() {
     }
   })
 
-  // const pearRuntime = getPear()
-
-  // const onUpdating = () => {
-  //   if (!win.isDestroyed()) {
-  //     win.webContents.send('pear:event:updating')
-  //   }
-  // }
-
-  // const onUpdated = () => {
-  //   if (!win.isDestroyed()) {
-  //     win.webContents.send('pear:event:updated')
-  //   }
-  // }
-
-  // pearRuntime.updater.on('updating', onUpdating)
-  // pearRuntime.updater.on('updated', onUpdated)
-
-  // win.on('closed', () => {
-  //   pearRuntime.updater.removeListener('updating', onUpdating)
-  //   pearRuntime.updater.removeListener('updated', onUpdated)
-  // })
-
   const devServerUrl = process.env.PEAR_DEV_SERVER_URL
 
   if (devServerUrl) {
