@@ -4,13 +4,7 @@ contextBridge.exposeInMainWorld('bridge', {
   pkg() {
     return ipcRenderer.sendSync('pkg')
   },
-  applyUpdate: () => ipcRenderer.invoke('pear:applyUpdate'),// TODO: change
   appRestart: () => ipcRenderer.invoke('app:restart'),
-  onPearEvent: (name, listener) => {
-    const wrap = (evt, eventName) => listener(eventName)
-    ipcRenderer.on('pear:event:' + name, wrap)
-    return () => ipcRenderer.removeListener('pear:event:' + name, wrap)
-  },
   startWorker: (specifier) => ipcRenderer.invoke('pear:startWorker', specifier),
   onWorkerStdout: (specifier, listener) => {
     const wrap = (evt, data) => listener(Buffer.from(data))

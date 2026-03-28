@@ -2,12 +2,7 @@ declare global {
   interface Window {
     bridge: {
       pkg: () => Record<string, any>
-      applyUpdate: () => Promise<unknown>
       appRestart: () => Promise<unknown>
-      onPearEvent: (
-        name: string,
-        listener: (eventName?: string) => void
-      ) => () => void
       startWorker: (specifier: string) => Promise<unknown>
       onWorkerStdout: (
         specifier: string,

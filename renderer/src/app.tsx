@@ -64,6 +64,7 @@ updaterStatusStream.on('data', async (data: { type?: string }) => {
     console.log('[bonkdocs:pear-runtime]: applying update')
     await rpc.applyUpdate()
     console.log('[bonkdocs:pear-runtime]: update applied, ready to restart app')
+    // TODO: restart app
   }
 })
 
