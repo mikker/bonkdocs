@@ -2,17 +2,10 @@ import PearRuntime from '#pear'
 import { Readable } from 'streamx'
 
 export class UpdaterWorker {
-  constructor(config = {}, PearRuntimeClass = PearRuntime) {
-    if (config.existingPear) {
-      this._ownsPear = false
-      this.config = config
-      this.pear = config.existingPear
-      this.updater = this.pear.updater
-      return
-    }
+  constructor(config = {}) {
     this._ownsPear = true
     this.config = config
-    this.pear = new PearRuntimeClass(config)
+    this.pear = new PearRuntime(config)
     this.updater = this.pear.updater
   }
 

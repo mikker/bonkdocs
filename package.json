@@ -1,8 +1,7 @@
 {
   "name": "bonk-docs",
   "productName": "Bonk Docs",
-  "version": "1.0.2",
-  "upgrade": "pear://o7ge9tiyb5bh78zmsxcaxffd4wbydzznt4rodxp17keqsnqrxfdo",
+  "version": "1.0.0",
   "type": "module",
   "main": "electron/main.js",
   "private": true,
@@ -77,14 +76,13 @@
     "@tiptap/starter-kit": "^3.20.4",
     "@tiptap/y-tiptap": "^3.0.2",
     "autobonk": "github:mikker/autobonk",
-    "autobonk-yjs": "file:../autobonk-yjs/autobonk-yjs-0.1.0.tgz",
+    "autobonk-yjs": "file:../autobonk-yjs",
     "bare-console": "^6.1.0",
     "bare-crypto": "^1.13.4",
     "bare-fs": "^4.5.5",
     "bare-os": "^3.8.0",
     "bare-path": "^3.0.0",
     "bare-process": "^4.3.0",
-    "bare-storage": "^1.1.0",
     "bare-system-logger": "^1.0.3",
     "bare-url": "^2.3.2",
     "class-variance-authority": "^0.7.1",
@@ -93,12 +91,10 @@
     "hrpc": "^4.3.0",
     "lucide-react": "^0.577.0",
     "paparam": "^1.10.1",
-    "pear-mobile": "^4.2.1",
-    "pear-runtime": "^1.1.0",
+    "pear-mobile": "^4.2.2",
+    "pear-runtime": "^0.5.0",
     "protomux-wakeup": "^2.9.0",
-    "ready-resource": "^1.2.0",
     "sonner": "^2.0.7",
-    "streamx": "^2.25.0",
     "tailwind-merge": "^3.5.0",
     "which-runtime": "^1.3.2",
     "y-protocols": "^1.0.7",
@@ -132,5 +128,6 @@
     "vite": "^7",
     "wait-on": "^9.0.4"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "upgrade": "pear://a17d6oc8esz33fur48yxb8nxpyx8ki5y61u6z4p7qcxxjwo5buno"
 }
