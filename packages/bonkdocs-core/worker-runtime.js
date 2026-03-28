@@ -11,7 +11,8 @@ import { createRpcServer } from './service/rpc-server.js'
 import { UpdaterWorker } from './service/updater-worker.js'
 
 const updaterConfig = JSON.parse(globalThis.Bare.argv.pop()) // NOTE: doing pop cause not sure how other args are handled
-
+console.log('[IMPORTANT LOG]:', updaterConfig)
+console.log('[IMPORTANT LOG]:', Bare.argv)
 function shouldOpenPearRuntime(cfg) {
   const up = cfg.upgrade
   if (!up || String(up) === 'pear://updates-disabled') return false
@@ -109,6 +110,10 @@ export async function initializeWorker(options = {}) {
       if (shouldOpenPearRuntime(updaterConfig)) {
         updaterWorkerInstance = new UpdaterWorker(config)
         await updaterWorkerInstance.ready()
+        const pearStorage = updaterWorkerInstance.pear?.storage
+        if (typeof pearStorage === 'string' && pearStorage.trim()) {
+          globalThis.__BONKDOCS_STORAGE_ROOT__ = pearStorage.trim()
+        }
         swarm.on('connection', (conn) => updaterWorkerInstance.updater.store.replicate(conn)) // NOTE: the store is passed and a sub namespace is created, when you move to one swarm arch and replicate the higher order store on connection somewher you dont need this line
         swarm.join(updaterWorkerInstance.updater.drive.core.discoveryKey, {
           server: false,
@@ -124,6 +129,7 @@ export async function initializeWorker(options = {}) {
       )
     }
   } catch (error) {
+    console.log('[IMPORTANT LOG]: that went wrong')
     try {
       await teardownWorkerRuntime('initialize failed')
     } catch {}
@@ -141,6 +147,14 @@ function normalizeStorageRoot(value) {
   if (typeof value !== 'string') return null
   const trimmed = value.trim()
   return trimmed.length > 0 ? trimmed : null
+}
+
+function isFilesystemRoot(p) {
+  if (typeof p !== 'string') return true
+  const n = p.replace(/\\/g, '/').replace(/\/+$/, '')
+  if (n === '' || n === '/') return true
+  if (/^[a-zA-Z]:$/.test(n)) return true
+  return false
 }
 
 function resolveStorageRoot(explicitStorageRoot = null) {
@@ -172,6 +186,21 @@ function resolveStorageRoot(explicitStorageRoot = null) {
       ? process.cwd()
       : '/'
 
+  if (!isFilesystemRoot(cwd)) {
+    return cwd
+  }
+
+  const homeLike =
+    normalizeStorageRoot(
+      typeof process !== 'undefined' ? process.env?.HOME : null
+    ) ||
+    normalizeStorageRoot(
+      typeof process !== 'undefined' ? process.env?.USERPROFILE : null
+    )
+  if (homeLike) {
+    return homeLike
+  }
+
   return cwd
 }
 
@@ -185,7 +214,21 @@ function resolveBaseDir(storageRoot = null) {
   }
 
   const root = resolveStorageRoot(storageRoot)
-  if (storageRoot === null && root === process.cwd()) {
+  if (isFilesystemRoot(root)) {
+    throw new Error(
+      '[worker] Storage root resolved to filesystem root. Pass updaterConfig.dir (e.g. app document directory on mobile), or set PEAR_APP_DATA / HOME.'
+    )
+  }
+
+  const cwd =
+    typeof process !== 'undefined' && typeof process.cwd === 'function'
+      ? process.cwd()
+      : '/'
+  if (
+    storageRoot === null &&
+    root === cwd &&
+    !isFilesystemRoot(root)
+  ) {
     return join(root, 'bonk-docs-data')
   }
   return join(root, 'bonk-docs')

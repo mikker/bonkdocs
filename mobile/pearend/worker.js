@@ -1,9 +1,4 @@
 /* global Bare */
-const { version, upgrade, productName, name } = require('../../package.json')
-
-const isDev = Bare.argv.pop()
-const updates = isDev?.toLowerCase() === 'false'
-
 function delay(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
@@ -47,14 +42,11 @@ async function bootstrapWithRetry(bootstrapWorkerRuntime) {
 }
 
 async function main() {
-
-  // globalThis.__BONKDOCS_STORAGE_ROOT__ = pear.storage // TODO: dont forget this
-
   const { bootstrapWorkerRuntime } =
     await import('../../packages/bonkdocs-core/worker-runtime.js')
 
   await bootstrapWithRetry(() =>
-    bootstrapWorkerRuntime({ existingPear: pear })
+    bootstrapWorkerRuntime()
   )
 }
 
