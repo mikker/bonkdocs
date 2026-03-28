@@ -2,6 +2,7 @@
   "name": "bonk-docs",
   "productName": "Bonk Docs",
   "version": "1.0.2",
+  "upgrade": "pear://o7ge9tiyb5bh78zmsxcaxffd4wbydzznt4rodxp17keqsnqrxfdo",
   "type": "module",
   "main": "electron/main.js",
   "private": true,
@@ -131,6 +132,5 @@
     "vite": "^7",
     "wait-on": "^9.0.4"
   },
-  "license": "MIT",
-  "upgrade": "pear://o7ge9tiyb5bh78zmsxcaxffd4wbydzznt4rodxp17keqsnqrxfdo"
+  "license": "MIT"
 }
