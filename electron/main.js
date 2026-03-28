@@ -224,22 +224,6 @@ async function createWindow() {
   )
 }
 
-ipcMain.on('GET_EXEC_PATH', (event) => {
-  event.returnValue = getAppPath()
-})
-
-ipcMain.on('GET_APP_STORAGE_DIR', (event) => {
-  event.returnValue = IS_PRODUCTION ? keetStorage : IS_INTERNAL ? keetInternalStorage : os.tmpdir()
-})
-
-ipcMain.on('GET_APPLING_EXTENSION', (event) => {
-  event.returnValue = isMac ? '.app' : isLinux ? '.AppImage' : '.msix'
-})
-
-ipcMain.on('GET_OTA_BOOTSTRAP', (event) => {
-  event.returnValue = process.env.OTA_BOOTSTRAP ? JSON.parse(process.env.OTA_BOOTSTRAP) : undefined
-})
-
 ipcMain.handle('pear:startWorker', (evt, filename) => {
   const specifier = filename.startsWith('/') ? filename : '/' + filename
   getWorker(specifier)
