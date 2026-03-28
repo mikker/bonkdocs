@@ -92,6 +92,7 @@
     "hrpc": "^4.3.0",
     "lucide-react": "^0.577.0",
     "paparam": "^1.10.1",
+    "pear-mobile": "^4.2.1",
     "pear-runtime": "^1.1.0",
     "protomux-wakeup": "^2.9.0",
     "ready-resource": "^1.2.0",
