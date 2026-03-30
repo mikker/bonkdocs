@@ -145,7 +145,7 @@ class BridgeWorkerStream {
   private writeNow(payload: Uint8Array) {
     const bridge = getBridge()
     void bridge.writeWorkerIPC(this.specifier, payload).catch((error) => {
-      this.emit('error', toError(error))
+      this.destroy(toError(error))
     })
   }
 
@@ -160,8 +160,21 @@ class BridgeWorkerStream {
 }
 
 function createDefaultRpc() {
-  workerStream = new BridgeWorkerStream(WORKER_SPECIFIER)
-  return new HRPC(workerStream)
+  const stream = new BridgeWorkerStream(WORKER_SPECIFIER)
+  const rpc = new HRPC(stream)
+
+  const reset = () => {
+    if (workerStream === stream) {
+      workerStream = null
+    }
+    if (rpcInstance === rpc) {
+      rpcInstance = null
+    }
+  }
+
+  stream.on('close', reset)
+  workerStream = stream
+  return rpc
 }
 
 export function getRpc() {
