@@ -35,8 +35,8 @@
 
 ## Phase 4 — Hybrid Hosts
 
-- Extract the shared backend into `packages/bonkdocs-core`.
-- Keep the current Electron app as the first `desktop` host over that package.
+- Keep the shared backend in `packages/bonkdocs-core` as the only owner of schema/spec generation and runtime contracts.
+- Keep the current Electron app as the first `desktop` host over that package boundary.
 - Land the first React Native `native` host with drawer-based doc navigation and a WebView-backed editor surface.
-- Reuse the same worker/runtime and HRPC contract across desktop and mobile.
+- Reuse the same worker/runtime and HRPC contract across desktop and native through `packages/bonkdocs-core` entrypoints instead of direct generated-file imports.
 - Keep simplifying native chrome so document-level actions stay in the platform header and the editor surface remains minimal.

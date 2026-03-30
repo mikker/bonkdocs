@@ -154,3 +154,75 @@ test('doc store resets Facebonk identity locally', async (t) => {
   mock.destroyAll()
   resetDocStoreState()
 })
+
+test('doc store times out stuck Facebonk linking', async (t) => {
+  const mock = createRpcMock()
+
+  mock.setLinkIdentityHandler(async () => await new Promise(() => {}))
+
+  setRpcClient(mock.rpc)
+  t.teardown(() => {
+    setRpcClient(null)
+  })
+  resetDocStoreState()
+
+  let error = null
+
+  try {
+    await useDocStore.getState().linkIdentity('facebonk-invite', { timeoutMs: 1000 })
+  } catch (err) {
+    error = err
+  }
+
+  t.ok(error instanceof Error, 'linking rejects with an error')
+  t.is(
+    error?.message,
+    'Timed out waiting for Facebonk identity. Keep facebonk serve running and try again.'
+  )
+
+  const state = useDocStore.getState()
+  t.is(state.linkingIdentity, false, 'linking state resets after timeout')
+  t.is(
+    state.identityError,
+    'Timed out waiting for Facebonk identity. Keep facebonk serve running and try again.'
+  )
+  t.is(
+    state.error,
+    'Timed out waiting for Facebonk identity. Keep facebonk serve running and try again.'
+  )
+
+  mock.destroyAll()
+  resetDocStoreState()
+})
+
+test('doc store links Facebonk even if avatar fetch stalls', async (t) => {
+  const mock = createRpcMock()
+
+  mock.setIdentity({
+    identityKey: 'facebonk-identity',
+    writerKey: 'facebonk-writer',
+    profile: {
+      displayName: 'Avatar Wait',
+      avatarMimeType: 'image/png'
+    }
+  })
+  mock.setGetIdentityAvatarHandler(async () => await new Promise(() => {}))
+
+  setRpcClient(mock.rpc)
+  t.teardown(() => {
+    setRpcClient(null)
+  })
+  resetDocStoreState()
+
+  await useDocStore.getState().linkIdentity('facebonk-invite')
+
+  const state = useDocStore.getState()
+  t.is(state.linkingIdentity, false, 'linking state clears after avatar timeout')
+  t.is(state.identity?.identityKey, 'facebonk-identity')
+  t.is(state.identity?.profile?.displayName, 'Avatar Wait')
+  t.is(state.identity?.profile?.avatarDataUrl, undefined)
+  t.is(state.identityError, null)
+
+  mock.destroyAll()
+  resetDocStoreState()
+})

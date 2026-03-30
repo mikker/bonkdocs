@@ -100,6 +100,10 @@ type JoinDocOptions = {
   timeoutMs?: number
 }
 
+type LinkIdentityOptions = {
+  timeoutMs?: number
+}
+
 type LocalUser = {
   name: string
   color: string
@@ -139,7 +143,7 @@ type DocStore = {
   abandoningDoc: boolean
   initialize: () => Promise<void>
   refreshIdentity: () => Promise<void>
-  linkIdentity: (invite: string) => Promise<void>
+  linkIdentity: (invite: string, options?: LinkIdentityOptions) => Promise<void>
   resetIdentity: () => Promise<void>
   refresh: () => Promise<void>
   selectDoc: (key: string | null) => Promise<void>
@@ -164,10 +168,14 @@ type DocStore = {
 
 const REMOTE_ORIGIN = 'remote'
 const DEFAULT_JOIN_TIMEOUT = 15000
+const DEFAULT_IDENTITY_LINK_TIMEOUT = 15000
+const DEFAULT_IDENTITY_AVATAR_TIMEOUT = 1000
 const UPDATE_FLUSH_MS = 50
 const AWARENESS_FLUSH_MS = 120
 const WATCH_RECONNECT_BASE_MS = 400
 const WATCH_RECONNECT_MAX_MS = 5000
+const IDENTITY_LINK_TIMEOUT_MESSAGE =
+  'Timed out waiting for Facebonk identity. Keep facebonk serve running and try again.'
 
 const sessions = new Map<string, DocSession>()
 const applyQueues = new Map<string, Promise<void>>()
@@ -191,6 +199,37 @@ function randomId(length = 32) {
 
 function shortLabel(value: string) {
   return value.slice(0, 5)
+}
+
+function waitForResult<T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  timeoutMessage: string
+) {
+  return new Promise<T>((resolve, reject) => {
+    let settled = false
+    const timeoutId = setTimeout(() => {
+      if (settled) return
+      settled = true
+      reject(new Error(timeoutMessage))
+    }, timeoutMs)
+
+    const finish = (handler: () => void) => {
+      if (settled) return
+      settled = true
+      clearTimeout(timeoutId)
+      handler()
+    }
+
+    promise.then(
+      (value) => {
+        finish(() => resolve(value))
+      },
+      (error) => {
+        finish(() => reject(error))
+      }
+    )
+  })
 }
 
 function mergeDocSummary(entry: DocRecord, fetched: DocRecord) {
@@ -267,10 +306,13 @@ function userFromIdentity(identity: IdentitySummary | null | undefined) {
 
 async function hydrateIdentityAvatar(identity: IdentitySummary | null, rpc: any) {
   if (!identity) return null
-  if (!identity.profile?.avatarMimeType) return identity
 
   try {
-    const response = await rpc.getIdentityAvatar({})
+    const response = await waitForResult(
+      rpc.getIdentityAvatar({}),
+      DEFAULT_IDENTITY_AVATAR_TIMEOUT,
+      'Timed out waiting for Facebonk avatar'
+    )
     const dataUrl =
       typeof response?.avatar?.dataUrl === 'string' &&
       response.avatar.dataUrl.length > 0
@@ -698,7 +740,7 @@ export const useDocStore = create<DocStore>((set, get) => ({
       })
     }
   },
-  linkIdentity: async (invite) => {
+  linkIdentity: async (invite, options) => {
     const trimmed = typeof invite === 'string' ? invite.trim() : ''
     if (!trimmed) {
       throw new Error('Identity invite is required')
@@ -710,7 +752,15 @@ export const useDocStore = create<DocStore>((set, get) => ({
 
     try {
       const rpc = getRpc()
-      const response = await rpc.linkIdentity({ invite: trimmed })
+      const timeoutMs = Math.max(
+        1000,
+        options?.timeoutMs ?? DEFAULT_IDENTITY_LINK_TIMEOUT
+      )
+      const response = await waitForResult(
+        rpc.linkIdentity({ invite: trimmed }),
+        timeoutMs,
+        IDENTITY_LINK_TIMEOUT_MESSAGE
+      )
       const identity = await hydrateIdentityAvatar(response?.identity ?? null, rpc)
       if (!identity) {
         throw new Error('Identity link response missing identity')

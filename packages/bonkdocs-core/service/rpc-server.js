@@ -1,4 +1,4 @@
-import HRPC from '../../../spec/hrpc/index.js'
+import HRPC from '../hrpc.js'
 
 const scheduleMicrotask =
   typeof queueMicrotask === 'function'

@@ -2,5 +2,14 @@
   "name": "bonkdocs-core",
   "private": true,
   "type": "module",
-  "main": "./index.js"
+  "main": "./index.js",
+  "scripts": {
+    "schema:build": "node build-schema.js"
+  },
+  "exports": {
+    ".": "./index.js",
+    "./hrpc": "./hrpc.js",
+    "./schema": "./schema.js",
+    "./worker-runtime": "./worker-runtime.js"
+  }
 }

@@ -24,7 +24,7 @@ let pear = null
 
 const cmd = command(
   appName,
-  flag('--storage', 'pass custom storage to pear-runtime'),
+  flag('--storage [dir]', 'pass custom storage to pear-runtime'),
   flag('--no-updates', 'start without OTA updates'),
   flag(
     '--remote-debugging-port [port]',

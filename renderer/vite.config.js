@@ -20,8 +20,7 @@ export default defineConfig(({ mode }) => {
           entryFileNames: `assets/[name].js`,
           chunkFileNames: `assets/[name].js`,
           assetFileNames: `assets/[name].[ext]`
-        },
-        external: ['path', 'events', 'child_process']
+        }
       }
     },
     define: {

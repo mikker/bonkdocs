@@ -35,6 +35,8 @@ See [nomenclature.md](./nomenclature.md) for the canonical wording.
 - `domain/doc-context.js`: Extends `Context`, wires schema routes, seeds roles, manages snapshots.
 - `domain/doc-manager.js`: Wraps Autobonk `Manager`, handles invite lifecycle, local metadata.
 - `service/doc-worker.js`: Now also owns a local Facebonk identity client under a sibling storage dir and exposes link/read RPC methods.
+- `build-schema.js`: Owns schema/spec generation and writes the generated Autobonk + HRPC bundle into `packages/bonkdocs-core/spec/`.
+- `hrpc.js`: Re-exports the generated HRPC client/server contract so hosts do not import generated files directly.
 - Yjs update log stored in `@bonk-docs/updates`, plus periodic snapshots under `@bonk-docs/snapshots`.
 - `service/doc-worker.js`: Local backend used by every host UI.
 - `worker-runtime.js`: Boots HRPC against the shared worker in a Bare runtime.
@@ -78,6 +80,6 @@ See [nomenclature.md](./nomenclature.md) for the canonical wording.
 ## Testing & Tooling
 
 - `brittle` suites cover Yjs update flows, worker HRPC handlers (`test/worker`), and presence timing edges.
-- Schema updates go through `npm run schema:build` (already wired) to regenerate dispatch/db/hrpc bundles.
+- Schema updates go through `npm run schema:build`, which delegates to `packages/bonkdocs-core/build-schema.js` and regenerates dispatch/db/hrpc bundles under `packages/bonkdocs-core/spec/`.
 - Desktop manual development now runs through `npm run desktop:dev`.
 - Linting/formatting remains whatever the repo currently enforces; avoid introducing TypeScript outside `renderer/`.

@@ -85,7 +85,7 @@ npm run format
 ```
 
 - `npm test` runs the root `brittle` suite
-- `schema:build` regenerates Autobonk-compatible bundles under `spec/`
+- `schema:build` regenerates Autobonk-compatible bundles under `packages/bonkdocs-core/spec/`
 - `sim:typing` runs the local typing simulation used for collaboration testing
 
 ## Repository Layout

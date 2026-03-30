@@ -5,7 +5,6 @@ import { DocManager } from '../domain/doc-manager.js'
 import { ensurePear } from '../../../lib/pear-env.js'
 ensurePear()
 import { YjsSyncEngine } from 'autobonk-yjs'
-import { IdentityManager } from 'facebonk/src/index.js'
 import z32 from 'z32'
 import * as Y from 'yjs'
 import {
@@ -46,10 +45,13 @@ export class DocWorker {
   constructor(options = {}) {
     this.baseDir = options.baseDir
     this.identityBaseDir = options.identityBaseDir || join(this.baseDir, 'facebonk')
+    this.enableIdentity = options.enableIdentity !== false
     this.identityOptions = {
       bootstrap: options.bootstrap,
       autobase: options.autobase
     }
+    this.identityManager = null
+    this.identityManagerPromise = null
     this.watchers = new Map()
     this.subscriptions = new Map()
     this.syncEngine = new YjsSyncEngine({
@@ -69,15 +71,34 @@ export class DocWorker {
       bootstrap: options.bootstrap,
       autobase: options.autobase
     })
-    this.identityManager = this.createIdentityManager()
   }
 
-  createIdentityManager() {
+  async createIdentityManager() {
+    const { IdentityManager } = await import('facebonk/src/index.js')
     return new IdentityManager(this.identityBaseDir, this.identityOptions)
   }
 
+  async getIdentityManager() {
+    if (!this.enableIdentity) return null
+    if (this.identityManager) return this.identityManager
+    if (!this.identityManagerPromise) {
+      this.identityManagerPromise = this.createIdentityManager()
+        .then(async (manager) => {
+          await manager.ready()
+          this.identityManager = manager
+          this.identityManagerPromise = null
+          return manager
+        })
+        .catch((error) => {
+          this.identityManagerPromise = null
+          throw error
+        })
+    }
+    return await this.identityManagerPromise
+  }
+
   async ready() {
-    await Promise.all([this.manager.ready(), this.identityManager.ready()])
+    await this.manager.ready()
   }
 
   async close() {
@@ -97,19 +118,24 @@ export class DocWorker {
     }
     this.subscriptions.clear()
     await this.syncEngine.close()
-    await this.identityManager.close()
+    await this.identityManager?.close()
     await this.manager.close()
   }
 
   async getIdentity() {
     await this.ready()
-    return await this.identityManager.getSummary()
+    const identityManager = await this.getIdentityManager()
+    if (!identityManager) return null
+    return await identityManager.getSummary()
   }
 
   async getIdentityAvatar() {
     await this.ready()
 
-    const identity = await this.identityManager.getActiveIdentity()
+    const identityManager = await this.getIdentityManager()
+    if (!identityManager) return null
+
+    const identity = await identityManager.getActiveIdentity()
     if (!identity) return null
 
     const avatar = await identity.getAvatar()
@@ -134,16 +160,27 @@ export class DocWorker {
       throw new Error('Identity invite is required')
     }
 
-    await this.identityManager.joinIdentity(invite.trim())
-    return await this.identityManager.getSummary()
+    const identityManager = await this.getIdentityManager()
+    if (!identityManager) {
+      throw new Error('Facebonk identity linking is unavailable in this runtime')
+    }
+
+    await identityManager.joinIdentity(invite.trim())
+    return await identityManager.getSummary()
   }
 
   async resetIdentity() {
-    await this.identityManager.close()
+    const identityManager = await this.getIdentityManager()
+    if (!identityManager) {
+      return { reset: false }
+    }
+
+    await identityManager.close()
     await rm(this.identityBaseDir, { recursive: true, force: true })
     await mkdir(this.identityBaseDir, { recursive: true })
-    this.identityManager = this.createIdentityManager()
-    await this.identityManager.ready()
+    this.identityManager = null
+    this.identityManagerPromise = null
+    await this.getIdentityManager()
     return { reset: true }
   }
 

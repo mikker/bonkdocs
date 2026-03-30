@@ -1,7 +1,7 @@
 /* global __DEV__ */
 
 // @ts-ignore
-import HRPC from '../../../spec/hrpc/index.js'
+import HRPC from '../../../packages/bonkdocs-core/hrpc.js'
 import { Worklet } from 'react-native-bare-kit'
 import bundle from '../worker.bundle.js'
 

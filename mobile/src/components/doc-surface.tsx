@@ -112,9 +112,9 @@ function htmlDocument() {
 
 export function DocSurface({ doc }: DocSurfaceProps) {
   const webViewRef = useRef<WebView>(null)
-  const streamRef = useRef<RpcStream | null>(null)
   const readyRef = useRef(false)
   const pendingRef = useRef<string[]>([])
+  const lastUpdateRef = useRef<ReturnType<typeof serializeDocUpdate>>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -131,29 +131,57 @@ export function DocSurface({ doc }: DocSurfaceProps) {
     webViewRef.current?.postMessage(message)
   }
 
+  const flushPendingMessages = () => {
+    while (pendingRef.current.length > 0) {
+      const next = pendingRef.current.shift()
+      if (!next) continue
+      webViewRef.current?.postMessage(next)
+    }
+  }
+
+  const fallbackDocUpdate = {
+    key: doc.key,
+    title: doc.title,
+    revision: doc.revision,
+    updatedAt: doc.updatedAt,
+    lockedAt: doc.lockedAt,
+    lockedBy: doc.lockedBy,
+    capabilities: {
+      canEdit: doc.canEdit,
+      roles: doc.roles
+    }
+  }
+
+  const syncEditor = (
+    update: ReturnType<typeof serializeDocUpdate> = lastUpdateRef.current
+  ) => {
+    const currentUpdate = update || fallbackDocUpdate
+    postToEditor({
+      type: 'doc-update',
+      payload: currentUpdate
+    })
+
+    if (currentUpdate.writerKey) {
+      postToEditor(userMessage(currentUpdate.writerKey))
+    }
+  }
+
   useEffect(() => {
     readyRef.current = false
     pendingRef.current = []
+    lastUpdateRef.current = null
     setLoading(true)
     setError(null)
 
     const stream = watchDoc(doc.key) as RpcStream
-    streamRef.current = stream
 
     const handleData = (payload: unknown) => {
       const serialized = serializeDocUpdate(payload)
       if (!serialized) return
+      lastUpdateRef.current = serialized
       setLoading(false)
       setError(null)
-
-      postToEditor({
-        type: 'doc-update',
-        payload: serialized
-      })
-
-      if (serialized.writerKey) {
-        postToEditor(userMessage(serialized.writerKey))
-      }
+      syncEditor(serialized)
     }
 
     const handleFailure = (nextError: unknown) => {
@@ -173,9 +201,6 @@ export function DocSurface({ doc }: DocSurfaceProps) {
       detachStreamListener(stream, 'data', handleData)
       detachStreamListener(stream, 'error', handleFailure)
       detachStreamListener(stream, 'close', handleFailure)
-      if (streamRef.current === stream) {
-        streamRef.current = null
-      }
       disposeStream(stream)
     }
   }, [doc.key])
@@ -198,27 +223,8 @@ export function DocSurface({ doc }: DocSurfaceProps) {
 
     if (payload.type === 'ready') {
       readyRef.current = true
-      postToEditor({
-        type: 'doc-update',
-        payload: {
-          key: doc.key,
-          title: doc.title,
-          revision: doc.revision,
-          updatedAt: doc.updatedAt,
-          lockedAt: doc.lockedAt,
-          lockedBy: doc.lockedBy,
-          capabilities: {
-            canEdit: doc.canEdit,
-            roles: doc.roles
-          }
-        }
-      })
-
-      while (pendingRef.current.length > 0) {
-        const next = pendingRef.current.shift()
-        if (!next) continue
-        webViewRef.current?.postMessage(next)
-      }
+      syncEditor()
+      flushPendingMessages()
       return
     }
 
@@ -254,6 +260,14 @@ export function DocSurface({ doc }: DocSurfaceProps) {
         style={styles.webView}
         originWhitelist={['*']}
         source={source}
+        onLoadStart={() => {
+          readyRef.current = false
+        }}
+        onContentProcessDidTerminate={() => {
+          readyRef.current = false
+          setError('Editor reloaded. Restoring document…')
+          webViewRef.current?.reload()
+        }}
         onMessage={(event) => void handleMessage(event)}
       />
       {loading ? (

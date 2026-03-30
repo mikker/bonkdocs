@@ -1,5 +1,5 @@
 // @ts-ignore
-import HRPC from '../../../spec/hrpc/index.js'
+import HRPC from '../../../packages/bonkdocs-core/hrpc.js'
 
 type RpcClient = any
 

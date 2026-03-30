@@ -7,6 +7,14 @@ import { createRpcServer } from './service/rpc-server.js'
 let workerInstance = null
 let rpcInstance = null
 
+async function cleanupWorker() {
+  try {
+    await workerInstance?.close()
+  } catch {}
+  workerInstance = null
+  rpcInstance = null
+}
+
 function normalizeStorageRoot(value) {
   if (typeof value !== 'string') return null
   const trimmed = value.trim()
@@ -20,7 +28,8 @@ export async function initializeWorker(options = {}) {
       baseDir,
       bootstrap: options.bootstrap,
       autobase: options.autobase,
-      ensureStorage: options.ensureStorage ?? true
+      ensureStorage: options.ensureStorage ?? true,
+      enableIdentity: options.enableIdentity
     })
   }
 
@@ -31,11 +40,7 @@ export async function initializeWorker(options = {}) {
   try {
     await workerInstance.ready()
   } catch (error) {
-    try {
-      await workerInstance?.close()
-    } catch {}
-    workerInstance = null
-    rpcInstance = null
+    await cleanupWorker()
     throw error
   }
 
@@ -116,24 +121,17 @@ function createBareIpcStream() {
   return stream
 }
 
-export async function bootstrapWorkerRuntime() {
+export async function bootstrapWorkerRuntime(options = {}) {
   const ipcStream = createBareIpcStream()
   if (!ipcStream) return
 
   await initializeWorker({
-    baseDir: resolveBaseDir(),
+    baseDir: resolveBaseDir(options.storageRoot),
     ensureStorage: true,
-    rpc: ipcStream
+    rpc: ipcStream,
+    enableIdentity: options.enableIdentity
   })
 
-  const cleanup = async () => {
-    try {
-      await workerInstance?.close()
-    } catch {}
-    workerInstance = null
-    rpcInstance = null
-  }
-
-  ipcStream.on('close', cleanup)
+  ipcStream.on('close', cleanupWorker)
   ipcStream.on('error', () => {})
 }

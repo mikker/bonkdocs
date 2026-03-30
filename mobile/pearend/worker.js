@@ -23,7 +23,7 @@ async function bootstrapWithRetry(bootstrapWorkerRuntime) {
 
   while (true) {
     try {
-      await bootstrapWorkerRuntime()
+      await bootstrapWorkerRuntime({ enableIdentity: false })
 
       if (attempt > 0) {
         console.warn(

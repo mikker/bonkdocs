@@ -20,6 +20,8 @@ export function createRpcMock({ docs = [], activeDoc = null } = {}) {
   let activeDocKey = activeDoc
   let identityResponse = null
   let identityAvatarResponse = null
+  let linkIdentityHandler = async () => ({ identity: identityResponse })
+  let getIdentityAvatarHandler = async () => ({ avatar: identityAvatarResponse })
   let applyUpdatesHandler = async () => ({ accepted: true })
   const applyUpdatesCalls = []
   let applyAwarenessHandler = async () => ({ accepted: true })
@@ -103,10 +105,10 @@ export function createRpcMock({ docs = [], activeDoc = null } = {}) {
       return { identity: identityResponse }
     },
     async getIdentityAvatar() {
-      return { avatar: identityAvatarResponse }
+      return await getIdentityAvatarHandler()
     },
-    async linkIdentity() {
-      return { identity: identityResponse }
+    async linkIdentity(request = {}) {
+      return await linkIdentityHandler(request)
     },
     async resetIdentity() {
       identityResponse = null
@@ -195,6 +197,12 @@ export function createRpcMock({ docs = [], activeDoc = null } = {}) {
     },
     setApplyUpdatesHandler(fn) {
       applyUpdatesHandler = fn
+    },
+    setLinkIdentityHandler(fn) {
+      linkIdentityHandler = fn
+    },
+    setGetIdentityAvatarHandler(fn) {
+      getIdentityAvatarHandler = fn
     },
     emitUpdate(key, payload) {
       const streams = watchers.get(key) || []

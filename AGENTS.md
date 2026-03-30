@@ -12,7 +12,7 @@
 ## Common Instructions
 
 - Make the simplest change that keeps the code readable. We do not care about migration.
-- `schema.js` builds Autobonk-compatible bundles under `spec/`; update schemas then run `npm run schema:build`.
+- `schema.js` delegates to `packages/bonkdocs-core/build-schema.js`, which builds Autobonk-compatible bundles under `packages/bonkdocs-core/spec/`; update schemas then run `npm run schema:build`.
 - All tests use `brittle`. Start files with `import test from 'brittle'`.
 - Use `t.plan()` when assertion counts are deterministic and clean up asynchronous resources with `t.teardown()`.
 - Run the relevant tests before sharing patches. Use `npm test` when the change is broad enough to justify the full suite.

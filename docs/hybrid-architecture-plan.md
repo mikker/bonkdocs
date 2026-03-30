@@ -150,7 +150,7 @@ Recommended sequence:
 
 - move current domain and worker code into `packages/bonkdocs-core`
 - keep compatibility wrappers at old import paths
-- keep the generated `spec/` at repo root for now
+- keep the generated schema bundle under `packages/bonkdocs-core/spec/`
 - make current desktop entrypoints consume the new package boundary
 
 ### Phase 2. Introduce host adapters

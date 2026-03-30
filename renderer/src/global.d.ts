@@ -40,7 +40,7 @@ declare global {
   const Pear: Window['Pear']
 }
 
-declare module '../../../spec/hrpc/index.js' {
+declare module '../../../packages/bonkdocs-core/hrpc.js' {
   class HRPC {
     constructor(stream: any)
     [key: string]: any
