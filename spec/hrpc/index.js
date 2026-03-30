@@ -43,7 +43,11 @@ const methods = new Map([
   ['@bonk-docs/get-identity-avatar', 17],
   [17, '@bonk-docs/get-identity-avatar'],
   ['@bonk-docs/reset-identity', 18],
-  [18, '@bonk-docs/reset-identity']
+  [18, '@bonk-docs/reset-identity'],
+  ['@bonk-docs/apply-update', 19],
+  [19, '@bonk-docs/apply-update'],
+  ['@bonk-docs/updater-status', 20],
+  [20, '@bonk-docs/updater-status']
 ])
 
 class HRPC {
@@ -69,7 +73,9 @@ class HRPC {
       ['@bonk-docs/get-identity', getEncoding('@bonk-docs-rpc/get-identity-request')],
       ['@bonk-docs/link-identity', getEncoding('@bonk-docs-rpc/link-identity-request')],
       ['@bonk-docs/get-identity-avatar', getEncoding('@bonk-docs-rpc/get-identity-avatar-request')],
-      ['@bonk-docs/reset-identity', getEncoding('@bonk-docs-rpc/reset-identity-request')]
+      ['@bonk-docs/reset-identity', getEncoding('@bonk-docs-rpc/reset-identity-request')],
+      ['@bonk-docs/apply-update', getEncoding('@bonk-docs-rpc/apply-update-request')],
+      ['@bonk-docs/updater-status', getEncoding('@bonk-docs-rpc/updater-status-request')]
     ])
     this._responseEncodings = new Map([
       ['@bonk-docs/initialize', getEncoding('@bonk-docs-rpc/initialize-response')],
@@ -90,7 +96,9 @@ class HRPC {
       ['@bonk-docs/get-identity', getEncoding('@bonk-docs-rpc/get-identity-response')],
       ['@bonk-docs/link-identity', getEncoding('@bonk-docs-rpc/link-identity-response')],
       ['@bonk-docs/get-identity-avatar', getEncoding('@bonk-docs-rpc/get-identity-avatar-response')],
-      ['@bonk-docs/reset-identity', getEncoding('@bonk-docs-rpc/reset-identity-response')]
+      ['@bonk-docs/reset-identity', getEncoding('@bonk-docs-rpc/reset-identity-response')],
+      ['@bonk-docs/apply-update', getEncoding('@bonk-docs-rpc/apply-update-response')],
+      ['@bonk-docs/updater-status', getEncoding('@bonk-docs-rpc/updater-status-event')]
     ])
     this._rpc = new RPC(stream, async (req) => {
       const command = methods.get(req.command)
@@ -264,6 +272,14 @@ class HRPC {
     return this._call('@bonk-docs/reset-identity', args)
   }
 
+  async applyUpdate(args) {
+    return this._call('@bonk-docs/apply-update', args)
+  }
+
+  updaterStatus(args) {
+    return this._callSync('@bonk-docs/updater-status', args)
+  }
+
   onInitialize(responseFn) {
     this._handlers['@bonk-docs/initialize'] = responseFn
   }
@@ -340,6 +356,14 @@ class HRPC {
     this._handlers['@bonk-docs/reset-identity'] = responseFn
   }
 
+  onApplyUpdate(responseFn) {
+    this._handlers['@bonk-docs/apply-update'] = responseFn
+  }
+
+  onUpdaterStatus(responseFn) {
+    this._handlers['@bonk-docs/updater-status'] = responseFn
+  }
+
   _requestIsStream(command) {
     return [
     ].includes(command)
@@ -348,7 +372,8 @@ class HRPC {
   _responseIsStream(command) {
     return [
       '@bonk-docs/pair-invite',
-      '@bonk-docs/watch-doc'
+      '@bonk-docs/watch-doc',
+      '@bonk-docs/updater-status'
     ].includes(command)
   }
 

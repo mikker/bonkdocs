@@ -1,5 +1,5 @@
 {
-  "version": 5,
+  "version": 6,
   "schema": [
     {
       "name": "writer",
@@ -1414,6 +1414,47 @@
           "required": false,
           "type": "bool",
           "version": 5
+        }
+      ]
+    },
+    {
+      "name": "apply-update-request",
+      "namespace": "bonk-docs-rpc",
+      "compact": false,
+      "flagsPosition": -1,
+      "fields": []
+    },
+    {
+      "name": "apply-update-response",
+      "namespace": "bonk-docs-rpc",
+      "compact": false,
+      "flagsPosition": -1,
+      "fields": []
+    },
+    {
+      "name": "updater-status-request",
+      "namespace": "bonk-docs-rpc",
+      "compact": false,
+      "flagsPosition": -1,
+      "fields": []
+    },
+    {
+      "name": "updater-status-event",
+      "namespace": "bonk-docs-rpc",
+      "compact": false,
+      "flagsPosition": 1,
+      "fields": [
+        {
+          "name": "type",
+          "required": true,
+          "type": "string",
+          "version": 6
+        },
+        {
+          "name": "data",
+          "required": false,
+          "type": "buffer",
+          "version": 6
         }
       ]
     }

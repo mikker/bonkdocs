@@ -3,14 +3,7 @@ const appName = pkg.productName ?? pkg.name
 
 const packagerConfig = {
   protocols: [{ name: appName, schemes: [pkg.name] }],
-  derefSymlinks: true,
-  osxSign: {
-    identity: 'Developer ID Application: Mikkel Malmberg (DDB8SQMXS9)'
-  },
-  osxNotarize: {
-    tool: 'notarytool',
-    keychainProfile: 'TunaNotary'
-  }
+  derefSymlinks: true
 }
 
 module.exports = {
