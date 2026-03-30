@@ -469,6 +469,33 @@ rpc.register({
   ]
 })
 
+rpc.register({
+  name: 'apply-update-request',
+  compact: false,
+  fields: []
+})
+
+rpc.register({
+  name: 'apply-update-response',
+  compact: false,
+  fields: []
+})
+
+rpc.register({
+  name: 'updater-status-request',
+  compact: false,
+  fields: []
+})
+
+rpc.register({
+  name: 'updater-status-event',
+  compact: false,
+  fields: [
+    { name: 'type', type: 'string', required: true },
+    { name: 'data', type: 'buffer', required: false }
+  ]
+})
+
 Hyperschema.toDisk(schema)
 
 // --- Hyperdb -------------------------------------------------------------
@@ -626,6 +653,18 @@ workerRpc.register({
   name: 'lock-doc',
   request: { name: '@bonk-docs-rpc/lock-doc-request' },
   response: { name: '@bonk-docs-rpc/lock-doc-response' }
+})
+
+workerRpc.register({
+  name: 'apply-update',
+  request: { name: '@bonk-docs-rpc/apply-update-request' },
+  response: { name: '@bonk-docs-rpc/apply-update-response' }
+})
+
+workerRpc.register({
+  name: 'updater-status',
+  request: { name: '@bonk-docs-rpc/updater-status-request' },
+  response: { name: '@bonk-docs-rpc/updater-status-event', stream: true }
 })
 
 HRPCBuilder.toDisk(hrpc)

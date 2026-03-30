@@ -6,6 +6,7 @@ import { readFileSync } from 'node:fs'
 import PearRuntime from 'pear-runtime'
 import { isMac, isLinux, isWindows } from 'which-runtime'
 import { command, flag } from 'paparam'
+import storageDir from 'bare-storage'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -20,7 +21,40 @@ const appName = productName ?? name
 const sharedIconPath = path.join(__dirname, '..', 'icon.png')
 
 const workers = new Map()
+/** Bare sidecar PIDs — killed synchronously on process exit so children cannot outlive Electron. */
+const bareWorkerPids = new Set()
 let pear = null
+
+function killPid(pid) {
+  if (typeof pid !== 'number' || pid <= 0) return
+  try {
+    process.kill(pid, 'SIGKILL')
+  } catch (err) {
+    const code = err && typeof err === 'object' && 'code' in err ? err.code : null
+    if (code !== 'ESRCH') {
+      console.warn('[electron] kill pid', pid, err)
+    }
+  }
+}
+
+/**
+ * Tear down PearRuntime.run() sidecars aggressively. streamx destroy() only SIGTERM;
+ * bare can survive and keep RocksDB locks, so we SIGKILL the child process as well.
+ */
+function destroyAllPearWorkers() {
+  for (const [specifier, worker] of workers) {
+    const pid = worker._process?.pid
+    try {
+      worker.destroy()
+    } catch (err) {
+      console.error('[electron] worker.destroy failed', specifier, err)
+    }
+    if (typeof pid === 'number') {
+      killPid(pid)
+    }
+  }
+  workers.clear()
+}
 
 const cmd = command(
   appName,
@@ -62,19 +96,7 @@ ipcMain.on('pkg', (evt) => {
 })
 
 function resolveDefaultStorageDir() {
-  if (process.env.PEAR_APP_DATA) {
-    return process.env.PEAR_APP_DATA
-  }
-
-  if (isMac) {
-    return path.join(os.homedir(), 'Library', 'Application Support', appName)
-  }
-
-  if (isLinux) {
-    return path.join(os.homedir(), '.config', appName)
-  }
-
-  return path.join(os.homedir(), 'AppData', 'Local', appName)
+  return path.join(storageDir.persistent(), appName)
 }
 
 function getAppPath() {
@@ -89,33 +111,16 @@ function getPearRuntimeName() {
   return `${appName}${extension}`
 }
 
-function getPear() {
-  if (pear) return pear
-
+function getAppDir() {
   const appPath = getAppPath()
-  let dir = null
-
   if (pearStore) {
     console.log('pear store: ' + pearStore)
-    dir = pearStore
+    return pearStore
   } else if (appPath === null) {
-    dir = path.join(os.tmpdir(), 'pear', appName)
+    return path.join(os.tmpdir(), 'pear', appName)
   } else {
-    dir = resolveDefaultStorageDir()
+    return resolveDefaultStorageDir()
   }
-
-  pear = new PearRuntime({
-    dir,
-    app: appPath,
-    name: getPearRuntimeName(),
-    updates: runtimeUpdates,
-    version,
-    upgrade: runtimeUpgrade,
-    win32: { restart: true }
-  })
-
-  pear.on('error', console.error)
-  return pear
 }
 
 function sendToAll(channel, data) {
@@ -127,11 +132,32 @@ function sendToAll(channel, data) {
 }
 
 function getWorker(specifier) {
-  if (workers.has(specifier)) return workers.get(specifier)
+  if (workers.has(specifier)) {
+    const existing = workers.get(specifier)
+    if (existing && !existing.destroyed) return existing
+    workers.delete(specifier)
+  }
 
-  const pearRuntime = getPear()
+  const updaterConfig = {
+    dir: getAppDir(),
+    app: getAppPath(),
+    name: getPearRuntimeName(),
+    updates: runtimeUpdates,
+    version,
+    storage: path.join(getAppDir(), 'app-storage'),
+    upgrade: runtimeUpgrade,
+    win32: { restart: true }
+  }
+
   const workerPath = path.resolve(__dirname, '..' + specifier)
-  const worker = pearRuntime.run(workerPath, [pearRuntime.storage])
+  console.log('starting worker')
+  const worker = PearRuntime.run(workerPath, [
+    updaterConfig.storage,
+    JSON.stringify(updaterConfig)
+  ])
+
+  const pid = worker._process?.pid
+  if (typeof pid === 'number') bareWorkerPids.add(pid)
 
   function sendWorkerStdout(data) {
     sendToAll('pear:worker:stdout:' + specifier, data)
@@ -149,17 +175,13 @@ function getWorker(specifier) {
     return worker.write(Buffer.from(data))
   })
 
-  const onBeforeQuit = () => {
-    if (!worker.destroyed) worker.destroy()
-  }
-
   workers.set(specifier, worker)
   worker.on('data', sendWorkerIPC)
   worker.stdout.on('data', sendWorkerStdout)
   worker.stderr.on('data', sendWorkerStderr)
 
   worker.once('exit', (code) => {
-    app.removeListener('before-quit', onBeforeQuit)
+    if (typeof pid === 'number') bareWorkerPids.delete(pid)
     ipcMain.removeHandler('pear:worker:writeIPC:' + specifier)
     worker.removeListener('data', sendWorkerIPC)
     worker.stdout.removeListener('data', sendWorkerStdout)
@@ -168,7 +190,6 @@ function getWorker(specifier) {
     workers.delete(specifier)
   })
 
-  app.on('before-quit', onBeforeQuit)
   return worker
 }
 
@@ -190,28 +211,6 @@ async function createWindow() {
     }
   })
 
-  const pearRuntime = getPear()
-
-  const onUpdating = () => {
-    if (!win.isDestroyed()) {
-      win.webContents.send('pear:event:updating')
-    }
-  }
-
-  const onUpdated = () => {
-    if (!win.isDestroyed()) {
-      win.webContents.send('pear:event:updated')
-    }
-  }
-
-  pearRuntime.updater.on('updating', onUpdating)
-  pearRuntime.updater.on('updated', onUpdated)
-
-  win.on('closed', () => {
-    pearRuntime.updater.removeListener('updating', onUpdating)
-    pearRuntime.updater.removeListener('updated', onUpdated)
-  })
-
   const devServerUrl = process.env.PEAR_DEV_SERVER_URL
 
   if (devServerUrl) {
@@ -225,7 +224,6 @@ async function createWindow() {
   )
 }
 
-ipcMain.handle('pear:applyUpdate', () => getPear().updater.applyUpdate())
 ipcMain.handle('pear:startWorker', (evt, filename) => {
   const specifier = filename.startsWith('/') ? filename : '/' + filename
   getWorker(specifier)
@@ -259,6 +257,12 @@ app.on('open-url', (evt, url) => {
   handleDeepLink(url)
 })
 
+process.on('exit', () => {
+  for (const pid of bareWorkerPids) {
+    killPid(pid)
+  }
+})
+
 const lock = app.requestSingleInstanceLock()
 
 if (!lock) {
@@ -268,6 +272,17 @@ if (!lock) {
     const url = args.find((arg) => arg.startsWith(protocol + '://'))
     if (url) handleDeepLink(url)
   })
+
+  app.on('before-quit', () => {
+    destroyAllPearWorkers()
+  })
+
+  const onMainSignal = () => {
+    destroyAllPearWorkers()
+    app.quit()
+  }
+  process.on('SIGINT', onMainSignal)
+  process.on('SIGTERM', onMainSignal)
 
   app.whenReady().then(() => {
     if (process.platform === 'darwin') {

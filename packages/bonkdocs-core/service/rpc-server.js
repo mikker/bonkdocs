@@ -59,8 +59,79 @@ function createAbortController() {
   return createLocalAbortController()
 }
 
-export function createRpcServer(stream, worker) {
+export function createRpcServer(stream, worker, updaterWorker) {
   const rpc = new HRPC(stream)
+
+  rpc.onApplyUpdate(async () => {
+    if (!updaterWorker || typeof updaterWorker.applyUpdate !== 'function') {
+      throw new Error('Updater is not available')
+    }
+    await updaterWorker.applyUpdate()
+    return {}
+  })
+
+  rpc.onUpdaterStatus((hrpcStream) => {
+    if (!updaterWorker || typeof updaterWorker.subscribeStatus !== 'function') {
+      hrpcStream.destroy(new Error('Updater is not available'))
+      return
+    }
+
+    let src
+    try {
+      src = updaterWorker.subscribeStatus()
+    } catch (err) {
+      hrpcStream.destroy(
+        err instanceof Error ? err : new Error(String(err))
+      )
+      return
+    }
+
+    const cleanup = () => {
+      try {
+        src?.destroy?.()
+      } catch {}
+    }
+
+    src.on('data', (chunk) => {
+      if (hrpcStream.destroyed) return cleanup()
+      if (!chunk || typeof chunk !== 'object') return
+
+      const { type, data } = chunk
+      let wire
+      if (type === 'error') {
+        const msg =
+          data instanceof Error ? data.message : String(data ?? 'error')
+        wire = { type: 'error', data: Buffer.from(msg, 'utf8') }
+      } else if (type === 'updating-delta' && data != null) {
+        const d = data
+        wire = {
+          type: 'updating-delta',
+          data: Buffer.isBuffer(d)
+            ? d
+            : Buffer.from(
+                typeof d === 'string' ? d : JSON.stringify(d),
+                'utf8'
+              )
+        }
+      } else if (type === 'updating' || type === 'updated') {
+        wire = { type }
+      }
+
+      if (!wire) return
+      try {
+        hrpcStream.write(wire)
+      } catch (err) {
+        cleanup()
+        if (!hrpcStream.destroyed) hrpcStream.destroy(err)
+      }
+    })
+    src.on('error', (err) => {
+      cleanup()
+      if (!hrpcStream.destroyed) hrpcStream.destroy(err)
+    })
+    hrpcStream.on('close', cleanup)
+    hrpcStream.on('error', cleanup)
+  })
 
   rpc.onInitialize(async () => {
     console.log('[worker] initialize request')

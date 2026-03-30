@@ -4,6 +4,14 @@
 import HRPC from '../../../spec/hrpc/index.js'
 import { Worklet } from 'react-native-bare-kit'
 import bundle from '../worker.bundle.js'
+const { version, upgrade, productName, name } = require('../../package.json')
+
+const updaterConfig = {
+  version,
+  upgrade,
+  name: productName ?? name,
+  updates: !__DEV__,
+}
 
 type RpcClient = any
 type IpcListener = (...args: any[]) => void
@@ -39,7 +47,7 @@ class MobileWorkerStream {
 
   constructor() {
     this.worklet = new Worklet()
-    this.worklet.start('/worker.bundle', bundle, [String(__DEV__)])
+    this.worklet.start('/worker.bundle', bundle, [JSON.stringify(updaterConfig)])
     this.ipc = this.worklet.IPC
   }
 

@@ -1,5 +1,5 @@
 {
-  "version": 4,
+  "version": 5,
   "schema": [
     {
       "id": 0,
@@ -211,6 +211,29 @@
         "name": "@bonk-docs-rpc/reset-identity-response"
       },
       "version": 4
+    },
+    {
+      "id": 19,
+      "name": "@bonk-docs/apply-update",
+      "request": {
+        "name": "@bonk-docs-rpc/apply-update-request"
+      },
+      "response": {
+        "name": "@bonk-docs-rpc/apply-update-response"
+      },
+      "version": 5
+    },
+    {
+      "id": 20,
+      "name": "@bonk-docs/updater-status",
+      "request": {
+        "name": "@bonk-docs-rpc/updater-status-request"
+      },
+      "response": {
+        "name": "@bonk-docs-rpc/updater-status-event",
+        "stream": true
+      },
+      "version": 5
     }
   ]
 }

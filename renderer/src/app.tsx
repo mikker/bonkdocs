@@ -59,6 +59,23 @@ import {
 import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
 import { colorFromKey } from '@/lib/user-colors'
+import { getRpc } from './lib/rpc'
+
+const rpc = getRpc()
+const updaterStatusStream = rpc.updaterStatus()
+updaterStatusStream.on('data', async (data: { type?: string }) => {
+  if (data?.type === 'updating') {
+    console.log('[bonkdocs:pear-runtime]: updating app')
+  }
+  if (data?.type === 'updated') {
+    console.log('[bonkdocs:pear-runtime]: updated app')
+    console.log('[bonkdocs:pear-runtime]: applying update')
+    await rpc.applyUpdate()
+    console.log('[bonkdocs:pear-runtime]: update applied, ready to restart app')
+    // TODO: restart app
+  }
+})
+
 
 function useDocState<T>(
   selector: (state: ReturnType<typeof useDocStore.getState>) => T
