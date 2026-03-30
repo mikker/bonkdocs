@@ -77,10 +77,21 @@ export function createRpcServer(stream, worker) {
     return { identity: identity ?? undefined }
   })
 
+  rpc.onGetIdentityAvatar(async () => {
+    console.log('[worker] get-identity-avatar request')
+    const avatar = await worker.getIdentityAvatar()
+    return { avatar: avatar ?? undefined }
+  })
+
   rpc.onLinkIdentity(async (request = {}) => {
     console.log('[worker] link-identity request')
     const identity = await worker.linkIdentity(request.invite)
     return { identity }
+  })
+
+  rpc.onResetIdentity(async () => {
+    console.log('[worker] reset-identity request')
+    return await worker.resetIdentity()
   })
 
   rpc.onListDocs(async () => {

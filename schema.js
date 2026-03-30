@@ -125,7 +125,8 @@ rpc.register({
   fields: [
     { name: 'displayName', type: 'string', required: false },
     { name: 'bio', type: 'string', required: false },
-    { name: 'updatedAt', type: 'uint', required: false }
+    { name: 'updatedAt', type: 'uint', required: false },
+    { name: 'avatarMimeType', type: 'string', required: false }
   ]
 })
 
@@ -182,6 +183,16 @@ rpc.register({
 })
 
 rpc.register({
+  name: 'identity-avatar',
+  compact: false,
+  fields: [
+    { name: 'dataUrl', type: 'string', required: true },
+    { name: 'mimeType', type: 'string', required: false },
+    { name: 'byteLength', type: 'uint', required: false }
+  ]
+})
+
+rpc.register({
   name: 'link-identity-request',
   compact: false,
   fields: [{ name: 'invite', type: 'string', required: true }]
@@ -195,6 +206,36 @@ rpc.register({
       name: 'identity',
       type: '@bonk-docs-rpc/identity-summary',
       required: true
+    }
+  ]
+})
+
+rpc.register({
+  name: 'reset-identity-request',
+  compact: false,
+  fields: []
+})
+
+rpc.register({
+  name: 'reset-identity-response',
+  compact: false,
+  fields: [{ name: 'reset', type: 'bool', required: true }]
+})
+
+rpc.register({
+  name: 'get-identity-avatar-request',
+  compact: false,
+  fields: []
+})
+
+rpc.register({
+  name: 'get-identity-avatar-response',
+  compact: false,
+  fields: [
+    {
+      name: 'avatar',
+      type: '@bonk-docs-rpc/identity-avatar',
+      required: false
     }
   ]
 })
@@ -486,9 +527,21 @@ workerRpc.register({
 })
 
 workerRpc.register({
+  name: 'get-identity-avatar',
+  request: { name: '@bonk-docs-rpc/get-identity-avatar-request' },
+  response: { name: '@bonk-docs-rpc/get-identity-avatar-response' }
+})
+
+workerRpc.register({
   name: 'link-identity',
   request: { name: '@bonk-docs-rpc/link-identity-request' },
   response: { name: '@bonk-docs-rpc/link-identity-response' }
+})
+
+workerRpc.register({
+  name: 'reset-identity',
+  request: { name: '@bonk-docs-rpc/reset-identity-request' },
+  response: { name: '@bonk-docs-rpc/reset-identity-response' }
 })
 
 workerRpc.register({

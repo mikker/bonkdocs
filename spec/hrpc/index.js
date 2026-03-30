@@ -39,7 +39,11 @@ const methods = new Map([
   ['@bonk-docs/get-identity', 15],
   [15, '@bonk-docs/get-identity'],
   ['@bonk-docs/link-identity', 16],
-  [16, '@bonk-docs/link-identity']
+  [16, '@bonk-docs/link-identity'],
+  ['@bonk-docs/get-identity-avatar', 17],
+  [17, '@bonk-docs/get-identity-avatar'],
+  ['@bonk-docs/reset-identity', 18],
+  [18, '@bonk-docs/reset-identity']
 ])
 
 class HRPC {
@@ -63,7 +67,9 @@ class HRPC {
       ['@bonk-docs/rename-doc', getEncoding('@bonk-docs-rpc/rename-doc-request')],
       ['@bonk-docs/lock-doc', getEncoding('@bonk-docs-rpc/lock-doc-request')],
       ['@bonk-docs/get-identity', getEncoding('@bonk-docs-rpc/get-identity-request')],
-      ['@bonk-docs/link-identity', getEncoding('@bonk-docs-rpc/link-identity-request')]
+      ['@bonk-docs/link-identity', getEncoding('@bonk-docs-rpc/link-identity-request')],
+      ['@bonk-docs/get-identity-avatar', getEncoding('@bonk-docs-rpc/get-identity-avatar-request')],
+      ['@bonk-docs/reset-identity', getEncoding('@bonk-docs-rpc/reset-identity-request')]
     ])
     this._responseEncodings = new Map([
       ['@bonk-docs/initialize', getEncoding('@bonk-docs-rpc/initialize-response')],
@@ -82,7 +88,9 @@ class HRPC {
       ['@bonk-docs/rename-doc', getEncoding('@bonk-docs-rpc/rename-doc-response')],
       ['@bonk-docs/lock-doc', getEncoding('@bonk-docs-rpc/lock-doc-response')],
       ['@bonk-docs/get-identity', getEncoding('@bonk-docs-rpc/get-identity-response')],
-      ['@bonk-docs/link-identity', getEncoding('@bonk-docs-rpc/link-identity-response')]
+      ['@bonk-docs/link-identity', getEncoding('@bonk-docs-rpc/link-identity-response')],
+      ['@bonk-docs/get-identity-avatar', getEncoding('@bonk-docs-rpc/get-identity-avatar-response')],
+      ['@bonk-docs/reset-identity', getEncoding('@bonk-docs-rpc/reset-identity-response')]
     ])
     this._rpc = new RPC(stream, async (req) => {
       const command = methods.get(req.command)
@@ -248,6 +256,14 @@ class HRPC {
     return this._call('@bonk-docs/link-identity', args)
   }
 
+  async getIdentityAvatar(args) {
+    return this._call('@bonk-docs/get-identity-avatar', args)
+  }
+
+  async resetIdentity(args) {
+    return this._call('@bonk-docs/reset-identity', args)
+  }
+
   onInitialize(responseFn) {
     this._handlers['@bonk-docs/initialize'] = responseFn
   }
@@ -314,6 +330,14 @@ class HRPC {
 
   onLinkIdentity(responseFn) {
     this._handlers['@bonk-docs/link-identity'] = responseFn
+  }
+
+  onGetIdentityAvatar(responseFn) {
+    this._handlers['@bonk-docs/get-identity-avatar'] = responseFn
+  }
+
+  onResetIdentity(responseFn) {
+    this._handlers['@bonk-docs/reset-identity'] = responseFn
   }
 
   _requestIsStream(command) {

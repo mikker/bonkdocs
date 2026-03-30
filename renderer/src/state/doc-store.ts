@@ -83,6 +83,8 @@ export type DocPairStatus = {
 export type IdentityProfile = {
   displayName?: string | null
   bio?: string | null
+  avatarMimeType?: string | null
+  avatarDataUrl?: string | null
   updatedAt?: number | null
 }
 
@@ -102,6 +104,7 @@ type LocalUser = {
   name: string
   color: string
   key: string
+  avatarDataUrl?: string | null
 }
 
 type DocSession = {
@@ -126,6 +129,7 @@ type DocStore = {
   clientId: string
   localUser: LocalUser
   linkingIdentity: boolean
+  resettingIdentity: boolean
   identityError: string | null
   invites: Record<string, DocInvite[]>
   invitesLoading: boolean
@@ -136,6 +140,7 @@ type DocStore = {
   initialize: () => Promise<void>
   refreshIdentity: () => Promise<void>
   linkIdentity: (invite: string) => Promise<void>
+  resetIdentity: () => Promise<void>
   refresh: () => Promise<void>
   selectDoc: (key: string | null) => Promise<void>
   createDoc: (title?: string) => Promise<void>
@@ -251,7 +256,36 @@ function userFromIdentity(identity: IdentitySummary | null | undefined) {
   return {
     name: displayName || shortLabel(identityKey),
     color: colorFromKey(identityKey),
-    key: identityKey
+    key: identityKey,
+    avatarDataUrl:
+      typeof identity?.profile?.avatarDataUrl === 'string' &&
+      identity.profile.avatarDataUrl.length > 0
+        ? identity.profile.avatarDataUrl
+        : null
+  }
+}
+
+async function hydrateIdentityAvatar(identity: IdentitySummary | null, rpc: any) {
+  if (!identity) return null
+  if (!identity.profile?.avatarMimeType) return identity
+
+  try {
+    const response = await rpc.getIdentityAvatar({})
+    const dataUrl =
+      typeof response?.avatar?.dataUrl === 'string' &&
+      response.avatar.dataUrl.length > 0
+        ? response.avatar.dataUrl
+        : null
+
+    return {
+      ...identity,
+      profile: {
+        ...(identity.profile ?? {}),
+        avatarDataUrl: dataUrl
+      }
+    }
+  } catch {
+    return identity
   }
 }
 
@@ -266,6 +300,7 @@ function applyLocalUser(
     currentUser.name === nextUser.name &&
     currentUser.color === nextUser.color &&
     currentUser.key === nextUser.key &&
+    currentUser.avatarDataUrl === nextUser.avatarDataUrl &&
     (nextClientId === undefined || getState().clientId === nextClientId)
   ) {
     return
@@ -313,7 +348,8 @@ const LOCAL_CLIENT_ID = randomId(16)
 const LOCAL_USER: LocalUser = {
   name: '',
   color: '#94a3b8',
-  key: ''
+  key: '',
+  avatarDataUrl: null
 }
 
 function enqueueSend(key: string, task: () => Promise<void>) {
@@ -602,6 +638,7 @@ export const useDocStore = create<DocStore>((set, get) => ({
   clientId: LOCAL_CLIENT_ID,
   localUser: LOCAL_USER,
   linkingIdentity: false,
+  resettingIdentity: false,
   identityError: null,
   invites: {},
   invitesLoading: false,
@@ -618,7 +655,7 @@ export const useDocStore = create<DocStore>((set, get) => ({
       const rpc = getRpc()
       const response = await rpc.initialize({})
       const docs = response?.docs ?? []
-      const identity = response?.identity ?? null
+      const identity = await hydrateIdentityAvatar(response?.identity ?? null, rpc)
       let activeDoc = response?.activeDoc ?? null
 
       if (!activeDoc) {
@@ -652,7 +689,7 @@ export const useDocStore = create<DocStore>((set, get) => ({
     try {
       const rpc = getRpc()
       const response = await rpc.getIdentity({})
-      const identity = response?.identity ?? null
+      const identity = await hydrateIdentityAvatar(response?.identity ?? null, rpc)
       set({ identity, identityError: null })
       updateLocalUserFromIdentity(set, get, identity)
     } catch (error) {
@@ -674,7 +711,7 @@ export const useDocStore = create<DocStore>((set, get) => ({
     try {
       const rpc = getRpc()
       const response = await rpc.linkIdentity({ invite: trimmed })
-      const identity = response?.identity ?? null
+      const identity = await hydrateIdentityAvatar(response?.identity ?? null, rpc)
       if (!identity) {
         throw new Error('Identity link response missing identity')
       }
@@ -685,6 +722,31 @@ export const useDocStore = create<DocStore>((set, get) => ({
         error instanceof Error ? error.message : 'Failed to link identity'
       set({
         linkingIdentity: false,
+        identityError: message,
+        error: message
+      })
+      throw error instanceof Error ? error : new Error(message)
+    }
+  },
+  resetIdentity: async () => {
+    if (get().resettingIdentity) return
+
+    set({ resettingIdentity: true, identityError: null })
+
+    try {
+      const rpc = getRpc()
+      await rpc.resetIdentity({})
+      set({
+        identity: null,
+        resettingIdentity: false,
+        identityError: null
+      })
+      applyLocalUser(set, get, LOCAL_USER)
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Failed to reset identity'
+      set({
+        resettingIdentity: false,
         identityError: message,
         error: message
       })

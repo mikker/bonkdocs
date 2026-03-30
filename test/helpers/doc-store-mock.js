@@ -18,6 +18,8 @@ function createMockStream() {
 export function createRpcMock({ docs = [], activeDoc = null } = {}) {
   let docsResponse = docs
   let activeDocKey = activeDoc
+  let identityResponse = null
+  let identityAvatarResponse = null
   let applyUpdatesHandler = async () => ({ accepted: true })
   const applyUpdatesCalls = []
   let applyAwarenessHandler = async () => ({ accepted: true })
@@ -91,7 +93,25 @@ export function createRpcMock({ docs = [], activeDoc = null } = {}) {
 
   const rpc = {
     async initialize() {
-      return { docs: docsResponse, activeDoc: activeDocKey }
+      return {
+        docs: docsResponse,
+        activeDoc: activeDocKey,
+        identity: identityResponse
+      }
+    },
+    async getIdentity() {
+      return { identity: identityResponse }
+    },
+    async getIdentityAvatar() {
+      return { avatar: identityAvatarResponse }
+    },
+    async linkIdentity() {
+      return { identity: identityResponse }
+    },
+    async resetIdentity() {
+      identityResponse = null
+      identityAvatarResponse = null
+      return { reset: true }
     },
     async listDocs() {
       return { docs: docsResponse }
@@ -169,6 +189,10 @@ export function createRpcMock({ docs = [], activeDoc = null } = {}) {
       docsResponse = nextDocs
       activeDocKey = nextActive
     },
+    setIdentity(identity, avatar = null) {
+      identityResponse = identity
+      identityAvatarResponse = avatar
+    },
     setApplyUpdatesHandler(fn) {
       applyUpdatesHandler = fn
     },
@@ -236,9 +260,19 @@ export function resetDocStoreState(overrides = {}) {
     docs: [],
     activeDoc: null,
     currentUpdate: null,
+    identity: null,
     loading: false,
     error: null,
     watcher: null,
+    localUser: {
+      name: '',
+      color: '#94a3b8',
+      key: '',
+      avatarDataUrl: null
+    },
+    linkingIdentity: false,
+    resettingIdentity: false,
+    identityError: null,
     invites: {},
     invitesLoading: false,
     invitesError: null,

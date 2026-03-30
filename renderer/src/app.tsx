@@ -33,7 +33,8 @@ import {
   Lock,
   LogOut,
   MoreHorizontal,
-  Pencil
+  Pencil,
+  Unplug
 } from 'lucide-react'
 import {
   Tooltip,
@@ -71,6 +72,8 @@ type PresenceUser = {
   clientId: number
   color: string
   key: string
+  name: string
+  avatarDataUrl?: string | null
   isLocal: boolean
   resolved: boolean
 }
@@ -87,17 +90,24 @@ function getPresenceUsers(
     ([clientId, state]) => {
       const user = (state?.user ?? {}) as Partial<LocalUser>
       const key = typeof user.key === 'string' ? user.key.trim() : ''
+      const name = typeof user.name === 'string' ? user.name.trim() : ''
       const resolved = key.length > 0
       const color = resolved
         ? typeof user.color === 'string' && user.color.trim().length > 0
           ? user.color
           : colorFromKey(key)
         : UNRESOLVED_USER_COLOR
+      const avatarDataUrl =
+        typeof user.avatarDataUrl === 'string' && user.avatarDataUrl.length > 0
+          ? user.avatarDataUrl
+          : null
 
       return {
         clientId,
         color,
         key,
+        name: name || (resolved ? key : 'Resolving…'),
+        avatarDataUrl,
         isLocal: clientId === localClientId,
         resolved
       }
@@ -143,7 +153,7 @@ function usePresenceUsers(
     return () => {
       awareness.off('update', handleUpdate)
     }
-  }, [awareness, localUser.color, localUser.key])
+  }, [awareness, localUser.avatarDataUrl, localUser.color, localUser.key, localUser.name])
 
   return users
 }
@@ -506,19 +516,19 @@ function DocUsersBar({
       {visibleUsers.map((user) => {
         const tooltipLabel = user.resolved
           ? user.isLocal
-            ? `${user.key} (you)`
-            : user.key
+            ? `${user.name} (you)`
+            : user.name
           : 'Resolving…'
 
         return (
           <Tooltip key={user.clientId}>
             <TooltipTrigger asChild>
-              <span
-                className={`flex size-6 items-center justify-center rounded-full border border-background ${
-                  user.resolved ? '' : 'animate-pulse'
-                }`}
-                style={{ backgroundColor: user.color }}
-                aria-label={tooltipLabel}
+              <IdentityAvatar
+                className={user.resolved ? '' : 'animate-pulse'}
+                name={user.name}
+                avatarDataUrl={user.avatarDataUrl}
+                color={user.color}
+                ariaLabel={tooltipLabel}
               />
             </TooltipTrigger>
             <TooltipContent>{tooltipLabel}</TooltipContent>
@@ -649,6 +659,8 @@ function FacebonkIdentitySection({
 }: {
   identity: ReturnType<typeof useDocStore.getState>['identity']
 }) {
+  const resetIdentity = useDocState((state) => state.resetIdentity)
+  const resettingIdentity = useDocState((state) => state.resettingIdentity)
   const identityError = useDocState((state) => state.identityError)
 
   if (!identity) {
@@ -669,13 +681,56 @@ function FacebonkIdentitySection({
   const bio =
     typeof identity.profile?.bio === 'string' ? identity.profile.bio.trim() : ''
 
+  const handleReset = async () => {
+    const confirmed =
+      typeof window === 'undefined' || typeof window.confirm !== 'function'
+        ? true
+        : window.confirm(
+            'Reset Facebonk auth for this Bonk Docs install? This only unlinks this local app.'
+          )
+
+    if (!confirmed) return
+
+    try {
+      await resetIdentity()
+      toast.success('Facebonk reset')
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Failed to reset Facebonk'
+      toast.error('Facebonk reset failed', { description: message })
+    }
+  }
+
   return (
-    <div className='px-2 text-sm space-y-1'>
-      <div className='font-medium truncate'>{displayName}</div>
-      <div className='text-muted-foreground font-mono text-xs truncate'>
-        {identity.identityKey}
+    <div className='px-2 text-sm space-y-2'>
+      <div className='flex items-center gap-3'>
+        <IdentityAvatar
+          name={displayName}
+          avatarDataUrl={identity.profile?.avatarDataUrl}
+          color={colorFromKey(identity.identityKey)}
+          size='lg'
+          ariaLabel={displayName}
+        />
+        <div className='min-w-0 space-y-1'>
+          <div className='font-medium truncate'>{displayName}</div>
+          <div className='text-muted-foreground font-mono text-xs truncate'>
+            {identity.identityKey}
+          </div>
+        </div>
       </div>
       {bio ? <p className='text-muted-foreground text-xs leading-5'>{bio}</p> : null}
+      <Button
+        type='button'
+        variant='outline'
+        size='sm'
+        onClick={() => void handleReset()}
+        disabled={resettingIdentity}
+        aria-busy={resettingIdentity}
+        className='w-full justify-start'
+      >
+        <Unplug className='h-4 w-4' />
+        {resettingIdentity ? 'Resetting auth…' : 'Reset auth'}
+      </Button>
       {identityError ? (
         <p className='text-destructive text-xs leading-5'>{identityError}</p>
       ) : null}
@@ -765,6 +820,45 @@ function DialogTriggerButton({
     <Button size='icon-sm' variant={linked ? 'secondary' : 'outline'} onClick={onClick}>
       <Link2 />
     </Button>
+  )
+}
+
+function IdentityAvatar({
+  name,
+  avatarDataUrl,
+  color,
+  ariaLabel,
+  className = '',
+  size = 'sm'
+}: {
+  name: string
+  avatarDataUrl?: string | null
+  color: string
+  ariaLabel: string
+  className?: string
+  size?: 'sm' | 'lg'
+}) {
+  const dimensions = size === 'lg' ? 'size-10' : 'size-6'
+
+  if (avatarDataUrl) {
+    return (
+      <img
+        src={avatarDataUrl}
+        alt={name}
+        aria-label={ariaLabel}
+        className={`shrink-0 rounded-full object-cover ${dimensions} ${className}`.trim()}
+      />
+    )
+  }
+
+  return (
+    <span
+      className={`flex shrink-0 items-center justify-center rounded-full text-[0.55rem] font-semibold uppercase text-white ${dimensions} ${className}`.trim()}
+      style={{ backgroundColor: color }}
+      aria-label={ariaLabel}
+    >
+      {name.slice(0, 1) || '?'}
+    </span>
   )
 }
 

@@ -225,6 +225,80 @@ test('DocWorker links and reopens a Facebonk identity', async (t) => {
   t.is(reopened?.profile?.bio, 'P2P profile')
 })
 
+test('DocWorker reads a linked Facebonk avatar', async (t) => {
+  const { dir: facebonkDir, cleanup: cleanupFacebonk } =
+    await createTempDir('doc-worker-facebonk-avatar-source')
+  const { dir: bonkdocsDir, cleanup: cleanupBonkdocs } =
+    await createTempDir('doc-worker-facebonk-avatar-target')
+
+  t.teardown(cleanupFacebonk)
+  t.teardown(cleanupBonkdocs)
+
+  const steward = new IdentityManager(facebonkDir)
+  t.teardown(async () => {
+    await steward.close()
+  })
+  await steward.ready()
+
+  const sourceIdentity = await steward.initIdentity({
+    displayName: 'Avatar Bonk'
+  })
+  await sourceIdentity.setAvatar(Buffer.from('avatar-png'), {
+    mimeType: 'image/png'
+  })
+  const invite = await sourceIdentity.createLinkInvite()
+
+  const worker = new DocWorker({ baseDir: bonkdocsDir })
+  t.teardown(async () => {
+    await worker.close()
+  })
+
+  await worker.ready()
+  await worker.linkIdentity(invite)
+
+  const avatar = await worker.getIdentityAvatar()
+  t.ok(avatar?.dataUrl?.startsWith('data:image/png;base64,'), 'avatar data URL returned')
+  t.is(avatar?.mimeType, 'image/png')
+  t.is(avatar?.byteLength, Buffer.byteLength('avatar-png'))
+})
+
+test('DocWorker resets linked Facebonk auth without touching docs', async (t) => {
+  const { dir: facebonkDir, cleanup: cleanupFacebonk } =
+    await createTempDir('doc-worker-facebonk-reset-source')
+  const { dir: bonkdocsDir, cleanup: cleanupBonkdocs } =
+    await createTempDir('doc-worker-facebonk-reset-target')
+
+  t.teardown(cleanupFacebonk)
+  t.teardown(cleanupBonkdocs)
+
+  const steward = new IdentityManager(facebonkDir)
+  t.teardown(async () => {
+    await steward.close()
+  })
+  await steward.ready()
+
+  const sourceIdentity = await steward.initIdentity({
+    displayName: 'Reset Bonk'
+  })
+  const invite = await sourceIdentity.createLinkInvite()
+
+  const worker = new DocWorker({ baseDir: bonkdocsDir })
+  t.teardown(async () => {
+    await worker.close()
+  })
+
+  await worker.ready()
+  const created = await worker.createDoc({ title: 'Still here' })
+  await worker.linkIdentity(invite)
+
+  const reset = await worker.resetIdentity()
+  t.is(reset?.reset, true)
+  t.is(await worker.getIdentity(), null)
+
+  const reopenedDoc = await worker.getDoc(created.doc.key)
+  t.is(reopenedDoc?.doc?.title, 'Still here')
+})
+
 test('DocWorker listDocs prefetches document titles from metadata', async (t) => {
   const { dir, cleanup } = await createTempDir('doc-worker-list')
   t.teardown(cleanup)

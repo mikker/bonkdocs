@@ -86,3 +86,71 @@ test('doc store sends applyUpdates on local edits', async (t) => {
   mock.destroyAll()
   resetDocStoreState()
 })
+
+test('doc store hydrates Facebonk avatar into local presence', async (t) => {
+  const mock = createRpcMock()
+
+  mock.setIdentity(
+    {
+      identityKey: 'facebonk-identity',
+      writerKey: 'facebonk-writer',
+      profile: {
+        displayName: 'Avatar Bonk',
+        bio: 'Has a profile image'
+      }
+    },
+    {
+      dataUrl: 'data:image/png;base64,ZmFrZS1hdmF0YXI='
+    }
+  )
+
+  setRpcClient(mock.rpc)
+  t.teardown(() => {
+    setRpcClient(null)
+  })
+  resetDocStoreState()
+
+  await useDocStore.getState().initialize()
+
+  const state = useDocStore.getState()
+  t.is(state.identity?.profile?.avatarDataUrl, 'data:image/png;base64,ZmFrZS1hdmF0YXI=')
+  t.is(state.localUser.name, 'Avatar Bonk')
+  t.is(state.localUser.avatarDataUrl, 'data:image/png;base64,ZmFrZS1hdmF0YXI=')
+
+  mock.destroyAll()
+  resetDocStoreState()
+})
+
+test('doc store resets Facebonk identity locally', async (t) => {
+  const mock = createRpcMock()
+
+  mock.setIdentity(
+    {
+      identityKey: 'facebonk-identity',
+      writerKey: 'facebonk-writer',
+      profile: {
+        displayName: 'Avatar Bonk'
+      }
+    },
+    {
+      dataUrl: 'data:image/png;base64,ZmFrZS1hdmF0YXI='
+    }
+  )
+
+  setRpcClient(mock.rpc)
+  t.teardown(() => {
+    setRpcClient(null)
+  })
+  resetDocStoreState()
+
+  await useDocStore.getState().initialize()
+  await useDocStore.getState().resetIdentity()
+
+  const state = useDocStore.getState()
+  t.is(state.identity, null)
+  t.is(state.localUser.key, '')
+  t.is(state.localUser.avatarDataUrl, null)
+
+  mock.destroyAll()
+  resetDocStoreState()
+})

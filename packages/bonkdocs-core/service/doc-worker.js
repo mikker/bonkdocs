@@ -1,4 +1,4 @@
-import { mkdir } from 'fs/promises'
+import { mkdir, rm } from 'fs/promises'
 import { join } from 'path'
 
 import { DocManager } from '../domain/doc-manager.js'
@@ -46,6 +46,10 @@ export class DocWorker {
   constructor(options = {}) {
     this.baseDir = options.baseDir
     this.identityBaseDir = options.identityBaseDir || join(this.baseDir, 'facebonk')
+    this.identityOptions = {
+      bootstrap: options.bootstrap,
+      autobase: options.autobase
+    }
     this.watchers = new Map()
     this.subscriptions = new Map()
     this.syncEngine = new YjsSyncEngine({
@@ -65,10 +69,11 @@ export class DocWorker {
       bootstrap: options.bootstrap,
       autobase: options.autobase
     })
-    this.identityManager = new IdentityManager(this.identityBaseDir, {
-      bootstrap: options.bootstrap,
-      autobase: options.autobase
-    })
+    this.identityManager = this.createIdentityManager()
+  }
+
+  createIdentityManager() {
+    return new IdentityManager(this.identityBaseDir, this.identityOptions)
   }
 
   async ready() {
@@ -101,6 +106,27 @@ export class DocWorker {
     return await this.identityManager.getSummary()
   }
 
+  async getIdentityAvatar() {
+    await this.ready()
+
+    const identity = await this.identityManager.getActiveIdentity()
+    if (!identity) return null
+
+    const avatar = await identity.getAvatar()
+    if (!avatar?.data || avatar.data.length === 0) return null
+
+    const mimeType =
+      typeof avatar.mimeType === 'string' && avatar.mimeType.length > 0
+        ? avatar.mimeType
+        : 'application/octet-stream'
+
+    return {
+      dataUrl: `data:${mimeType};base64,${avatar.data.toString('base64')}`,
+      mimeType,
+      byteLength: avatar.byteLength ?? avatar.data.length
+    }
+  }
+
   async linkIdentity(invite) {
     await this.ready()
 
@@ -110,6 +136,15 @@ export class DocWorker {
 
     await this.identityManager.joinIdentity(invite.trim())
     return await this.identityManager.getSummary()
+  }
+
+  async resetIdentity() {
+    await this.identityManager.close()
+    await rm(this.identityBaseDir, { recursive: true, force: true })
+    await mkdir(this.identityBaseDir, { recursive: true })
+    this.identityManager = this.createIdentityManager()
+    await this.identityManager.ready()
+    return { reset: true }
   }
 
   async listDocs() {

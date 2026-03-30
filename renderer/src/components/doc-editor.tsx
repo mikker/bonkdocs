@@ -20,6 +20,7 @@ import {
 type EditorUser = {
   name: string
   color: string
+  avatarDataUrl?: string | null
 }
 
 interface DocEditorProps {
@@ -86,7 +87,7 @@ export function DocEditor({
 
   useEffect(() => {
     if (!editor || !awareness) return
-    const next = `${cursorUser.name}:${cursorUser.color}`
+    const next = `${cursorUser.name}:${cursorUser.color}:${cursorUser.avatarDataUrl ?? ''}`
     if (prevCursorUserRef.current === next) return
     prevCursorUserRef.current = next
     const frame = window.requestAnimationFrame(() => {
