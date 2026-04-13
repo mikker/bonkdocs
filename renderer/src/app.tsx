@@ -667,16 +667,12 @@ function FacebonkIdentitySection({
     return (
       <div className='px-2 text-sm text-muted-foreground space-y-2'>
         <p>Not linked yet.</p>
-        <p>Create an invite in Facebonk, keep `facebonk serve` running, then link here.</p>
+        <p>Run `facebonk profile share`, then paste the signed profile token here.</p>
       </div>
     )
   }
 
-  const displayName =
-    typeof identity.profile?.displayName === 'string' &&
-    identity.profile.displayName.trim().length > 0
-      ? identity.profile.displayName.trim()
-      : identity.identityKey.slice(0, 12)
+  const displayName = getIdentityDisplayName(identity)
 
   const bio =
     typeof identity.profile?.bio === 'string' ? identity.profile.bio.trim() : ''
@@ -772,10 +768,13 @@ function FacebonkLinkDialog() {
     >
       <Tooltip>
         <TooltipTrigger asChild>
-          <DialogTriggerButton onClick={() => setOpen(true)} linked={Boolean(identity)} />
+          <DialogTriggerButton
+            onClick={() => setOpen(true)}
+            identity={identity}
+          />
         </TooltipTrigger>
         <TooltipContent>
-          {identity ? 'Linked with Facebonk' : 'Link Facebonk identity'}
+          {identity ? 'Linked with Facebonk profile' : 'Link Facebonk profile'}
         </TooltipContent>
       </Tooltip>
 
@@ -783,8 +782,7 @@ function FacebonkLinkDialog() {
         <DialogHeader>
           <DialogTitle>Link Facebonk</DialogTitle>
           <DialogDescription>
-            Create an invite in Facebonk with `facebonk link create`, keep `facebonk serve`
-            running, then paste the invite here.
+            Run `facebonk profile share`, then paste the signed profile token here.
           </DialogDescription>
         </DialogHeader>
 
@@ -792,7 +790,7 @@ function FacebonkLinkDialog() {
           <Input
             value={invite}
             onChange={(event) => setInvite(event.target.value)}
-            placeholder='Paste Facebonk invite'
+            placeholder='Paste Facebonk profile token'
             autoFocus
           />
           {identityError ? (
@@ -800,7 +798,7 @@ function FacebonkLinkDialog() {
           ) : null}
           <DialogFooter>
             <Button type='submit' disabled={linkingIdentity} aria-busy={linkingIdentity}>
-              {linkingIdentity ? 'Linking…' : 'Link identity'}
+              {linkingIdentity ? 'Linking…' : 'Link profile'}
             </Button>
           </DialogFooter>
         </form>
@@ -810,17 +808,50 @@ function FacebonkLinkDialog() {
 }
 
 function DialogTriggerButton({
-  linked,
+  identity,
   onClick
 }: {
-  linked: boolean
+  identity: ReturnType<typeof useDocStore.getState>['identity']
   onClick: () => void
 }) {
+  if (identity) {
+    const displayName = getIdentityDisplayName(identity)
+
+    return (
+      <Button
+        size='icon-sm'
+        variant='secondary'
+        className='rounded-full p-0 overflow-hidden'
+        onClick={onClick}
+        aria-label={`Linked Facebonk profile: ${displayName}`}
+      >
+        <IdentityAvatar
+          name={displayName}
+          avatarDataUrl={identity.profile?.avatarDataUrl}
+          color={colorFromKey(identity.identityKey)}
+          ariaLabel={displayName}
+        />
+      </Button>
+    )
+  }
+
   return (
-    <Button size='icon-sm' variant={linked ? 'secondary' : 'outline'} onClick={onClick}>
+    <Button
+      size='icon-sm'
+      variant='outline'
+      onClick={onClick}
+      aria-label='Link Facebonk profile'
+    >
       <Link2 />
     </Button>
   )
+}
+
+function getIdentityDisplayName(identity: IdentitySummary) {
+  return typeof identity.profile?.displayName === 'string' &&
+    identity.profile.displayName.trim().length > 0
+    ? identity.profile.displayName.trim()
+    : identity.identityKey.slice(0, 12)
 }
 
 function IdentityAvatar({

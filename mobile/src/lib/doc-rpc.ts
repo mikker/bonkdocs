@@ -29,6 +29,20 @@ export type MobileDocView = {
   canInvite: boolean
 }
 
+export type MobileIdentityProfile = {
+  displayName?: string | null
+  bio?: string | null
+  avatarMimeType?: string | null
+  avatarDataUrl?: string | null
+  updatedAt?: number | null
+}
+
+export type MobileIdentitySummary = {
+  identityKey: string
+  writerKey: string
+  profile?: MobileIdentityProfile | null
+}
+
 type RpcDocUpdate = {
   key?: string
   title?: string | null
@@ -71,12 +85,73 @@ function asDocRecord(value: unknown): MobileDocRecord | null {
   }
 }
 
+function asIdentitySummary(value: unknown): MobileIdentitySummary | null {
+  if (!value || typeof value !== 'object') return null
+  const candidate = value as Record<string, unknown>
+  if (
+    typeof candidate.identityKey !== 'string' ||
+    candidate.identityKey.length === 0 ||
+    typeof candidate.writerKey !== 'string' ||
+    candidate.writerKey.length === 0
+  ) {
+    return null
+  }
+
+  const profile =
+    candidate.profile && typeof candidate.profile === 'object'
+      ? (candidate.profile as Record<string, unknown>)
+      : null
+
+  return {
+    identityKey: candidate.identityKey,
+    writerKey: candidate.writerKey,
+    profile: profile
+      ? {
+          displayName:
+            typeof profile.displayName === 'string' ? profile.displayName : null,
+          bio: typeof profile.bio === 'string' ? profile.bio : null,
+          avatarMimeType:
+            typeof profile.avatarMimeType === 'string'
+              ? profile.avatarMimeType
+              : null,
+          avatarDataUrl:
+            typeof profile.avatarDataUrl === 'string'
+              ? profile.avatarDataUrl
+              : null,
+          updatedAt:
+            typeof profile.updatedAt === 'number' ? profile.updatedAt : null
+        }
+      : null
+  }
+}
+
 export async function initializeDocs() {
   const rpc = getRpc()
   const response = await rpc.initialize({})
   return Array.isArray(response?.docs)
     ? response.docs.map(asDocRecord).filter(Boolean)
     : []
+}
+
+export async function getIdentity() {
+  const rpc = getRpc()
+  const response = await rpc.getIdentity({})
+  return asIdentitySummary(response?.identity)
+}
+
+export async function linkIdentity(invite: string) {
+  const rpc = getRpc()
+  const response = await rpc.linkIdentity({ invite })
+  const identity = asIdentitySummary(response?.identity)
+  if (!identity) {
+    throw new Error('Profile link response missing identity')
+  }
+  return identity
+}
+
+export async function resetIdentity() {
+  const rpc = getRpc()
+  await rpc.resetIdentity({})
 }
 
 export async function createDoc(title?: string | null) {

@@ -1,9 +1,9 @@
 import { create } from 'zustand'
-import { getRpc } from '../lib/rpc.ts'
+import { getRpc } from '../lib/rpc'
 import { loadLastDocKey, saveLastDocKey } from './doc-persistence.js'
-import { DEFAULT_TITLE } from '../constants.ts'
-import { toUint8Array } from '../lib/codec.ts'
-import { colorFromKey } from '../lib/user-colors.ts'
+import { DEFAULT_TITLE } from '../constants'
+import { toUint8Array } from '../lib/codec'
+import { colorFromKey } from '../lib/user-colors'
 import * as Y from 'yjs'
 import {
   Awareness,
@@ -168,14 +168,10 @@ type DocStore = {
 
 const REMOTE_ORIGIN = 'remote'
 const DEFAULT_JOIN_TIMEOUT = 15000
-const DEFAULT_IDENTITY_LINK_TIMEOUT = 15000
-const DEFAULT_IDENTITY_AVATAR_TIMEOUT = 1000
 const UPDATE_FLUSH_MS = 50
 const AWARENESS_FLUSH_MS = 120
 const WATCH_RECONNECT_BASE_MS = 400
 const WATCH_RECONNECT_MAX_MS = 5000
-const IDENTITY_LINK_TIMEOUT_MESSAGE =
-  'Timed out waiting for Facebonk identity. Keep facebonk serve running and try again.'
 
 const sessions = new Map<string, DocSession>()
 const applyQueues = new Map<string, Promise<void>>()
@@ -305,25 +301,29 @@ function userFromIdentity(identity: IdentitySummary | null | undefined) {
 }
 
 async function hydrateIdentityAvatar(identity: IdentitySummary | null, rpc: any) {
-  if (!identity) return null
+  if (!identity) return identity
+  if (identity.profile?.avatarDataUrl) return identity
 
   try {
-    const response = await waitForResult(
-      rpc.getIdentityAvatar({}),
-      DEFAULT_IDENTITY_AVATAR_TIMEOUT,
-      'Timed out waiting for Facebonk avatar'
-    )
+    const response = await rpc.getIdentityAvatar({})
     const dataUrl =
       typeof response?.avatar?.dataUrl === 'string' &&
       response.avatar.dataUrl.length > 0
         ? response.avatar.dataUrl
         : null
 
+    if (!dataUrl) return identity
+
     return {
       ...identity,
       profile: {
         ...(identity.profile ?? {}),
-        avatarDataUrl: dataUrl
+        avatarDataUrl: dataUrl,
+        avatarMimeType:
+          typeof response?.avatar?.mimeType === 'string' &&
+          response.avatar.mimeType.length > 0
+            ? response.avatar.mimeType
+            : identity.profile?.avatarMimeType ?? null
       }
     }
   } catch {
@@ -467,13 +467,22 @@ function attachSession(
   if (session.attached) return
   session.attached = true
 
-  session.doc.on('update', (update, origin) => {
+  session.doc.on('update', (update: Uint8Array, origin: unknown) => {
     if (origin === REMOTE_ORIGIN) return
     session.pendingUpdates.push(update)
     scheduleFlush(session, getState, set, UPDATE_FLUSH_MS)
   })
 
-  session.awareness.on('update', ({ added, updated, removed }, origin) => {
+  session.awareness.on(
+    'update',
+    (
+      {
+        added,
+        updated,
+        removed
+      }: { added: number[]; updated: number[]; removed: number[] },
+      origin: unknown
+    ) => {
     if (origin === REMOTE_ORIGIN) return
     const changed = [...added, ...updated, ...removed]
     if (changed.length === 0) return
@@ -496,7 +505,8 @@ function attachSession(
         }
       })
     }, AWARENESS_FLUSH_MS)
-  })
+    }
+  )
 
   const localUser = getState().localUser
   if (localUser) {
@@ -696,7 +706,7 @@ export const useDocStore = create<DocStore>((set, get) => ({
     try {
       const rpc = getRpc()
       const response = await rpc.initialize({})
-      const docs = response?.docs ?? []
+      const docs: DocRecord[] = Array.isArray(response?.docs) ? response.docs : []
       const identity = await hydrateIdentityAvatar(response?.identity ?? null, rpc)
       let activeDoc = response?.activeDoc ?? null
 
@@ -743,7 +753,7 @@ export const useDocStore = create<DocStore>((set, get) => ({
   linkIdentity: async (invite, options) => {
     const trimmed = typeof invite === 'string' ? invite.trim() : ''
     if (!trimmed) {
-      throw new Error('Identity invite is required')
+      throw new Error('Facebonk profile token is required')
     }
 
     if (get().linkingIdentity) return
@@ -752,18 +762,10 @@ export const useDocStore = create<DocStore>((set, get) => ({
 
     try {
       const rpc = getRpc()
-      const timeoutMs = Math.max(
-        1000,
-        options?.timeoutMs ?? DEFAULT_IDENTITY_LINK_TIMEOUT
-      )
-      const response = await waitForResult(
-        rpc.linkIdentity({ invite: trimmed }),
-        timeoutMs,
-        IDENTITY_LINK_TIMEOUT_MESSAGE
-      )
+      const response = await rpc.linkIdentity({ invite: trimmed })
       const identity = await hydrateIdentityAvatar(response?.identity ?? null, rpc)
       if (!identity) {
-        throw new Error('Identity link response missing identity')
+        throw new Error('Profile link response missing identity')
       }
       set({ identity, linkingIdentity: false, identityError: null })
       updateLocalUserFromIdentity(set, get, identity)
@@ -871,7 +873,7 @@ export const useDocStore = create<DocStore>((set, get) => ({
       const rpc = getRpc()
       void rpc
         .getDoc({ key })
-        .then((response) => {
+        .then((response: { writerKey?: string | null } | null | undefined) => {
           if (response?.writerKey) {
             updateLocalUserFromKey(set, get, response.writerKey)
           }

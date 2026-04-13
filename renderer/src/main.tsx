@@ -7,11 +7,13 @@ import './global.css'
 
 ensurePearCompat()
 
-const rootElement = document.getElementById('root')
+const root = document.getElementById('root')
 
-if (!rootElement) {
+if (!root) {
   throw new Error('Renderer bootstrap failed: #root element missing')
 }
+
+const rootElement: HTMLElement = root
 
 function renderBootstrapError(error: unknown) {
   const message = error instanceof Error ? error.stack || error.message : String(error)

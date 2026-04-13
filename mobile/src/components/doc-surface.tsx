@@ -6,12 +6,14 @@ import {
   applyDocUpdates,
   serializeDocUpdate,
   watchDoc,
+  type MobileIdentitySummary,
   type MobileDocView
 } from '../lib/doc-rpc'
 import { editorWebBundle } from '../generated/editor-web-bundle'
 
 type DocSurfaceProps = {
   doc: MobileDocView
+  identity: MobileIdentitySummary | null
 }
 
 type EventListener = (...args: any[]) => void
@@ -96,6 +98,32 @@ function userMessage(writerKey: string | null | undefined) {
   }
 }
 
+function userMessageFromIdentity(identity: MobileIdentitySummary | null) {
+  const key =
+    typeof identity?.identityKey === 'string' ? identity.identityKey.trim() : ''
+  if (!key) return null
+
+  const displayName =
+    typeof identity?.profile?.displayName === 'string'
+      ? identity.profile.displayName.trim()
+      : ''
+  const avatarDataUrl =
+    typeof identity?.profile?.avatarDataUrl === 'string' &&
+    identity.profile.avatarDataUrl.length > 0
+      ? identity.profile.avatarDataUrl
+      : null
+
+  return {
+    type: 'set-user' as const,
+    user: {
+      name: displayName || shortLabel(key),
+      color: colorFromKey(key),
+      key,
+      avatarDataUrl
+    }
+  }
+}
+
 function htmlDocument() {
   return `<!doctype html>
 <html>
@@ -110,7 +138,7 @@ function htmlDocument() {
 </html>`
 }
 
-export function DocSurface({ doc }: DocSurfaceProps) {
+export function DocSurface({ doc, identity }: DocSurfaceProps) {
   const webViewRef = useRef<WebView>(null)
   const readyRef = useRef(false)
   const pendingRef = useRef<string[]>([])
@@ -161,9 +189,8 @@ export function DocSurface({ doc }: DocSurfaceProps) {
       payload: currentUpdate
     })
 
-    if (currentUpdate.writerKey) {
-      postToEditor(userMessage(currentUpdate.writerKey))
-    }
+    const localUser = userMessageFromIdentity(identity)
+    postToEditor(localUser || userMessage(currentUpdate.writerKey))
   }
 
   useEffect(() => {
@@ -203,7 +230,7 @@ export function DocSurface({ doc }: DocSurfaceProps) {
       detachStreamListener(stream, 'close', handleFailure)
       disposeStream(stream)
     }
-  }, [doc.key])
+  }, [doc.key, identity?.identityKey, identity?.profile?.displayName, identity?.profile?.avatarDataUrl])
 
   const handleMessage = async (event: {
     nativeEvent: { data?: string | null }

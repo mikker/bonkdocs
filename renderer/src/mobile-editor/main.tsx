@@ -17,6 +17,7 @@ type EditorUser = {
   name: string
   color: string
   key: string
+  avatarDataUrl?: string | null
 }
 
 type EditorMeta = {
@@ -160,7 +161,8 @@ function App() {
   const cursorUser = useMemo(
     () => ({
       name: user.name,
-      color: user.color
+      color: user.color,
+      avatarDataUrl: user.avatarDataUrl ?? null
     }),
     [user]
   )
@@ -169,7 +171,6 @@ function App() {
     {
       extensions: [
         StarterKit.configure({
-          history: false,
           undoRedo: false
         }),
         Collaboration.configure({
@@ -300,7 +301,11 @@ function App() {
             : current.writerKey
       }))
 
-      if (typeof next.writerKey === 'string' && next.writerKey.length > 0) {
+      if (
+        typeof next.writerKey === 'string' &&
+        next.writerKey.length > 0 &&
+        user.key.length === 0
+      ) {
         setUser(userFromWriterKey(next.writerKey))
       }
     }
@@ -313,7 +318,7 @@ function App() {
       window.removeEventListener('message', handleMessage)
       document.removeEventListener('message', handleMessage as EventListener)
     }
-  }, [awareness, doc])
+  }, [awareness, doc, user.key])
 
   return (
     <>

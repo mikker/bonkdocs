@@ -12,7 +12,7 @@
 
 - **Editor Surface:** TipTap (ProseMirror-based) in the renderer with Yjs collaboration.
 - **Presence:** Yjs Awareness, relayed through the worker and replicated via an awareness log.
-- **App Identity:** Facebonk is the only identity steward in this POC; Bonk Docs can link to an existing Facebonk identity but cannot create one.
+- **App Profiles:** Facebonk is the only profile steward; Bonk Docs imports a signed Facebonk profile card and never opens Facebonk storage directly.
 - **Roles:** Doc-wide `owner`, `editor`, `commenter`, `viewer` seeded during context initialization.
 - **Desktop Runtime:** Electron shell with `pear-runtime` for Bare worker execution.
 - **Runtime Modules:** Bare-compatible modules only (`bare-path`, `bare-fs`, etc.) outside the Vite renderer.
@@ -34,7 +34,7 @@ See [nomenclature.md](./nomenclature.md) for the canonical wording.
 
 - `domain/doc-context.js`: Extends `Context`, wires schema routes, seeds roles, manages snapshots.
 - `domain/doc-manager.js`: Wraps Autobonk `Manager`, handles invite lifecycle, local metadata.
-- `service/doc-worker.js`: Now also owns a local Facebonk identity client under a sibling storage dir and exposes link/read RPC methods.
+- `service/doc-worker.js`: Verifies and stores a signed Facebonk profile card in Bonk Docs local storage, then exposes summary/avatar data over RPC.
 - `build-schema.js`: Owns schema/spec generation and writes the generated Autobonk + HRPC bundle into `packages/bonkdocs-core/spec/`.
 - `hrpc.js`: Re-exports the generated HRPC client/server contract so hosts do not import generated files directly.
 - Yjs update log stored in `@bonk-docs/updates`, plus periodic snapshots under `@bonk-docs/snapshots`.
@@ -59,7 +59,7 @@ See [nomenclature.md](./nomenclature.md) for the canonical wording.
 
 ### Renderer Layer (renderer/)
 
-- `state/doc-store.ts`: Zustand slices for docs list, active Y.Doc + Awareness, Facebonk identity, invites, and UI state.
+- `state/doc-store.ts`: Zustand slices for docs list, active Y.Doc + Awareness, linked Facebonk profile, invites, and UI state.
 - TipTap Collaboration + CollaborationCursor extensions bind directly to the Y.Doc.
 - UI reflects Pear Jam layout patterns: doc list panel, share modal, Facebonk link dialog, TipTap editor surface, presence bar, comment drawer (Phase 2).
 
@@ -69,7 +69,8 @@ See [nomenclature.md](./nomenclature.md) for the canonical wording.
 - Worker appends raw Yjs updates to the Autobase log; updates are commutative and idempotent, so ordering is safe.
 - Periodic snapshots capture `Y.encodeStateAsUpdate` plus state vectors to accelerate late joins and restarts.
 - Presence uses Yjs Awareness updates replicated through `@bonk-docs/awareness`; clients ignore history and only apply new revs.
-- Linked Facebonk identity lives in a separate local store; Bonk Docs only reads summary/profile data and uses it for app-level sign-in plus local presence labels.
+- Facebonk profiles are distributed as signed profile cards. Each Bonk Docs host stores the verified card in its own local storage and uses it for app-level sign-in plus local presence labels.
+- Bonk Docs never shares a Corestore path with Facebonk. Desktop and native both read the same profile by importing the signed card into their own storage roots.
 
 ## Offline & Recovery
 

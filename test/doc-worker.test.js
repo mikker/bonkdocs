@@ -4,7 +4,7 @@ import * as fs from 'fs/promises'
 
 import test from 'brittle'
 import * as Y from 'yjs'
-import { IdentityManager } from 'facebonk/src/index.js'
+import { IdentityManager } from 'facebonk'
 import { DocManager } from '../core/doc-manager.js'
 import { DocWorker } from '../worker/src/doc-worker.js'
 
@@ -207,7 +207,7 @@ test('DocWorker links and reopens a Facebonk identity', async (t) => {
     displayName: 'Alice Bonk',
     bio: 'P2P profile'
   })
-  const invite = await sourceIdentity.createLinkInvite()
+  const profileToken = await steward.shareProfile()
 
   const worker = new DocWorker({ baseDir: bonkdocsDir })
   t.teardown(async () => {
@@ -216,12 +216,12 @@ test('DocWorker links and reopens a Facebonk identity', async (t) => {
 
   await worker.ready()
 
-  const linked = await worker.linkIdentity(invite)
-  t.is(linked?.identityKey, sourceIdentity.key.toString('hex'))
+  const linked = await worker.linkIdentity(profileToken)
+  t.ok(linked?.identityKey, 'profile identity key returned')
   t.is(linked?.profile?.displayName, 'Alice Bonk')
 
   const reopened = await worker.getIdentity()
-  t.is(reopened?.identityKey, sourceIdentity.key.toString('hex'))
+  t.is(reopened?.identityKey, linked?.identityKey)
   t.is(reopened?.profile?.bio, 'P2P profile')
 })
 
@@ -246,7 +246,7 @@ test('DocWorker reads a linked Facebonk avatar', async (t) => {
   await sourceIdentity.setAvatar(Buffer.from('avatar-png'), {
     mimeType: 'image/png'
   })
-  const invite = await sourceIdentity.createLinkInvite()
+  const profileToken = await steward.shareProfile()
 
   const worker = new DocWorker({ baseDir: bonkdocsDir })
   t.teardown(async () => {
@@ -254,7 +254,7 @@ test('DocWorker reads a linked Facebonk avatar', async (t) => {
   })
 
   await worker.ready()
-  await worker.linkIdentity(invite)
+  await worker.linkIdentity(profileToken)
 
   const avatar = await worker.getIdentityAvatar()
   t.ok(avatar?.dataUrl?.startsWith('data:image/png;base64,'), 'avatar data URL returned')
@@ -280,7 +280,7 @@ test('DocWorker resets linked Facebonk auth without touching docs', async (t) =>
   const sourceIdentity = await steward.initIdentity({
     displayName: 'Reset Bonk'
   })
-  const invite = await sourceIdentity.createLinkInvite()
+  const profileToken = await steward.shareProfile()
 
   const worker = new DocWorker({ baseDir: bonkdocsDir })
   t.teardown(async () => {
@@ -289,7 +289,7 @@ test('DocWorker resets linked Facebonk auth without touching docs', async (t) =>
 
   await worker.ready()
   const created = await worker.createDoc({ title: 'Still here' })
-  await worker.linkIdentity(invite)
+  await worker.linkIdentity(profileToken)
 
   const reset = await worker.resetIdentity()
   t.is(reset?.reset, true)

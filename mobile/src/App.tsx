@@ -40,11 +40,15 @@ import {
   createDocInvite,
   createDoc,
   getDoc,
+  getIdentity,
   initializeDocs,
   joinDoc,
+  linkIdentity,
+  resetIdentity,
   normalizeDocUpdate,
   renameDoc,
   watchDoc,
+  type MobileIdentitySummary,
   type MobileDocRecord,
   type MobileDocView
 } from './lib/doc-rpc'
@@ -66,6 +70,7 @@ type HomeScreenProps = {
 }
 
 type DocScreenProps = NativeStackScreenProps<RootStackParamList, 'Doc'> & {
+  identity: MobileIdentitySummary | null
   lookupDoc: (key: string) => MobileDocRecord | null
   upsertDoc: (doc: MobileDocRecord) => void
   updateDocEntry: (key: string, patch: Partial<MobileDocRecord>) => void
@@ -193,36 +198,61 @@ function formatDocTimestamp(value: number | null | undefined) {
   }
 }
 
+function friendlyIdentityName(identity: MobileIdentitySummary | null) {
+  const displayName = identity?.profile?.displayName?.trim()
+  if (displayName) return displayName
+  const key = identity?.identityKey?.trim()
+  return key ? key.slice(0, 5) : 'No profile linked'
+}
+
 function AppDrawerContent({
   docs,
   activeDocKey,
+  identity,
   loading,
   createPending,
   joinInviteCode,
+  profileToken,
   joinPending,
+  profilePending,
+  resetProfilePending,
   joinStatus,
+  profileStatus,
   sidebarPanel,
   sidebarError,
   setJoinInviteCode,
+  setProfileToken,
   toggleJoinPanel,
+  toggleProfilePanel,
   createNewDoc,
   openDoc,
-  submitJoin
+  submitJoin,
+  submitProfileLink,
+  clearProfile
 }: DrawerContentComponentProps & {
   docs: MobileDocRecord[]
   activeDocKey: string | null
+  identity: MobileIdentitySummary | null
   loading: boolean
   createPending: boolean
   joinInviteCode: string
+  profileToken: string
   joinPending: boolean
+  profilePending: boolean
+  resetProfilePending: boolean
   joinStatus: string | null
-  sidebarPanel: 'join' | null
+  profileStatus: string | null
+  sidebarPanel: 'join' | 'profile' | null
   sidebarError: string | null
   setJoinInviteCode: (value: string) => void
+  setProfileToken: (value: string) => void
   toggleJoinPanel: () => void
+  toggleProfilePanel: () => void
   createNewDoc: () => Promise<void>
   openDoc: (doc: MobileDocRecord) => void
   submitJoin: () => Promise<void>
+  submitProfileLink: () => Promise<void>
+  clearProfile: () => Promise<void>
 }) {
   return (
     <DrawerContentScrollView
@@ -236,6 +266,13 @@ function AppDrawerContent({
             label={sidebarPanel === 'join' ? 'Hide join' : 'Join doc'}
             onPress={toggleJoinPanel}
             disabled={joinPending}
+            variant='toolbar'
+          />
+          <HeaderIconButton
+            icon='◎'
+            label={sidebarPanel === 'profile' ? 'Hide profile' : 'Link profile'}
+            onPress={toggleProfilePanel}
+            disabled={profilePending || resetProfilePending}
             variant='toolbar'
           />
           <HeaderIconButton
@@ -264,6 +301,15 @@ function AppDrawerContent({
           </View>
         ) : (
           <View style={styles.drawerList}>
+            <Text style={styles.drawerSectionLabel}>Profile</Text>
+            <View style={styles.joinCard}>
+              <Text style={styles.cardTitle}>{friendlyIdentityName(identity)}</Text>
+              <Text style={styles.muted}>
+                {identity
+                  ? 'Shared Facebonk profile is linked for presence.'
+                  : 'Link a Facebonk profile to share your name and avatar.'}
+              </Text>
+            </View>
             <Text style={styles.drawerSectionLabel}>Docs</Text>
             {docs.map((doc) => (
               <Pressable
@@ -322,6 +368,50 @@ function AppDrawerContent({
             {joinStatus ? <Text style={styles.muted}>{joinStatus}</Text> : null}
           </View>
         ) : null}
+
+        {sidebarPanel === 'profile' ? (
+          <View style={styles.joinCard}>
+            <Text style={styles.cardTitle}>Link Facebonk profile</Text>
+            <TextInput
+              value={profileToken}
+              onChangeText={setProfileToken}
+              placeholder='Paste signed profile token'
+              placeholderTextColor='#8c8c8c'
+              autoCapitalize='none'
+              autoCorrect={false}
+              style={[styles.input, styles.inputTall]}
+            />
+            <Pressable
+              accessibilityRole='button'
+              onPress={() => void submitProfileLink()}
+              disabled={profilePending}
+              style={({ pressed }) => [
+                styles.drawerActionButton,
+                pressed && !profilePending ? styles.iconButtonPressed : null
+              ]}
+            >
+              <Text style={styles.drawerActionLabel}>
+                {profilePending ? 'Linking…' : 'Link profile'}
+              </Text>
+            </Pressable>
+            {identity ? (
+              <Pressable
+                accessibilityRole='button'
+                onPress={() => void clearProfile()}
+                disabled={resetProfilePending}
+                style={({ pressed }) => [
+                  styles.drawerActionButton,
+                  pressed && !resetProfilePending ? styles.iconButtonPressed : null
+                ]}
+              >
+                <Text style={styles.drawerActionLabel}>
+                  {resetProfilePending ? 'Resetting…' : 'Reset profile'}
+                </Text>
+              </Pressable>
+            ) : null}
+            {profileStatus ? <Text style={styles.muted}>{profileStatus}</Text> : null}
+          </View>
+        ) : null}
       </View>
 
       {sidebarError ? (
@@ -336,13 +426,18 @@ function AppDrawerContent({
 export default function App() {
   const [docs, setDocs] = useState<MobileDocRecord[]>([])
   const [activeDocKey, setActiveDocKey] = useState<string | null>(null)
+  const [identity, setIdentity] = useState<MobileIdentitySummary | null>(null)
   const [loading, setLoading] = useState(true)
   const [appError, setAppError] = useState<string | null>(null)
   const [joinInviteCode, setJoinInviteCode] = useState('')
+  const [profileToken, setProfileToken] = useState('')
   const [createPending, setCreatePending] = useState(false)
   const [joinPending, setJoinPending] = useState(false)
+  const [profilePending, setProfilePending] = useState(false)
+  const [resetProfilePending, setResetProfilePending] = useState(false)
   const [joinStatus, setJoinStatus] = useState<string | null>(null)
-  const [sidebarPanel, setSidebarPanel] = useState<'join' | null>(null)
+  const [profileStatus, setProfileStatus] = useState<string | null>(null)
+  const [sidebarPanel, setSidebarPanel] = useState<'join' | 'profile' | null>(null)
   const [sidebarError, setSidebarError] = useState<string | null>(null)
 
   const refreshDocs = useCallback(async () => {
@@ -363,6 +458,22 @@ export default function App() {
   useEffect(() => {
     void refreshDocs()
   }, [refreshDocs])
+
+  const refreshIdentityState = useCallback(async () => {
+    try {
+      setIdentity(await getIdentity())
+    } catch (nextError) {
+      setSidebarError(
+        nextError instanceof Error
+          ? nextError.message
+          : 'Failed to load Facebonk profile'
+      )
+    }
+  }, [])
+
+  useEffect(() => {
+    void refreshIdentityState()
+  }, [refreshIdentityState])
 
   const upsertDoc = useCallback((doc: MobileDocRecord) => {
     setDocs((current) => [
@@ -497,6 +608,57 @@ export default function App() {
     await startJoin(joinInviteCode)
   }, [joinInviteCode, startJoin])
 
+  const handleProfileLink = useCallback(async () => {
+    const invite = profileToken.trim()
+    if (!invite || profilePending) return
+
+    setProfilePending(true)
+    setProfileStatus('Linking Facebonk profile…')
+    setSidebarError(null)
+
+    try {
+      const nextIdentity = await linkIdentity(invite)
+      setIdentity(nextIdentity)
+      setProfileToken('')
+      setProfileStatus(null)
+      setSidebarPanel(null)
+    } catch (nextError) {
+      setSidebarError(
+        nextError instanceof Error
+          ? nextError.message
+          : 'Failed to link profile'
+      )
+    } finally {
+      setProfilePending(false)
+      setProfileStatus(null)
+    }
+  }, [profilePending, profileToken])
+
+  const handleProfileReset = useCallback(async () => {
+    if (resetProfilePending) return
+
+    setResetProfilePending(true)
+    setProfileStatus('Resetting Facebonk profile…')
+    setSidebarError(null)
+
+    try {
+      await resetIdentity()
+      setIdentity(null)
+      setProfileToken('')
+      setProfileStatus(null)
+      setSidebarPanel(null)
+    } catch (nextError) {
+      setSidebarError(
+        nextError instanceof Error
+          ? nextError.message
+          : 'Failed to reset profile'
+      )
+    } finally {
+      setResetProfilePending(false)
+      setProfileStatus(null)
+    }
+  }, [resetProfilePending])
+
   useEffect(() => {
     let disposed = false
 
@@ -553,18 +715,31 @@ export default function App() {
                 createNewDoc={handleCreate}
                 createPending={createPending}
                 docs={docs}
+                identity={identity}
                 joinInviteCode={joinInviteCode}
                 joinPending={joinPending}
                 joinStatus={joinStatus}
                 loading={loading}
                 openDoc={openDoc}
+                profilePending={profilePending}
+                profileStatus={profileStatus}
+                profileToken={profileToken}
+                resetProfilePending={resetProfilePending}
+                clearProfile={handleProfileReset}
                 setJoinInviteCode={setJoinInviteCode}
+                setProfileToken={setProfileToken}
                 sidebarError={sidebarError || appError}
                 sidebarPanel={sidebarPanel}
+                submitProfileLink={handleProfileLink}
                 submitJoin={handleJoin}
                 toggleJoinPanel={() =>
                   setSidebarPanel((current) =>
                     current === 'join' ? null : 'join'
+                  )
+                }
+                toggleProfilePanel={() =>
+                  setSidebarPanel((current) =>
+                    current === 'profile' ? null : 'profile'
                   )
                 }
               />
@@ -637,6 +812,7 @@ export default function App() {
                         {...props}
                         createNewDoc={handleCreate}
                         createPending={createPending}
+                        identity={identity}
                         lookupDoc={lookupDoc}
                         refreshDocs={refreshDocs}
                         toggleSidebar={toggleSidebar}
@@ -686,6 +862,7 @@ function HomeScreen({ appError, hasDocs }: HomeScreenProps) {
 function DocScreen({
   navigation,
   route,
+  identity,
   lookupDoc,
   upsertDoc,
   updateDocEntry,
@@ -1133,7 +1310,7 @@ function DocScreen({
 
   return (
     <SafeAreaView edges={['bottom']} style={styles.docSafeArea}>
-      {activeView ? <DocSurface doc={activeView} /> : null}
+      {activeView ? <DocSurface doc={activeView} identity={identity} /> : null}
 
       {docLoading && !activeView ? (
         <View style={styles.docState}>

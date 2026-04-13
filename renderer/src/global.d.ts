@@ -35,10 +35,16 @@ declare global {
         [key: string]: any
       }
     }
+
+    ReactNativeWebView?: {
+      postMessage: (message: string) => void
+    }
   }
 
   const Pear: Window['Pear']
 }
+
+declare module '*.css' {}
 
 declare module '../../../packages/bonkdocs-core/hrpc.js' {
   class HRPC {

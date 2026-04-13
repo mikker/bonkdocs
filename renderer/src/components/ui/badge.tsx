@@ -1,13 +1,17 @@
 import { cn } from '@/lib/utils'
 
-export function Badge({
-  className,
-  ...props
-}: React.HTMLAttributes<HTMLDivElement>) {
+type BadgeProps = React.HTMLAttributes<HTMLDivElement> & {
+  variant?: 'default' | 'outline' | 'destructive'
+}
+
+export function Badge({ className, variant = 'default', ...props }: BadgeProps) {
   return (
     <div
       className={cn(
-        'inline-flex items-center rounded-full border border-border px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground',
+        'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide',
+        variant === 'default' && 'border border-border text-muted-foreground',
+        variant === 'outline' && 'border border-border/60 text-foreground',
+        variant === 'destructive' && 'border border-destructive/20 bg-destructive/10 text-destructive',
         className
       )}
       {...props}

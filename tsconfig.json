@@ -10,14 +10,15 @@
     "skipLibCheck": true,
     "resolveJsonModule": true,
     "jsx": "react-jsx",
-    "baseUrl": ".",
+    "types": ["vite/client"],
     "paths": {
-      "@/*": ["renderer/src/*"]
+      "@/*": ["./renderer/src/*"]
     }
   },
   "include": [
     "renderer/**/*.ts",
     "renderer/**/*.tsx",
+    "renderer/**/*.d.ts",
     "types/**/*.ts",
     "types/**/*.d.ts"
   ],

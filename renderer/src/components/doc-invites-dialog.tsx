@@ -291,7 +291,7 @@ export function DocInvitesDialog() {
               </div>
               <div className='space-y-2'>
                 <div className='flex items-center gap-2'>
-                  <Checkbox id='doc-invite-read' checked readOnly disabled />
+                  <Checkbox id='doc-invite-read' checked disabled />
                   <Label htmlFor='doc-invite-read'>Read access</Label>
                 </div>
                 <div className='flex items-center gap-2'>

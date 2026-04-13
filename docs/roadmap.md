@@ -18,7 +18,7 @@
 
 ## Phase 2 — Collaboration Polish
 
-- Land Facebonk linking in Bonk Docs so the desktop app can sign in to an existing shared identity.
+- Land Facebonk signed-profile linking in Bonk Docs so desktop and native can reuse the same shared profile without joining Facebonk as extra devices.
 - Activate comment storage (`@bonk-docs/comments`) and renderer drawer UI.
 - Enhance presence UI (avatars, named cursors, doc activity sidebar).
 - Add document history view powered by Autobonk log replay.

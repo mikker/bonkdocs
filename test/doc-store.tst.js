@@ -28,6 +28,9 @@ test('doc store applies syncUpdate to Y.Doc', async (t) => {
   resetDocStoreState()
 
   await useDocStore.getState().initialize()
+  for (let attempt = 0; attempt < 20 && mock.getWatchCount() === 0; attempt += 1) {
+    await new Promise((resolve) => setTimeout(resolve, 10))
+  }
 
   const ydoc = new Y.Doc()
   ydoc.getText('body').insert(0, 'hello')
@@ -42,9 +45,16 @@ test('doc store applies syncUpdate to Y.Doc', async (t) => {
 
   await flushMicrotasks()
 
-  const current = useDocStore.getState().currentUpdate
+  let current = null
+  let text = ''
+  for (let attempt = 0; attempt < 50; attempt += 1) {
+    current = useDocStore.getState().currentUpdate
+    text = current?.doc.getText('body').toString() ?? ''
+    if (text === 'hello') break
+    await new Promise((resolve) => setTimeout(resolve, 10))
+  }
+
   t.ok(current, 'currentUpdate present')
-  const text = current?.doc.getText('body').toString()
   t.is(text, 'hello')
 
   mock.destroyAll()
@@ -96,11 +106,9 @@ test('doc store hydrates Facebonk avatar into local presence', async (t) => {
       writerKey: 'facebonk-writer',
       profile: {
         displayName: 'Avatar Bonk',
-        bio: 'Has a profile image'
+        bio: 'Has a profile image',
+        avatarDataUrl: 'data:image/png;base64,ZmFrZS1hdmF0YXI='
       }
-    },
-    {
-      dataUrl: 'data:image/png;base64,ZmFrZS1hdmF0YXI='
     }
   )
 
@@ -129,11 +137,9 @@ test('doc store resets Facebonk identity locally', async (t) => {
       identityKey: 'facebonk-identity',
       writerKey: 'facebonk-writer',
       profile: {
-        displayName: 'Avatar Bonk'
+        displayName: 'Avatar Bonk',
+        avatarDataUrl: 'data:image/png;base64,ZmFrZS1hdmF0YXI='
       }
-    },
-    {
-      dataUrl: 'data:image/png;base64,ZmFrZS1hdmF0YXI='
     }
   )
 
@@ -155,10 +161,12 @@ test('doc store resets Facebonk identity locally', async (t) => {
   resetDocStoreState()
 })
 
-test('doc store times out stuck Facebonk linking', async (t) => {
+test('doc store rejects invalid Facebonk profile tokens', async (t) => {
   const mock = createRpcMock()
 
-  mock.setLinkIdentityHandler(async () => await new Promise(() => {}))
+  mock.setLinkIdentityHandler(async () => {
+    throw new Error('Invalid Facebonk profile token')
+  })
 
   setRpcClient(mock.rpc)
   t.teardown(() => {
@@ -169,44 +177,37 @@ test('doc store times out stuck Facebonk linking', async (t) => {
   let error = null
 
   try {
-    await useDocStore.getState().linkIdentity('facebonk-invite', { timeoutMs: 1000 })
+    await useDocStore.getState().linkIdentity('not-a-profile-token')
   } catch (err) {
     error = err
   }
 
   t.ok(error instanceof Error, 'linking rejects with an error')
-  t.is(
-    error?.message,
-    'Timed out waiting for Facebonk identity. Keep facebonk serve running and try again.'
-  )
+  t.is(error?.message, 'Invalid Facebonk profile token')
 
   const state = useDocStore.getState()
-  t.is(state.linkingIdentity, false, 'linking state resets after timeout')
-  t.is(
-    state.identityError,
-    'Timed out waiting for Facebonk identity. Keep facebonk serve running and try again.'
-  )
-  t.is(
-    state.error,
-    'Timed out waiting for Facebonk identity. Keep facebonk serve running and try again.'
-  )
+  t.is(state.linkingIdentity, false, 'linking state resets after failure')
+  t.is(state.identityError, 'Invalid Facebonk profile token')
+  t.is(state.error, 'Invalid Facebonk profile token')
 
   mock.destroyAll()
   resetDocStoreState()
 })
 
-test('doc store links Facebonk even if avatar fetch stalls', async (t) => {
+test('doc store links Facebonk profile tokens', async (t) => {
   const mock = createRpcMock()
 
-  mock.setIdentity({
-    identityKey: 'facebonk-identity',
-    writerKey: 'facebonk-writer',
-    profile: {
-      displayName: 'Avatar Wait',
-      avatarMimeType: 'image/png'
+  mock.setLinkIdentityHandler(async () => ({
+    identity: {
+      identityKey: 'facebonk-identity',
+      writerKey: 'facebonk-writer',
+      profile: {
+        displayName: 'Avatar Wait',
+        avatarMimeType: 'image/png',
+        avatarDataUrl: 'data:image/png;base64,ZmFrZS1hdmF0YXI='
+      }
     }
-  })
-  mock.setGetIdentityAvatarHandler(async () => await new Promise(() => {}))
+  }))
 
   setRpcClient(mock.rpc)
   t.teardown(() => {
@@ -214,13 +215,14 @@ test('doc store links Facebonk even if avatar fetch stalls', async (t) => {
   })
   resetDocStoreState()
 
-  await useDocStore.getState().linkIdentity('facebonk-invite')
+  await useDocStore.getState().linkIdentity('facebonk-profile:abc123')
 
   const state = useDocStore.getState()
   t.is(state.linkingIdentity, false, 'linking state clears after avatar timeout')
   t.is(state.identity?.identityKey, 'facebonk-identity')
   t.is(state.identity?.profile?.displayName, 'Avatar Wait')
-  t.is(state.identity?.profile?.avatarDataUrl, undefined)
+  t.is(state.identity?.profile?.avatarDataUrl, 'data:image/png;base64,ZmFrZS1hdmF0YXI=')
+  t.is(state.localUser.avatarDataUrl, 'data:image/png;base64,ZmFrZS1hdmF0YXI=')
   t.is(state.identityError, null)
 
   mock.destroyAll()

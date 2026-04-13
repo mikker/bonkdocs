@@ -1,4 +1,4 @@
-import { mkdir, rm } from 'fs/promises'
+import { mkdir, readFile, rm, writeFile } from 'fs/promises'
 import { join } from 'path'
 
 import { DocManager } from '../domain/doc-manager.js'
@@ -24,6 +24,11 @@ import {
   hexToBuffer,
   toUint8Array
 } from '../../../lib/codec.js'
+import {
+  decodeProfileCardToken,
+  profileSummaryFromCard,
+  verifyProfileCard
+} from 'facebonk'
 
 const REMOTE_ORIGIN = 'remote'
 
@@ -44,14 +49,7 @@ function isCoreClosingError(error) {
 export class DocWorker {
   constructor(options = {}) {
     this.baseDir = options.baseDir
-    this.identityBaseDir = options.identityBaseDir || join(this.baseDir, 'facebonk')
-    this.enableIdentity = options.enableIdentity !== false
-    this.identityOptions = {
-      bootstrap: options.bootstrap,
-      autobase: options.autobase
-    }
-    this.identityManager = null
-    this.identityManagerPromise = null
+    this.identityProfilePath = join(this.baseDir, 'linked-profile.json')
     this.watchers = new Map()
     this.subscriptions = new Map()
     this.syncEngine = new YjsSyncEngine({
@@ -71,30 +69,6 @@ export class DocWorker {
       bootstrap: options.bootstrap,
       autobase: options.autobase
     })
-  }
-
-  async createIdentityManager() {
-    const { IdentityManager } = await import('facebonk/src/index.js')
-    return new IdentityManager(this.identityBaseDir, this.identityOptions)
-  }
-
-  async getIdentityManager() {
-    if (!this.enableIdentity) return null
-    if (this.identityManager) return this.identityManager
-    if (!this.identityManagerPromise) {
-      this.identityManagerPromise = this.createIdentityManager()
-        .then(async (manager) => {
-          await manager.ready()
-          this.identityManager = manager
-          this.identityManagerPromise = null
-          return manager
-        })
-        .catch((error) => {
-          this.identityManagerPromise = null
-          throw error
-        })
-    }
-    return await this.identityManagerPromise
   }
 
   async ready() {
@@ -118,38 +92,35 @@ export class DocWorker {
     }
     this.subscriptions.clear()
     await this.syncEngine.close()
-    await this.identityManager?.close()
     await this.manager.close()
   }
 
   async getIdentity() {
     await this.ready()
-    const identityManager = await this.getIdentityManager()
-    if (!identityManager) return null
-    return await identityManager.getSummary()
+    const card = await this._readLinkedProfileCard()
+    return card ? profileSummaryFromCard(card) : null
   }
 
   async getIdentityAvatar() {
     await this.ready()
-
-    const identityManager = await this.getIdentityManager()
-    if (!identityManager) return null
-
-    const identity = await identityManager.getActiveIdentity()
-    if (!identity) return null
-
-    const avatar = await identity.getAvatar()
-    if (!avatar?.data || avatar.data.length === 0) return null
+    const card = await this._readLinkedProfileCard()
+    const dataUrl =
+      typeof card?.payload?.avatarDataUrl === 'string' &&
+      card.payload.avatarDataUrl.length > 0
+        ? card.payload.avatarDataUrl
+        : null
+    if (!dataUrl) return null
 
     const mimeType =
-      typeof avatar.mimeType === 'string' && avatar.mimeType.length > 0
-        ? avatar.mimeType
-        : 'application/octet-stream'
+      typeof card?.payload?.avatarMimeType === 'string' &&
+      card.payload.avatarMimeType.length > 0
+        ? card.payload.avatarMimeType
+        : this._mimeTypeFromDataUrl(dataUrl)
 
     return {
-      dataUrl: `data:${mimeType};base64,${avatar.data.toString('base64')}`,
+      dataUrl,
       mimeType,
-      byteLength: avatar.byteLength ?? avatar.data.length
+      byteLength: this._byteLengthFromDataUrl(dataUrl)
     }
   }
 
@@ -157,31 +128,56 @@ export class DocWorker {
     await this.ready()
 
     if (typeof invite !== 'string' || invite.trim().length === 0) {
-      throw new Error('Identity invite is required')
+      throw new Error('Facebonk profile token is required')
     }
 
-    const identityManager = await this.getIdentityManager()
-    if (!identityManager) {
-      throw new Error('Facebonk identity linking is unavailable in this runtime')
+    let token
+    try {
+      token = decodeProfileCardToken(invite.trim())
+    } catch {
+      throw new Error('Invalid Facebonk profile token')
     }
 
-    await identityManager.joinIdentity(invite.trim())
-    return await identityManager.getSummary()
+    const card = await verifyProfileCard(token)
+    await this._writeLinkedProfileCard(card)
+    return profileSummaryFromCard(card)
   }
 
   async resetIdentity() {
-    const identityManager = await this.getIdentityManager()
-    if (!identityManager) {
-      return { reset: false }
-    }
-
-    await identityManager.close()
-    await rm(this.identityBaseDir, { recursive: true, force: true })
-    await mkdir(this.identityBaseDir, { recursive: true })
-    this.identityManager = null
-    this.identityManagerPromise = null
-    await this.getIdentityManager()
+    await rm(this.identityProfilePath, { force: true })
     return { reset: true }
+  }
+
+  async _readLinkedProfileCard() {
+    try {
+      const raw = await readFile(this.identityProfilePath, 'utf8')
+      if (!raw.trim()) return null
+      return await verifyProfileCard(JSON.parse(raw))
+    } catch (error) {
+      if (error?.code === 'ENOENT') return null
+      throw error
+    }
+  }
+
+  async _writeLinkedProfileCard(card) {
+    await writeFile(this.identityProfilePath, JSON.stringify(card, null, 2))
+  }
+
+  _mimeTypeFromDataUrl(dataUrl) {
+    if (typeof dataUrl !== 'string') return 'application/octet-stream'
+    const match = /^data:([^;,]+)[;,]/.exec(dataUrl)
+    return match?.[1] || 'application/octet-stream'
+  }
+
+  _byteLengthFromDataUrl(dataUrl) {
+    if (typeof dataUrl !== 'string') return null
+    const [, base64 = ''] = dataUrl.split(',', 2)
+    if (!base64) return null
+    try {
+      return Buffer.from(base64, 'base64').length
+    } catch {
+      return null
+    }
   }
 
   async listDocs() {

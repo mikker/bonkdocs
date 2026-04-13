@@ -98,8 +98,6 @@ function getPear() {
   if (pearStore) {
     console.log('pear store: ' + pearStore)
     dir = pearStore
-  } else if (appPath === null) {
-    dir = path.join(os.tmpdir(), 'pear', appName)
   } else {
     dir = resolveDefaultStorageDir()
   }

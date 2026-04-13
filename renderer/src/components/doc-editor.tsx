@@ -59,7 +59,6 @@ export function DocEditor({
             linkOnPaste: true,
             autolink: true
           },
-          history: false,
           undoRedo: false
         }),
         Collaboration.configure({
