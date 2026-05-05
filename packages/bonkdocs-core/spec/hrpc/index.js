@@ -35,15 +35,7 @@ const methods = new Map([
   ['@bonk-docs/rename-doc', 13],
   [13, '@bonk-docs/rename-doc'],
   ['@bonk-docs/lock-doc', 14],
-  [14, '@bonk-docs/lock-doc'],
-  ['@bonk-docs/get-identity', 15],
-  [15, '@bonk-docs/get-identity'],
-  ['@bonk-docs/link-identity', 16],
-  [16, '@bonk-docs/link-identity'],
-  ['@bonk-docs/get-identity-avatar', 17],
-  [17, '@bonk-docs/get-identity-avatar'],
-  ['@bonk-docs/reset-identity', 18],
-  [18, '@bonk-docs/reset-identity']
+  [14, '@bonk-docs/lock-doc']
 ])
 
 class HRPC {
@@ -65,11 +57,7 @@ class HRPC {
       ['@bonk-docs/create-invite', getEncoding('@bonk-docs-rpc/create-invite-request')],
       ['@bonk-docs/revoke-invite', getEncoding('@bonk-docs-rpc/revoke-invite-request')],
       ['@bonk-docs/rename-doc', getEncoding('@bonk-docs-rpc/rename-doc-request')],
-      ['@bonk-docs/lock-doc', getEncoding('@bonk-docs-rpc/lock-doc-request')],
-      ['@bonk-docs/get-identity', getEncoding('@bonk-docs-rpc/get-identity-request')],
-      ['@bonk-docs/link-identity', getEncoding('@bonk-docs-rpc/link-identity-request')],
-      ['@bonk-docs/get-identity-avatar', getEncoding('@bonk-docs-rpc/get-identity-avatar-request')],
-      ['@bonk-docs/reset-identity', getEncoding('@bonk-docs-rpc/reset-identity-request')]
+      ['@bonk-docs/lock-doc', getEncoding('@bonk-docs-rpc/lock-doc-request')]
     ])
     this._responseEncodings = new Map([
       ['@bonk-docs/initialize', getEncoding('@bonk-docs-rpc/initialize-response')],
@@ -86,11 +74,7 @@ class HRPC {
       ['@bonk-docs/create-invite', getEncoding('@bonk-docs-rpc/create-invite-response')],
       ['@bonk-docs/revoke-invite', getEncoding('@bonk-docs-rpc/revoke-invite-response')],
       ['@bonk-docs/rename-doc', getEncoding('@bonk-docs-rpc/rename-doc-response')],
-      ['@bonk-docs/lock-doc', getEncoding('@bonk-docs-rpc/lock-doc-response')],
-      ['@bonk-docs/get-identity', getEncoding('@bonk-docs-rpc/get-identity-response')],
-      ['@bonk-docs/link-identity', getEncoding('@bonk-docs-rpc/link-identity-response')],
-      ['@bonk-docs/get-identity-avatar', getEncoding('@bonk-docs-rpc/get-identity-avatar-response')],
-      ['@bonk-docs/reset-identity', getEncoding('@bonk-docs-rpc/reset-identity-response')]
+      ['@bonk-docs/lock-doc', getEncoding('@bonk-docs-rpc/lock-doc-response')]
     ])
     this._rpc = new RPC(stream, async (req) => {
       const command = methods.get(req.command)
@@ -248,22 +232,6 @@ class HRPC {
     return this._call('@bonk-docs/lock-doc', args)
   }
 
-  async getIdentity(args) {
-    return this._call('@bonk-docs/get-identity', args)
-  }
-
-  async linkIdentity(args) {
-    return this._call('@bonk-docs/link-identity', args)
-  }
-
-  async getIdentityAvatar(args) {
-    return this._call('@bonk-docs/get-identity-avatar', args)
-  }
-
-  async resetIdentity(args) {
-    return this._call('@bonk-docs/reset-identity', args)
-  }
-
   onInitialize(responseFn) {
     this._handlers['@bonk-docs/initialize'] = responseFn
   }
@@ -322,22 +290,6 @@ class HRPC {
 
   onLockDoc(responseFn) {
     this._handlers['@bonk-docs/lock-doc'] = responseFn
-  }
-
-  onGetIdentity(responseFn) {
-    this._handlers['@bonk-docs/get-identity'] = responseFn
-  }
-
-  onLinkIdentity(responseFn) {
-    this._handlers['@bonk-docs/link-identity'] = responseFn
-  }
-
-  onGetIdentityAvatar(responseFn) {
-    this._handlers['@bonk-docs/get-identity-avatar'] = responseFn
-  }
-
-  onResetIdentity(responseFn) {
-    this._handlers['@bonk-docs/reset-identity'] = responseFn
   }
 
   _requestIsStream(command) {

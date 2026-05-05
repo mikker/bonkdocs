@@ -2,10 +2,9 @@
 
 These instructions apply to `renderer/`.
 
-- This directory is part of the `electron` surface unless you are working in `renderer/src/mobile-editor/`, which belongs to the `mobile editor bundle` for `native`.
+- This directory is part of the `electron` surface.
 - `renderer/` is the only TypeScript zone in the repo. Keep utility modules typed where that helps integration.
 - Use `npm run desktop:dev` for the fastest desktop UI loop.
-- If you change `renderer/src/mobile-editor/`, remember that it feeds `native`, not `electron`. Rebuild it with `npm run mobile:bundle:web-editor`.
 
 ## React useEffect Guidelines
 

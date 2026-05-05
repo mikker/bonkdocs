@@ -14,7 +14,8 @@ if (!rootElement) {
 }
 
 function renderBootstrapError(error: unknown) {
-  const message = error instanceof Error ? error.stack || error.message : String(error)
+  const message =
+    error instanceof Error ? error.stack || error.message : String(error)
   const pre = document.createElement('pre')
   pre.style.padding = '16px'
   pre.style.whiteSpace = 'pre-wrap'

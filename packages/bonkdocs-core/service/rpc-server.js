@@ -71,29 +71,6 @@ export function createRpcServer(stream, worker) {
     return { docs, identity: identity ?? undefined }
   })
 
-  rpc.onGetIdentity(async () => {
-    console.log('[worker] get-identity request')
-    const identity = await worker.getIdentity()
-    return { identity: identity ?? undefined }
-  })
-
-  rpc.onGetIdentityAvatar(async () => {
-    console.log('[worker] get-identity-avatar request')
-    const avatar = await worker.getIdentityAvatar()
-    return { avatar: avatar ?? undefined }
-  })
-
-  rpc.onLinkIdentity(async (request = {}) => {
-    console.log('[worker] link-identity request')
-    const identity = await worker.linkIdentity(request.invite)
-    return { identity }
-  })
-
-  rpc.onResetIdentity(async () => {
-    console.log('[worker] reset-identity request')
-    return await worker.resetIdentity()
-  })
-
   rpc.onListDocs(async () => {
     console.log('[worker] list-docs request')
     const docs = await worker.listDocs()
@@ -132,6 +109,7 @@ export function createRpcServer(stream, worker) {
   })
 
   rpc.onPairInvite((stream) => {
+    console.log('[worker] pair-invite request')
     const request = stream.data || {}
     if (!request.invite) {
       stream.destroy(new Error('Invite is required to pair document'))

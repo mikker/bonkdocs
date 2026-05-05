@@ -21,15 +21,39 @@ function normalizeStorageRoot(value) {
   return trimmed.length > 0 ? trimmed : null
 }
 
+function normalizeBootstrap(value) {
+  if (Array.isArray(value)) return value.filter(Boolean)
+  if (typeof value !== 'string') return null
+
+  const trimmed = value.trim()
+  if (
+    trimmed === '__isolated__' ||
+    trimmed === 'isolated' ||
+    trimmed === 'offline' ||
+    trimmed === 'none' ||
+    trimmed === 'false' ||
+    trimmed === '0'
+  ) {
+    return []
+  }
+
+  const nodes = trimmed
+    .split(',')
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+  return nodes.length > 0 ? nodes : null
+}
+
 export async function initializeWorker(options = {}) {
   if (!workerInstance) {
     const baseDir = options.baseDir || resolveBaseDir(options.storageRoot)
     workerInstance = new DocWorker({
       baseDir,
-      bootstrap: options.bootstrap,
-      autobase: options.autobase,
-      ensureStorage: options.ensureStorage ?? true,
-      enableIdentity: options.enableIdentity
+      bootstrap:
+        options.bootstrap !== undefined
+          ? options.bootstrap
+          : resolveBootstrap(options.bootstrapNodes),
+      ensureStorage: options.ensureStorage ?? true
     })
   }
 
@@ -77,6 +101,24 @@ function resolveStorageRoot(explicitStorageRoot = null) {
       : '/'
 
   return cwd
+}
+
+function resolveBootstrap(explicitBootstrap = null) {
+  const explicit = normalizeBootstrap(explicitBootstrap)
+  if (explicit !== null) return explicit
+
+  const globalBootstrap = normalizeBootstrap(globalThis.__BONKDOCS_BOOTSTRAP__)
+  if (globalBootstrap !== null) return globalBootstrap
+
+  const bareArgv = globalThis.Bare?.argv
+  if (Array.isArray(bareArgv)) {
+    const bareBootstrap = normalizeBootstrap(bareArgv[3])
+    if (bareBootstrap !== null) return bareBootstrap
+  }
+
+  return normalizeBootstrap(
+    typeof process !== 'undefined' ? process.env?.BONKDOCS_BOOTSTRAP : null
+  )
 }
 
 function resolveBaseDir(storageRoot = null) {
@@ -129,7 +171,10 @@ export async function bootstrapWorkerRuntime(options = {}) {
     baseDir: resolveBaseDir(options.storageRoot),
     ensureStorage: true,
     rpc: ipcStream,
-    enableIdentity: options.enableIdentity
+    bootstrap:
+      options.bootstrap !== undefined
+        ? options.bootstrap
+        : resolveBootstrap(options.bootstrapNodes)
   })
 
   ipcStream.on('close', cleanupWorker)

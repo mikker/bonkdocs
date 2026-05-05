@@ -1,5 +1,5 @@
 {
-  "version": 4,
+  "version": 1,
   "schema": [
     {
       "id": 0,
@@ -167,50 +167,6 @@
         "name": "@bonk-docs-rpc/lock-doc-response"
       },
       "version": 1
-    },
-    {
-      "id": 1,
-      "name": "@bonk-docs/get-identity",
-      "request": {
-        "name": "@bonk-docs-rpc/get-identity-request"
-      },
-      "response": {
-        "name": "@bonk-docs-rpc/get-identity-response"
-      },
-      "version": 2
-    },
-    {
-      "id": 2,
-      "name": "@bonk-docs/link-identity",
-      "request": {
-        "name": "@bonk-docs-rpc/link-identity-request"
-      },
-      "response": {
-        "name": "@bonk-docs-rpc/link-identity-response"
-      },
-      "version": 2
-    },
-    {
-      "id": 2,
-      "name": "@bonk-docs/get-identity-avatar",
-      "request": {
-        "name": "@bonk-docs-rpc/get-identity-avatar-request"
-      },
-      "response": {
-        "name": "@bonk-docs-rpc/get-identity-avatar-response"
-      },
-      "version": 3
-    },
-    {
-      "id": 4,
-      "name": "@bonk-docs/reset-identity",
-      "request": {
-        "name": "@bonk-docs-rpc/reset-identity-request"
-      },
-      "response": {
-        "name": "@bonk-docs-rpc/reset-identity-response"
-      },
-      "version": 4
     }
   ]
 }

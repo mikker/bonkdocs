@@ -1,43 +1,21 @@
 #!/usr/bin/env node
-import { dirname, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { rmSync } from 'fs'
+import { dirname, resolve } from 'path'
+import { fileURLToPath } from 'url'
 import Hyperschema from 'hyperschema'
-import HyperdbBuilder from 'hyperdb/builder'
-import Hyperdispatch from 'hyperdispatch'
 import HRPCBuilder from 'hrpc'
-import { extendSchema, extendDb, extendDispatch } from 'autobonk'
-import { extendYjsSchema, extendYjsDb, extendYjsDispatch } from 'autobonk-yjs'
+import { generateSpaceSpec } from 'pear-sdk/spaces'
+import docSpaceDefinition from './domain/space-definition.js'
 
 const currentDir = dirname(fileURLToPath(import.meta.url))
 const specRoot = resolve(currentDir, 'spec')
 const schemaDir = resolve(specRoot, 'schema')
-const dbDir = resolve(specRoot, 'db')
-const dispatchDir = resolve(specRoot, 'dispatch')
 const hrpcDir = resolve(specRoot, 'hrpc')
 
-// --- Hyperschema ---------------------------------------------------------
+rmSync(specRoot, { recursive: true, force: true })
+generateSpaceSpec(docSpaceDefinition, specRoot)
+
 const schema = Hyperschema.from(schemaDir)
-extendSchema(schema)
-
-const docs = schema.namespace('bonk-docs')
-extendYjsSchema(schema, { namespace: 'bonk-docs' })
-
-docs.register({
-  name: 'metadata',
-  compact: false,
-  fields: [
-    { name: 'id', type: 'string', required: true },
-    { name: 'title', type: 'string', required: false },
-    { name: 'description', type: 'string', required: false },
-    { name: 'createdAt', type: 'uint', required: true },
-    { name: 'updatedAt', type: 'uint', required: false },
-    { name: 'creatorKey', type: 'fixed32', required: false },
-    { name: 'rev', type: 'uint', required: true },
-    { name: 'lockedAt', type: 'uint', required: false },
-    { name: 'lockedBy', type: 'fixed32', required: false }
-  ]
-})
-
 const local = schema.namespace('local')
 
 local.register({
@@ -64,7 +42,6 @@ rpc.register({
   compact: false,
   fields: [
     { name: 'canEdit', type: 'bool', required: true },
-    { name: 'canComment', type: 'bool', required: true },
     { name: 'canInvite', type: 'bool', required: true },
     { name: 'roles', type: 'string', array: true, required: false }
   ]
@@ -128,8 +105,7 @@ rpc.register({
   fields: [
     { name: 'displayName', type: 'string', required: false },
     { name: 'bio', type: 'string', required: false },
-    { name: 'updatedAt', type: 'uint', required: false },
-    { name: 'avatarMimeType', type: 'string', required: false }
+    { name: 'updatedAt', type: 'uint', required: false }
   ]
 })
 
@@ -162,82 +138,6 @@ rpc.register({
     {
       name: 'identity',
       type: '@bonk-docs-rpc/identity-summary',
-      required: false
-    }
-  ]
-})
-
-rpc.register({
-  name: 'get-identity-request',
-  compact: false,
-  fields: []
-})
-
-rpc.register({
-  name: 'get-identity-response',
-  compact: false,
-  fields: [
-    {
-      name: 'identity',
-      type: '@bonk-docs-rpc/identity-summary',
-      required: false
-    }
-  ]
-})
-
-rpc.register({
-  name: 'identity-avatar',
-  compact: false,
-  fields: [
-    { name: 'dataUrl', type: 'string', required: true },
-    { name: 'mimeType', type: 'string', required: false },
-    { name: 'byteLength', type: 'uint', required: false }
-  ]
-})
-
-rpc.register({
-  name: 'link-identity-request',
-  compact: false,
-  fields: [{ name: 'invite', type: 'string', required: true }]
-})
-
-rpc.register({
-  name: 'link-identity-response',
-  compact: false,
-  fields: [
-    {
-      name: 'identity',
-      type: '@bonk-docs-rpc/identity-summary',
-      required: true
-    }
-  ]
-})
-
-rpc.register({
-  name: 'reset-identity-request',
-  compact: false,
-  fields: []
-})
-
-rpc.register({
-  name: 'reset-identity-response',
-  compact: false,
-  fields: [{ name: 'reset', type: 'bool', required: true }]
-})
-
-rpc.register({
-  name: 'get-identity-avatar-request',
-  compact: false,
-  fields: []
-})
-
-rpc.register({
-  name: 'get-identity-avatar-response',
-  compact: false,
-  fields: [
-    {
-      name: 'avatar',
-      type: '@bonk-docs-rpc/identity-avatar',
       required: false
     }
   ]
@@ -474,44 +374,6 @@ rpc.register({
 
 Hyperschema.toDisk(schema)
 
-// --- Hyperdb -------------------------------------------------------------
-const dbBuilder = HyperdbBuilder.from(schemaDir, dbDir)
-extendDb(dbBuilder)
-
-const docsDb = dbBuilder.namespace('bonk-docs')
-extendYjsDb(dbBuilder, { namespace: 'bonk-docs' })
-
-docsDb.collections.register({
-  name: 'metadata',
-  schema: '@bonk-docs/metadata',
-  key: ['id']
-})
-const localDb = dbBuilder.namespace('local')
-
-localDb.collections.register({
-  name: 'docs',
-  schema: '@local/doc',
-  key: ['key']
-})
-
-HyperdbBuilder.toDisk(dbBuilder)
-
-// --- Hyperdispatch -------------------------------------------------------
-const dispatch = Hyperdispatch.from(schemaDir, dispatchDir)
-extendDispatch(dispatch)
-
-const docDispatch = dispatch.namespace('bonk-docs')
-extendYjsDispatch(dispatch, {
-  namespace: 'bonk-docs',
-  awarenessDispatchId: 14
-})
-
-docDispatch.register({
-  name: 'metadata-upsert',
-  requestType: '@bonk-docs/metadata'
-})
-Hyperdispatch.toDisk(dispatch)
-
 // --- HRPC ----------------------------------------------------------------
 const hrpc = HRPCBuilder.from(schemaDir, hrpcDir)
 
@@ -521,30 +383,6 @@ workerRpc.register({
   name: 'initialize',
   request: { name: '@bonk-docs-rpc/initialize-request' },
   response: { name: '@bonk-docs-rpc/initialize-response' }
-})
-
-workerRpc.register({
-  name: 'get-identity',
-  request: { name: '@bonk-docs-rpc/get-identity-request' },
-  response: { name: '@bonk-docs-rpc/get-identity-response' }
-})
-
-workerRpc.register({
-  name: 'get-identity-avatar',
-  request: { name: '@bonk-docs-rpc/get-identity-avatar-request' },
-  response: { name: '@bonk-docs-rpc/get-identity-avatar-response' }
-})
-
-workerRpc.register({
-  name: 'link-identity',
-  request: { name: '@bonk-docs-rpc/link-identity-request' },
-  response: { name: '@bonk-docs-rpc/link-identity-response' }
-})
-
-workerRpc.register({
-  name: 'reset-identity',
-  request: { name: '@bonk-docs-rpc/reset-identity-request' },
-  response: { name: '@bonk-docs-rpc/reset-identity-response' }
 })
 
 workerRpc.register({
@@ -633,4 +471,4 @@ workerRpc.register({
 
 HRPCBuilder.toDisk(hrpc)
 
-console.log('✅ Generated bonk-docs schema bundle in', specRoot)
+console.log('✅ Generated bonk-docs pear-sdk schema bundle in', specRoot)

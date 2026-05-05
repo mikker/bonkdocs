@@ -2,7 +2,7 @@
 
 These instructions apply to `packages/bonkdocs-core/`.
 
-- This is `core`: the shared backend and document engine used by both `electron` and `native`.
+- This is `core`: the shared Electron worker backend and document engine.
 - Keep code plain JavaScript with ESM syntax, 2-space indentation, single quotes, and no semicolons unless required.
 - Do not introduce TypeScript here. Prefer JSDoc typedefs if shared types are needed.
 - Maintain Bare compatibility. When using modules like `fs`, `path`, or `os`, install the `bare-*` counterpart and update the importmap in `package.json` as needed.

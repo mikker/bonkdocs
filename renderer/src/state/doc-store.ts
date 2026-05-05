@@ -13,7 +13,6 @@ import {
 
 type DocCapabilities = {
   canEdit?: boolean
-  canComment?: boolean
   canInvite?: boolean
   roles?: string[]
 }
@@ -83,8 +82,6 @@ export type DocPairStatus = {
 export type IdentityProfile = {
   displayName?: string | null
   bio?: string | null
-  avatarMimeType?: string | null
-  avatarDataUrl?: string | null
   updatedAt?: number | null
 }
 
@@ -100,15 +97,10 @@ type JoinDocOptions = {
   timeoutMs?: number
 }
 
-type LinkIdentityOptions = {
-  timeoutMs?: number
-}
-
 type LocalUser = {
   name: string
   color: string
   key: string
-  avatarDataUrl?: string | null
 }
 
 type DocSession = {
@@ -132,9 +124,6 @@ type DocStore = {
   watcher: DocWatcher | null
   clientId: string
   localUser: LocalUser
-  linkingIdentity: boolean
-  resettingIdentity: boolean
-  identityError: string | null
   invites: Record<string, DocInvite[]>
   invitesLoading: boolean
   invitesError: string | null
@@ -142,9 +131,6 @@ type DocStore = {
   lockingDoc: boolean
   abandoningDoc: boolean
   initialize: () => Promise<void>
-  refreshIdentity: () => Promise<void>
-  linkIdentity: (invite: string, options?: LinkIdentityOptions) => Promise<void>
-  resetIdentity: () => Promise<void>
   refresh: () => Promise<void>
   selectDoc: (key: string | null) => Promise<void>
   createDoc: (title?: string) => Promise<void>
@@ -168,14 +154,10 @@ type DocStore = {
 
 const REMOTE_ORIGIN = 'remote'
 const DEFAULT_JOIN_TIMEOUT = 15000
-const DEFAULT_IDENTITY_LINK_TIMEOUT = 15000
-const DEFAULT_IDENTITY_AVATAR_TIMEOUT = 1000
 const UPDATE_FLUSH_MS = 50
 const AWARENESS_FLUSH_MS = 120
 const WATCH_RECONNECT_BASE_MS = 400
 const WATCH_RECONNECT_MAX_MS = 5000
-const IDENTITY_LINK_TIMEOUT_MESSAGE =
-  'Timed out waiting for Facebonk identity. Keep facebonk serve running and try again.'
 
 const sessions = new Map<string, DocSession>()
 const applyQueues = new Map<string, Promise<void>>()
@@ -199,37 +181,6 @@ function randomId(length = 32) {
 
 function shortLabel(value: string) {
   return value.slice(0, 5)
-}
-
-function waitForResult<T>(
-  promise: Promise<T>,
-  timeoutMs: number,
-  timeoutMessage: string
-) {
-  return new Promise<T>((resolve, reject) => {
-    let settled = false
-    const timeoutId = setTimeout(() => {
-      if (settled) return
-      settled = true
-      reject(new Error(timeoutMessage))
-    }, timeoutMs)
-
-    const finish = (handler: () => void) => {
-      if (settled) return
-      settled = true
-      clearTimeout(timeoutId)
-      handler()
-    }
-
-    promise.then(
-      (value) => {
-        finish(() => resolve(value))
-      },
-      (error) => {
-        finish(() => reject(error))
-      }
-    )
-  })
 }
 
 function mergeDocSummary(entry: DocRecord, fetched: DocRecord) {
@@ -295,39 +246,7 @@ function userFromIdentity(identity: IdentitySummary | null | undefined) {
   return {
     name: displayName || shortLabel(identityKey),
     color: colorFromKey(identityKey),
-    key: identityKey,
-    avatarDataUrl:
-      typeof identity?.profile?.avatarDataUrl === 'string' &&
-      identity.profile.avatarDataUrl.length > 0
-        ? identity.profile.avatarDataUrl
-        : null
-  }
-}
-
-async function hydrateIdentityAvatar(identity: IdentitySummary | null, rpc: any) {
-  if (!identity) return null
-
-  try {
-    const response = await waitForResult(
-      rpc.getIdentityAvatar({}),
-      DEFAULT_IDENTITY_AVATAR_TIMEOUT,
-      'Timed out waiting for Facebonk avatar'
-    )
-    const dataUrl =
-      typeof response?.avatar?.dataUrl === 'string' &&
-      response.avatar.dataUrl.length > 0
-        ? response.avatar.dataUrl
-        : null
-
-    return {
-      ...identity,
-      profile: {
-        ...(identity.profile ?? {}),
-        avatarDataUrl: dataUrl
-      }
-    }
-  } catch {
-    return identity
+    key: identityKey
   }
 }
 
@@ -342,7 +261,6 @@ function applyLocalUser(
     currentUser.name === nextUser.name &&
     currentUser.color === nextUser.color &&
     currentUser.key === nextUser.key &&
-    currentUser.avatarDataUrl === nextUser.avatarDataUrl &&
     (nextClientId === undefined || getState().clientId === nextClientId)
   ) {
     return
@@ -390,8 +308,7 @@ const LOCAL_CLIENT_ID = randomId(16)
 const LOCAL_USER: LocalUser = {
   name: '',
   color: '#94a3b8',
-  key: '',
-  avatarDataUrl: null
+  key: ''
 }
 
 function enqueueSend(key: string, task: () => Promise<void>) {
@@ -679,9 +596,6 @@ export const useDocStore = create<DocStore>((set, get) => ({
   watcher: null,
   clientId: LOCAL_CLIENT_ID,
   localUser: LOCAL_USER,
-  linkingIdentity: false,
-  resettingIdentity: false,
-  identityError: null,
   invites: {},
   invitesLoading: false,
   invitesError: null,
@@ -697,7 +611,7 @@ export const useDocStore = create<DocStore>((set, get) => ({
       const rpc = getRpc()
       const response = await rpc.initialize({})
       const docs = response?.docs ?? []
-      const identity = await hydrateIdentityAvatar(response?.identity ?? null, rpc)
+      const identity = response?.identity ?? null
       let activeDoc = response?.activeDoc ?? null
 
       if (!activeDoc) {
@@ -711,7 +625,6 @@ export const useDocStore = create<DocStore>((set, get) => ({
         docs,
         activeDoc,
         identity,
-        identityError: null,
         loading: false
       })
       updateLocalUserFromIdentity(set, get, identity)
@@ -725,82 +638,6 @@ export const useDocStore = create<DocStore>((set, get) => ({
         loading: false,
         error: error instanceof Error ? error.message : String(error)
       })
-    }
-  },
-  refreshIdentity: async () => {
-    try {
-      const rpc = getRpc()
-      const response = await rpc.getIdentity({})
-      const identity = await hydrateIdentityAvatar(response?.identity ?? null, rpc)
-      set({ identity, identityError: null })
-      updateLocalUserFromIdentity(set, get, identity)
-    } catch (error) {
-      set({
-        identityError: error instanceof Error ? error.message : String(error)
-      })
-    }
-  },
-  linkIdentity: async (invite, options) => {
-    const trimmed = typeof invite === 'string' ? invite.trim() : ''
-    if (!trimmed) {
-      throw new Error('Identity invite is required')
-    }
-
-    if (get().linkingIdentity) return
-
-    set({ linkingIdentity: true, identityError: null })
-
-    try {
-      const rpc = getRpc()
-      const timeoutMs = Math.max(
-        1000,
-        options?.timeoutMs ?? DEFAULT_IDENTITY_LINK_TIMEOUT
-      )
-      const response = await waitForResult(
-        rpc.linkIdentity({ invite: trimmed }),
-        timeoutMs,
-        IDENTITY_LINK_TIMEOUT_MESSAGE
-      )
-      const identity = await hydrateIdentityAvatar(response?.identity ?? null, rpc)
-      if (!identity) {
-        throw new Error('Identity link response missing identity')
-      }
-      set({ identity, linkingIdentity: false, identityError: null })
-      updateLocalUserFromIdentity(set, get, identity)
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : 'Failed to link identity'
-      set({
-        linkingIdentity: false,
-        identityError: message,
-        error: message
-      })
-      throw error instanceof Error ? error : new Error(message)
-    }
-  },
-  resetIdentity: async () => {
-    if (get().resettingIdentity) return
-
-    set({ resettingIdentity: true, identityError: null })
-
-    try {
-      const rpc = getRpc()
-      await rpc.resetIdentity({})
-      set({
-        identity: null,
-        resettingIdentity: false,
-        identityError: null
-      })
-      applyLocalUser(set, get, LOCAL_USER)
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : 'Failed to reset identity'
-      set({
-        resettingIdentity: false,
-        identityError: message,
-        error: message
-      })
-      throw error instanceof Error ? error : new Error(message)
     }
   },
   refresh: async () => {

@@ -17,21 +17,6 @@ type IpcStream = {
 
 let rpcInstance: RpcClient | null = null
 
-function removeIpcListener(
-  ipc: IpcStream,
-  event: string,
-  listener: IpcListener
-) {
-  if (typeof ipc.off === 'function') {
-    ipc.off(event, listener)
-    return
-  }
-
-  if (typeof ipc.removeListener === 'function') {
-    ipc.removeListener(event, listener)
-  }
-}
-
 class MobileWorkerStream {
   destroyed = false
   private readonly worklet: Worklet
@@ -49,7 +34,8 @@ class MobileWorkerStream {
   }
 
   off(event: string, listener: IpcListener) {
-    removeIpcListener(this.ipc, event, listener)
+    if (typeof this.ipc.off === 'function') this.ipc.off(event, listener)
+    else this.ipc.removeListener?.(event, listener)
     return this
   }
 
@@ -68,30 +54,30 @@ class MobileWorkerStream {
   }
 }
 
-type GlobalRpcState = typeof globalThis & {
+type MobileRpcState = typeof globalThis & {
   __BONKDOCS_MOBILE_RPC__?: RpcClient | null
   __BONKDOCS_MOBILE_WORKER__?: MobileWorkerStream | null
 }
 
-const globalRpcState = globalThis as GlobalRpcState
+const mobileRpcState = globalThis as MobileRpcState
 
 export function destroyRpc() {
   rpcInstance = null
-  globalRpcState.__BONKDOCS_MOBILE_RPC__ = null
-  globalRpcState.__BONKDOCS_MOBILE_WORKER__?.destroy()
-  globalRpcState.__BONKDOCS_MOBILE_WORKER__ = null
+  mobileRpcState.__BONKDOCS_MOBILE_RPC__ = null
+  mobileRpcState.__BONKDOCS_MOBILE_WORKER__?.destroy()
+  mobileRpcState.__BONKDOCS_MOBILE_WORKER__ = null
 }
 
 export function getRpc() {
-  if (globalRpcState.__BONKDOCS_MOBILE_RPC__) {
-    rpcInstance = globalRpcState.__BONKDOCS_MOBILE_RPC__
+  if (mobileRpcState.__BONKDOCS_MOBILE_RPC__) {
+    rpcInstance = mobileRpcState.__BONKDOCS_MOBILE_RPC__
   }
 
   if (!rpcInstance) {
     const worker = new MobileWorkerStream()
     rpcInstance = new HRPC(worker)
-    globalRpcState.__BONKDOCS_MOBILE_RPC__ = rpcInstance
-    globalRpcState.__BONKDOCS_MOBILE_WORKER__ = worker
+    mobileRpcState.__BONKDOCS_MOBILE_RPC__ = rpcInstance
+    mobileRpcState.__BONKDOCS_MOBILE_WORKER__ = worker
   }
 
   return rpcInstance

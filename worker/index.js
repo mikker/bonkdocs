@@ -1,7 +1,9 @@
-import {
-  bootstrapWorkerRuntime
-} from '../packages/bonkdocs-core/worker-runtime.js'
+import { ensurePear } from '../lib/pear-env.js'
 
-void bootstrapWorkerRuntime()
+ensurePear()
 
-export * from '../packages/bonkdocs-core/worker-runtime.js'
+const runtime = await import('../packages/bonkdocs-core/worker-runtime.js')
+
+void runtime.bootstrapWorkerRuntime()
+
+export const { bootstrapWorkerRuntime, initializeWorker } = runtime
