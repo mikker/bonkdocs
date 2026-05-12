@@ -1079,8 +1079,51 @@ const encoding31 = {
   }
 }
 
-// @bonk-docs-rpc/create-doc-request
+// @bonk-docs-rpc/set-public-profile-request
 const encoding32 = {
+  preencode(state, m) {
+    state.end++ // max flag is 1 so always one byte
+
+    if (version >= 2 && m.displayName) c.string.preencode(state, m.displayName)
+  },
+  encode(state, m) {
+    const flags = (version >= 2 && m.displayName) ? 1 : 0
+
+    c.uint.encode(state, flags)
+
+    if (version >= 2 && m.displayName) c.string.encode(state, m.displayName)
+  },
+  decode(state) {
+    const flags = c.uint.decode(state)
+
+    return {
+      displayName: (version >= 2 && (flags & 1) !== 0) ? c.string.decode(state) : null
+    }
+  }
+}
+
+// @bonk-docs-rpc/set-public-profile-response.identity
+const encoding33_0 = encoding29_2
+
+// @bonk-docs-rpc/set-public-profile-response
+const encoding33 = {
+  preencode(state, m) {
+    encoding33_0.preencode(state, m.identity)
+  },
+  encode(state, m) {
+    encoding33_0.encode(state, m.identity)
+  },
+  decode(state) {
+    const r0 = encoding33_0.decode(state)
+
+    return {
+      identity: r0
+    }
+  }
+}
+
+// @bonk-docs-rpc/create-doc-request
+const encoding34 = {
   preencode(state, m) {
     state.end++ // max flag is 1 so always one byte
 
@@ -1103,20 +1146,20 @@ const encoding32 = {
 }
 
 // @bonk-docs-rpc/create-doc-response.doc
-const encoding33_0 = c.frame(encoding21)
+const encoding35_0 = c.frame(encoding21)
 
 // @bonk-docs-rpc/create-doc-response
-const encoding33 = {
+const encoding35 = {
   preencode(state, m) {
-    encoding33_0.preencode(state, m.doc)
+    encoding35_0.preencode(state, m.doc)
     c.string.preencode(state, m.writerKey)
   },
   encode(state, m) {
-    encoding33_0.encode(state, m.doc)
+    encoding35_0.encode(state, m.doc)
     c.string.encode(state, m.writerKey)
   },
   decode(state) {
-    const r0 = encoding33_0.decode(state)
+    const r0 = encoding35_0.decode(state)
     const r1 = c.string.decode(state)
 
     return {
@@ -1127,7 +1170,7 @@ const encoding33 = {
 }
 
 // @bonk-docs-rpc/join-doc-request
-const encoding34 = {
+const encoding36 = {
   preencode(state, m) {
     c.string.preencode(state, m.invite)
     state.end++ // max flag is 1 so always one byte
@@ -1154,20 +1197,20 @@ const encoding34 = {
 }
 
 // @bonk-docs-rpc/join-doc-response.doc
-const encoding35_0 = encoding33_0
+const encoding37_0 = encoding35_0
 
 // @bonk-docs-rpc/join-doc-response
-const encoding35 = {
+const encoding37 = {
   preencode(state, m) {
-    encoding35_0.preencode(state, m.doc)
+    encoding37_0.preencode(state, m.doc)
     c.string.preencode(state, m.writerKey)
   },
   encode(state, m) {
-    encoding35_0.encode(state, m.doc)
+    encoding37_0.encode(state, m.doc)
     c.string.encode(state, m.writerKey)
   },
   decode(state) {
-    const r0 = encoding35_0.decode(state)
+    const r0 = encoding37_0.decode(state)
     const r1 = c.string.decode(state)
 
     return {
@@ -1178,7 +1221,7 @@ const encoding35 = {
 }
 
 // @bonk-docs-rpc/remove-doc-request
-const encoding36 = {
+const encoding38 = {
   preencode(state, m) {
     c.string.preencode(state, m.key)
   },
@@ -1195,7 +1238,7 @@ const encoding36 = {
 }
 
 // @bonk-docs-rpc/remove-doc-response
-const encoding37 = {
+const encoding39 = {
   preencode(state, m) {
     state.end++ // max flag is 1 so always one byte
   },
@@ -1214,7 +1257,7 @@ const encoding37 = {
 }
 
 // @bonk-docs-rpc/rename-doc-request
-const encoding38 = {
+const encoding40 = {
   preencode(state, m) {
     c.string.preencode(state, m.key)
     state.end++ // max flag is 1 so always one byte
@@ -1241,7 +1284,7 @@ const encoding38 = {
 }
 
 // @bonk-docs-rpc/rename-doc-response
-const encoding39 = {
+const encoding41 = {
   preencode(state, m) {
     c.string.preencode(state, m.key)
     c.string.preencode(state, m.title)
@@ -1272,10 +1315,10 @@ const encoding39 = {
 }
 
 // @bonk-docs-rpc/lock-doc-request
-const encoding40 = encoding36
+const encoding42 = encoding38
 
 // @bonk-docs-rpc/lock-doc-response
-const encoding41 = {
+const encoding43 = {
   preencode(state, m) {
     c.string.preencode(state, m.key)
     c.uint.preencode(state, m.lockedAt)
@@ -1300,17 +1343,17 @@ const encoding41 = {
 }
 
 // @bonk-docs-rpc/get-doc-request
-const encoding42 = encoding36
+const encoding44 = encoding38
 
 // @bonk-docs-rpc/get-doc-response.doc
-const encoding43_0 = encoding33_0
+const encoding45_0 = encoding35_0
 
 // @bonk-docs-rpc/get-doc-response
-const encoding43 = {
+const encoding45 = {
   preencode(state, m) {
     state.end++ // max flag is 2 so always one byte
 
-    if (version >= 2 && m.doc) encoding43_0.preencode(state, m.doc)
+    if (version >= 2 && m.doc) encoding45_0.preencode(state, m.doc)
     if (version >= 2 && m.writerKey) c.string.preencode(state, m.writerKey)
   },
   encode(state, m) {
@@ -1320,21 +1363,21 @@ const encoding43 = {
 
     c.uint.encode(state, flags)
 
-    if (version >= 2 && m.doc) encoding43_0.encode(state, m.doc)
+    if (version >= 2 && m.doc) encoding45_0.encode(state, m.doc)
     if (version >= 2 && m.writerKey) c.string.encode(state, m.writerKey)
   },
   decode(state) {
     const flags = c.uint.decode(state)
 
     return {
-      doc: (version >= 2 && (flags & 1) !== 0) ? encoding43_0.decode(state) : null,
+      doc: (version >= 2 && (flags & 1) !== 0) ? encoding45_0.decode(state) : null,
       writerKey: (version >= 2 && (flags & 2) !== 0) ? c.string.decode(state) : null
     }
   }
 }
 
 // @bonk-docs-rpc/watch-doc-request
-const encoding44 = {
+const encoding46 = {
   preencode(state, m) {
     c.string.preencode(state, m.key)
     state.end++ // max flag is 1 so always one byte
@@ -1361,21 +1404,21 @@ const encoding44 = {
 }
 
 // @bonk-docs-rpc/apply-updates-request.updates
-const encoding45_1 = encoding24_8
+const encoding47_1 = encoding24_8
 
 // @bonk-docs-rpc/apply-updates-request
-const encoding45 = {
+const encoding47 = {
   preencode(state, m) {
     c.string.preencode(state, m.key)
-    encoding45_1.preencode(state, m.updates)
+    encoding47_1.preencode(state, m.updates)
   },
   encode(state, m) {
     c.string.encode(state, m.key)
-    encoding45_1.encode(state, m.updates)
+    encoding47_1.encode(state, m.updates)
   },
   decode(state) {
     const r0 = c.string.decode(state)
-    const r1 = encoding45_1.decode(state)
+    const r1 = encoding47_1.decode(state)
 
     return {
       key: r0,
@@ -1385,7 +1428,7 @@ const encoding45 = {
 }
 
 // @bonk-docs-rpc/apply-updates-response
-const encoding46 = {
+const encoding48 = {
   preencode(state, m) {
     state.end++ // max flag is 4 so always one byte
 
@@ -1415,7 +1458,7 @@ const encoding46 = {
 }
 
 // @bonk-docs-rpc/apply-awareness-request
-const encoding47 = {
+const encoding49 = {
   preencode(state, m) {
     c.string.preencode(state, m.key)
     c.buffer.preencode(state, m.update)
@@ -1436,7 +1479,7 @@ const encoding47 = {
 }
 
 // @bonk-docs-rpc/apply-awareness-response
-const encoding48 = {
+const encoding50 = {
   preencode(state, m) {
     state.end++ // max flag is 1 so always one byte
   },
@@ -1455,7 +1498,7 @@ const encoding48 = {
 }
 
 // @bonk-docs-rpc/list-invites-request
-const encoding49 = {
+const encoding51 = {
   preencode(state, m) {
     c.string.preencode(state, m.key)
     state.end++ // max flag is 1 so always one byte
@@ -1478,18 +1521,18 @@ const encoding49 = {
 }
 
 // @bonk-docs-rpc/list-invites-response.invites
-const encoding50_0 = c.array(c.frame(encoding25))
+const encoding52_0 = c.array(c.frame(encoding25))
 
 // @bonk-docs-rpc/list-invites-response
-const encoding50 = {
+const encoding52 = {
   preencode(state, m) {
-    encoding50_0.preencode(state, m.invites)
+    encoding52_0.preencode(state, m.invites)
   },
   encode(state, m) {
-    encoding50_0.encode(state, m.invites)
+    encoding52_0.encode(state, m.invites)
   },
   decode(state) {
-    const r0 = encoding50_0.decode(state)
+    const r0 = encoding52_0.decode(state)
 
     return {
       invites: r0
@@ -1498,15 +1541,15 @@ const encoding50 = {
 }
 
 // @bonk-docs-rpc/create-invite-request.roles
-const encoding51_1 = encoding2_5
+const encoding53_1 = encoding2_5
 
 // @bonk-docs-rpc/create-invite-request
-const encoding51 = {
+const encoding53 = {
   preencode(state, m) {
     c.string.preencode(state, m.key)
     state.end++ // max flag is 2 so always one byte
 
-    if (version >= 2 && m.roles) encoding51_1.preencode(state, m.roles)
+    if (version >= 2 && m.roles) encoding53_1.preencode(state, m.roles)
     if (version >= 2 && m.expiresAt) c.uint.preencode(state, m.expiresAt)
   },
   encode(state, m) {
@@ -1517,7 +1560,7 @@ const encoding51 = {
     c.string.encode(state, m.key)
     c.uint.encode(state, flags)
 
-    if (version >= 2 && m.roles) encoding51_1.encode(state, m.roles)
+    if (version >= 2 && m.roles) encoding53_1.encode(state, m.roles)
     if (version >= 2 && m.expiresAt) c.uint.encode(state, m.expiresAt)
   },
   decode(state) {
@@ -1526,14 +1569,14 @@ const encoding51 = {
 
     return {
       key: r0,
-      roles: (version >= 2 && (flags & 1) !== 0) ? encoding51_1.decode(state) : null,
+      roles: (version >= 2 && (flags & 1) !== 0) ? encoding53_1.decode(state) : null,
       expiresAt: (version >= 2 && (flags & 2) !== 0) ? c.uint.decode(state) : 0
     }
   }
 }
 
 // @bonk-docs-rpc/create-invite-response
-const encoding52 = {
+const encoding54 = {
   preencode(state, m) {
     c.string.preencode(state, m.invite)
     c.string.preencode(state, m.inviteId)
@@ -1554,7 +1597,7 @@ const encoding52 = {
 }
 
 // @bonk-docs-rpc/revoke-invite-request
-const encoding53 = {
+const encoding55 = {
   preencode(state, m) {
     c.string.preencode(state, m.key)
     c.string.preencode(state, m.inviteId)
@@ -1575,7 +1618,7 @@ const encoding53 = {
 }
 
 // @bonk-docs-rpc/revoke-invite-response
-const encoding54 = {
+const encoding56 = {
   preencode(state, m) {
     state.end++ // max flag is 1 so always one byte
   },
@@ -1594,7 +1637,7 @@ const encoding54 = {
 }
 
 // @bonk-docs-rpc/pair-invite-request
-const encoding55 = {
+const encoding57 = {
   preencode(state, m) {
     c.string.preencode(state, m.invite)
   },
@@ -1611,17 +1654,17 @@ const encoding55 = {
 }
 
 // @bonk-docs-rpc/pair-status.doc
-const encoding56_3 = encoding33_0
+const encoding58_3 = encoding35_0
 
 // @bonk-docs-rpc/pair-status
-const encoding56 = {
+const encoding58 = {
   preencode(state, m) {
     c.string.preencode(state, m.state)
     state.end++ // max flag is 8 so always one byte
 
     if (version >= 2 && m.message) c.string.preencode(state, m.message)
     if (version >= 2 && m.progress) c.uint.preencode(state, m.progress)
-    if (version >= 2 && m.doc) encoding56_3.preencode(state, m.doc)
+    if (version >= 2 && m.doc) encoding58_3.preencode(state, m.doc)
     if (version >= 2 && m.writerKey) c.string.preencode(state, m.writerKey)
   },
   encode(state, m) {
@@ -1636,7 +1679,7 @@ const encoding56 = {
 
     if (version >= 2 && m.message) c.string.encode(state, m.message)
     if (version >= 2 && m.progress) c.uint.encode(state, m.progress)
-    if (version >= 2 && m.doc) encoding56_3.encode(state, m.doc)
+    if (version >= 2 && m.doc) encoding58_3.encode(state, m.doc)
     if (version >= 2 && m.writerKey) c.string.encode(state, m.writerKey)
   },
   decode(state) {
@@ -1647,7 +1690,7 @@ const encoding56 = {
       state: r0,
       message: (version >= 2 && (flags & 1) !== 0) ? c.string.decode(state) : null,
       progress: (version >= 2 && (flags & 2) !== 0) ? c.uint.decode(state) : 0,
-      doc: (version >= 2 && (flags & 4) !== 0) ? encoding56_3.decode(state) : null,
+      doc: (version >= 2 && (flags & 4) !== 0) ? encoding58_3.decode(state) : null,
       writerKey: (version >= 2 && (flags & 8) !== 0) ? c.string.decode(state) : null
     }
   }
@@ -1740,56 +1783,60 @@ function getEncoding(name) {
       return encoding30
     case '@bonk-docs-rpc/list-docs-response':
       return encoding31
-    case '@bonk-docs-rpc/create-doc-request':
+    case '@bonk-docs-rpc/set-public-profile-request':
       return encoding32
-    case '@bonk-docs-rpc/create-doc-response':
+    case '@bonk-docs-rpc/set-public-profile-response':
       return encoding33
-    case '@bonk-docs-rpc/join-doc-request':
+    case '@bonk-docs-rpc/create-doc-request':
       return encoding34
-    case '@bonk-docs-rpc/join-doc-response':
+    case '@bonk-docs-rpc/create-doc-response':
       return encoding35
-    case '@bonk-docs-rpc/remove-doc-request':
+    case '@bonk-docs-rpc/join-doc-request':
       return encoding36
-    case '@bonk-docs-rpc/remove-doc-response':
+    case '@bonk-docs-rpc/join-doc-response':
       return encoding37
-    case '@bonk-docs-rpc/rename-doc-request':
+    case '@bonk-docs-rpc/remove-doc-request':
       return encoding38
-    case '@bonk-docs-rpc/rename-doc-response':
+    case '@bonk-docs-rpc/remove-doc-response':
       return encoding39
-    case '@bonk-docs-rpc/lock-doc-request':
+    case '@bonk-docs-rpc/rename-doc-request':
       return encoding40
-    case '@bonk-docs-rpc/lock-doc-response':
+    case '@bonk-docs-rpc/rename-doc-response':
       return encoding41
-    case '@bonk-docs-rpc/get-doc-request':
+    case '@bonk-docs-rpc/lock-doc-request':
       return encoding42
-    case '@bonk-docs-rpc/get-doc-response':
+    case '@bonk-docs-rpc/lock-doc-response':
       return encoding43
-    case '@bonk-docs-rpc/watch-doc-request':
+    case '@bonk-docs-rpc/get-doc-request':
       return encoding44
-    case '@bonk-docs-rpc/apply-updates-request':
+    case '@bonk-docs-rpc/get-doc-response':
       return encoding45
-    case '@bonk-docs-rpc/apply-updates-response':
+    case '@bonk-docs-rpc/watch-doc-request':
       return encoding46
-    case '@bonk-docs-rpc/apply-awareness-request':
+    case '@bonk-docs-rpc/apply-updates-request':
       return encoding47
-    case '@bonk-docs-rpc/apply-awareness-response':
+    case '@bonk-docs-rpc/apply-updates-response':
       return encoding48
-    case '@bonk-docs-rpc/list-invites-request':
+    case '@bonk-docs-rpc/apply-awareness-request':
       return encoding49
-    case '@bonk-docs-rpc/list-invites-response':
+    case '@bonk-docs-rpc/apply-awareness-response':
       return encoding50
-    case '@bonk-docs-rpc/create-invite-request':
+    case '@bonk-docs-rpc/list-invites-request':
       return encoding51
-    case '@bonk-docs-rpc/create-invite-response':
+    case '@bonk-docs-rpc/list-invites-response':
       return encoding52
-    case '@bonk-docs-rpc/revoke-invite-request':
+    case '@bonk-docs-rpc/create-invite-request':
       return encoding53
-    case '@bonk-docs-rpc/revoke-invite-response':
+    case '@bonk-docs-rpc/create-invite-response':
       return encoding54
-    case '@bonk-docs-rpc/pair-invite-request':
+    case '@bonk-docs-rpc/revoke-invite-request':
       return encoding55
-    case '@bonk-docs-rpc/pair-status':
+    case '@bonk-docs-rpc/revoke-invite-response':
       return encoding56
+    case '@bonk-docs-rpc/pair-invite-request':
+      return encoding57
+    case '@bonk-docs-rpc/pair-status':
+      return encoding58
     default:
       throw new Error('Encoder not found ' + name)
   }

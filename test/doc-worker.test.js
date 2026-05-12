@@ -52,6 +52,21 @@ test('DocWorker creates and lists docs with Pear identity', async (t) => {
   t.ok(identity?.identityKey, 'Pear identity returned')
 })
 
+test('DocWorker updates public display name', async (t) => {
+  const { dir, cleanup } = await createTempDir('doc-worker-public-profile')
+  t.teardown(cleanup)
+
+  const worker = new DocWorker({ baseDir: dir })
+  t.teardown(() => worker.close())
+  await worker.ready()
+
+  const result = await worker.setPublicProfile({ displayName: 'Ada' })
+  const identity = await worker.getIdentity()
+
+  t.is(result.identity.profile.displayName, 'Ada')
+  t.is(identity.profile.displayName, 'Ada')
+})
+
 test('DocWorker watch emits Yjs sync updates', async (t) => {
   const { dir, cleanup } = await createTempDir('doc-worker-pear-sync')
   t.teardown(cleanup)

@@ -156,6 +156,24 @@ rpc.register({
 })
 
 rpc.register({
+  name: 'set-public-profile-request',
+  compact: false,
+  fields: [{ name: 'displayName', type: 'string', required: false }]
+})
+
+rpc.register({
+  name: 'set-public-profile-response',
+  compact: false,
+  fields: [
+    {
+      name: 'identity',
+      type: '@bonk-docs-rpc/identity-summary',
+      required: true
+    }
+  ]
+})
+
+rpc.register({
   name: 'create-doc-request',
   compact: false,
   fields: [{ name: 'title', type: 'string', required: false }]
@@ -389,6 +407,12 @@ workerRpc.register({
   name: 'list-docs',
   request: { name: '@bonk-docs-rpc/list-docs-request' },
   response: { name: '@bonk-docs-rpc/list-docs-response' }
+})
+
+workerRpc.register({
+  name: 'set-public-profile',
+  request: { name: '@bonk-docs-rpc/set-public-profile-request' },
+  response: { name: '@bonk-docs-rpc/set-public-profile-response' }
 })
 
 workerRpc.register({

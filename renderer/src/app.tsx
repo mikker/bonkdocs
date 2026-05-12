@@ -541,6 +541,7 @@ function DocsSidebar({ ...props }) {
   const docs = useDocState((state) => state.docs)
   const loading = useDocState((state) => state.loading)
   const identity = useDocState((state) => state.identity)
+  const setPublicProfile = useDocState((state) => state.setPublicProfile)
   const selectDoc = useDocState((state) => state.selectDoc)
   const createDoc = useDocState((state) => state.createDoc)
   const creatingDoc = useDocState((state) => state.creatingDoc)
@@ -581,7 +582,10 @@ function DocsSidebar({ ...props }) {
         <SidebarGroup>
           <SidebarGroupLabel>Identity</SidebarGroupLabel>
           <SidebarGroupContent>
-            <IdentitySection identity={identity} />
+            <IdentitySection
+              identity={identity}
+              setPublicProfile={setPublicProfile}
+            />
           </SidebarGroupContent>
         </SidebarGroup>
         <SidebarGroup>
@@ -638,10 +642,16 @@ function DocsSidebar({ ...props }) {
 }
 
 function IdentitySection({
-  identity
+  identity,
+  setPublicProfile
 }: {
   identity: ReturnType<typeof useDocStore.getState>['identity']
+  setPublicProfile: ReturnType<typeof useDocStore.getState>['setPublicProfile']
 }) {
+  const [editing, setEditing] = useState(false)
+  const [displayNameValue, setDisplayNameValue] = useState('')
+  const [saving, setSaving] = useState(false)
+
   if (!identity) {
     return (
       <div className='px-2 text-sm text-muted-foreground space-y-2'>
@@ -659,6 +669,26 @@ function IdentitySection({
   const bio =
     typeof identity.profile?.bio === 'string' ? identity.profile.bio.trim() : ''
 
+  const openEditor = () => {
+    setDisplayNameValue(identity.profile?.displayName?.trim() ?? '')
+    setEditing(true)
+  }
+
+  const handleSave = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    setSaving(true)
+    try {
+      await setPublicProfile({ displayName: displayNameValue })
+      setEditing(false)
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Failed to update profile'
+      toast.error('Profile update failed', { description: message })
+    } finally {
+      setSaving(false)
+    }
+  }
+
   return (
     <div className='px-2 text-sm space-y-2'>
       <div className='flex items-center gap-3'>
@@ -668,15 +698,43 @@ function IdentitySection({
           size='lg'
           ariaLabel={displayName}
         />
-        <div className='min-w-0 space-y-1'>
+        <div className='min-w-0 flex-1 space-y-1'>
           <div className='font-medium truncate'>{displayName}</div>
           <div className='text-muted-foreground font-mono text-xs truncate'>
             {identity.identityKey}
           </div>
         </div>
+        <Button size='icon-sm' variant='ghost' onClick={openEditor}>
+          <Pencil className='h-3.5 w-3.5' />
+        </Button>
       </div>
       {bio ? (
         <p className='text-muted-foreground text-xs leading-5'>{bio}</p>
+      ) : null}
+      {editing ? (
+        <form className='space-y-2' onSubmit={handleSave}>
+          <Input
+            value={displayNameValue}
+            onChange={(event) => setDisplayNameValue(event.target.value)}
+            maxLength={80}
+            placeholder='Public display name'
+            autoFocus
+          />
+          <div className='flex justify-end gap-2'>
+            <Button
+              type='button'
+              size='sm'
+              variant='outline'
+              disabled={saving}
+              onClick={() => setEditing(false)}
+            >
+              Cancel
+            </Button>
+            <Button type='submit' size='sm' disabled={saving}>
+              {saving ? 'Saving…' : 'Save'}
+            </Button>
+          </div>
+        </form>
       ) : null}
     </div>
   )

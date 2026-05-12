@@ -56,6 +56,23 @@ export class DocWorker {
     }
   }
 
+  async setPublicProfile(request = {}) {
+    await this.ready()
+    const displayName =
+      typeof request.displayName === 'string'
+        ? request.displayName.trim().slice(0, 80)
+        : ''
+    const current = await this.manager.manager.profile.public.get()
+    const next = {
+      ...(current || {}),
+      displayName: displayName || null,
+      updatedAt: Date.now()
+    }
+
+    await this.manager.manager.profile.public.set(next)
+    return { identity: await this.getIdentity() }
+  }
+
   async listDocs() {
     await this.ready()
     const records = await this.manager.listDocs()

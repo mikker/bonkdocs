@@ -10,32 +10,34 @@ const methods = new Map([
   [0, '@bonk-docs/initialize'],
   ['@bonk-docs/list-docs', 1],
   [1, '@bonk-docs/list-docs'],
-  ['@bonk-docs/create-doc', 2],
-  [2, '@bonk-docs/create-doc'],
-  ['@bonk-docs/join-doc', 3],
-  [3, '@bonk-docs/join-doc'],
-  ['@bonk-docs/pair-invite', 4],
-  [4, '@bonk-docs/pair-invite'],
-  ['@bonk-docs/remove-doc', 5],
-  [5, '@bonk-docs/remove-doc'],
-  ['@bonk-docs/get-doc', 6],
-  [6, '@bonk-docs/get-doc'],
-  ['@bonk-docs/watch-doc', 7],
-  [7, '@bonk-docs/watch-doc'],
-  ['@bonk-docs/apply-updates', 8],
-  [8, '@bonk-docs/apply-updates'],
-  ['@bonk-docs/apply-awareness', 9],
-  [9, '@bonk-docs/apply-awareness'],
-  ['@bonk-docs/list-invites', 10],
-  [10, '@bonk-docs/list-invites'],
-  ['@bonk-docs/create-invite', 11],
-  [11, '@bonk-docs/create-invite'],
-  ['@bonk-docs/revoke-invite', 12],
-  [12, '@bonk-docs/revoke-invite'],
-  ['@bonk-docs/rename-doc', 13],
-  [13, '@bonk-docs/rename-doc'],
-  ['@bonk-docs/lock-doc', 14],
-  [14, '@bonk-docs/lock-doc']
+  ['@bonk-docs/set-public-profile', 2],
+  [2, '@bonk-docs/set-public-profile'],
+  ['@bonk-docs/create-doc', 3],
+  [3, '@bonk-docs/create-doc'],
+  ['@bonk-docs/join-doc', 4],
+  [4, '@bonk-docs/join-doc'],
+  ['@bonk-docs/pair-invite', 5],
+  [5, '@bonk-docs/pair-invite'],
+  ['@bonk-docs/remove-doc', 6],
+  [6, '@bonk-docs/remove-doc'],
+  ['@bonk-docs/get-doc', 7],
+  [7, '@bonk-docs/get-doc'],
+  ['@bonk-docs/watch-doc', 8],
+  [8, '@bonk-docs/watch-doc'],
+  ['@bonk-docs/apply-updates', 9],
+  [9, '@bonk-docs/apply-updates'],
+  ['@bonk-docs/apply-awareness', 10],
+  [10, '@bonk-docs/apply-awareness'],
+  ['@bonk-docs/list-invites', 11],
+  [11, '@bonk-docs/list-invites'],
+  ['@bonk-docs/create-invite', 12],
+  [12, '@bonk-docs/create-invite'],
+  ['@bonk-docs/revoke-invite', 13],
+  [13, '@bonk-docs/revoke-invite'],
+  ['@bonk-docs/rename-doc', 14],
+  [14, '@bonk-docs/rename-doc'],
+  ['@bonk-docs/lock-doc', 15],
+  [15, '@bonk-docs/lock-doc']
 ])
 
 class HRPC {
@@ -45,6 +47,7 @@ class HRPC {
     this._requestEncodings = new Map([
       ['@bonk-docs/initialize', getEncoding('@bonk-docs-rpc/initialize-request')],
       ['@bonk-docs/list-docs', getEncoding('@bonk-docs-rpc/list-docs-request')],
+      ['@bonk-docs/set-public-profile', getEncoding('@bonk-docs-rpc/set-public-profile-request')],
       ['@bonk-docs/create-doc', getEncoding('@bonk-docs-rpc/create-doc-request')],
       ['@bonk-docs/join-doc', getEncoding('@bonk-docs-rpc/join-doc-request')],
       ['@bonk-docs/pair-invite', getEncoding('@bonk-docs-rpc/pair-invite-request')],
@@ -62,6 +65,7 @@ class HRPC {
     this._responseEncodings = new Map([
       ['@bonk-docs/initialize', getEncoding('@bonk-docs-rpc/initialize-response')],
       ['@bonk-docs/list-docs', getEncoding('@bonk-docs-rpc/list-docs-response')],
+      ['@bonk-docs/set-public-profile', getEncoding('@bonk-docs-rpc/set-public-profile-response')],
       ['@bonk-docs/create-doc', getEncoding('@bonk-docs-rpc/create-doc-response')],
       ['@bonk-docs/join-doc', getEncoding('@bonk-docs-rpc/join-doc-response')],
       ['@bonk-docs/pair-invite', getEncoding('@bonk-docs-rpc/pair-status')],
@@ -180,6 +184,10 @@ class HRPC {
     return this._call('@bonk-docs/list-docs', args)
   }
 
+  async setPublicProfile(args) {
+    return this._call('@bonk-docs/set-public-profile', args)
+  }
+
   async createDoc(args) {
     return this._call('@bonk-docs/create-doc', args)
   }
@@ -238,6 +246,10 @@ class HRPC {
 
   onListDocs(responseFn) {
     this._handlers['@bonk-docs/list-docs'] = responseFn
+  }
+
+  onSetPublicProfile(responseFn) {
+    this._handlers['@bonk-docs/set-public-profile'] = responseFn
   }
 
   onCreateDoc(responseFn) {

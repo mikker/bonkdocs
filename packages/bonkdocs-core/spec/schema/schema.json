@@ -1101,6 +1101,34 @@
       ]
     },
     {
+      "name": "set-public-profile-request",
+      "namespace": "bonk-docs-rpc",
+      "compact": false,
+      "flagsPosition": 0,
+      "fields": [
+        {
+          "name": "displayName",
+          "required": false,
+          "type": "string",
+          "version": 2
+        }
+      ]
+    },
+    {
+      "name": "set-public-profile-response",
+      "namespace": "bonk-docs-rpc",
+      "compact": false,
+      "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "identity",
+          "required": true,
+          "type": "@bonk-docs-rpc/identity-summary",
+          "version": 2
+        }
+      ]
+    },
+    {
       "name": "create-doc-request",
       "namespace": "bonk-docs-rpc",
       "compact": false,

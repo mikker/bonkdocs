@@ -77,6 +77,11 @@ export function createRpcServer(stream, worker) {
     return { docs }
   })
 
+  rpc.onSetPublicProfile(async (request = {}) => {
+    console.log('[worker] set-public-profile request')
+    return await worker.setPublicProfile({ displayName: request.displayName })
+  })
+
   rpc.onCreateDoc(async (request = {}) => {
     console.log('[worker] create-doc request')
     return await worker.createDoc({

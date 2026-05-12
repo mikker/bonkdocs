@@ -136,6 +136,7 @@ type DocStore = {
   createDoc: (title?: string) => Promise<void>
   joinDoc: (invite: string, options?: JoinDocOptions) => Promise<void>
   renameDoc: (key: string, title: string) => Promise<void>
+  setPublicProfile: (profile: { displayName?: string | null }) => Promise<void>
   lockDoc: (key: string) => Promise<void>
   abandonDoc: (key: string) => Promise<void>
   loadInvites: (
@@ -344,7 +345,20 @@ function getSession(key: string): DocSession {
   return session
 }
 
+function clearLocalAwareness(session: DocSession) {
+  try {
+    if (!session.awareness.getLocalState()) return
+    const clientId = session.awareness.clientID
+    session.awareness.setLocalState(null)
+    const update = encodeAwarenessUpdate(session.awareness, [clientId])
+    void getRpc()
+      .applyAwareness({ key: session.key, update })
+      .catch(() => {})
+  } catch {}
+}
+
 function destroySession(session: DocSession) {
+  clearLocalAwareness(session)
   if (session.flushTimer) {
     clearTimeout(session.flushTimer)
     session.flushTimer = null
@@ -859,6 +873,15 @@ export const useDocStore = create<DocStore>((set, get) => ({
     } finally {
       set({ creatingDoc: false })
     }
+  },
+  setPublicProfile: async (profile) => {
+    const displayName =
+      typeof profile.displayName === 'string' ? profile.displayName : null
+    const rpc = getRpc()
+    const response = await rpc.setPublicProfile({ displayName })
+    const identity = response?.identity ?? null
+    set({ identity })
+    updateLocalUserFromIdentity(set, get, identity)
   },
   renameDoc: async (key, title) => {
     if (!key) return
