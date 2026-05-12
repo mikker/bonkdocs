@@ -154,7 +154,6 @@ type DocStore = {
 }
 
 const REMOTE_ORIGIN = 'remote'
-const DEFAULT_JOIN_TIMEOUT = 15000
 const UPDATE_FLUSH_MS = 50
 const AWARENESS_FLUSH_MS = 120
 const WATCH_RECONNECT_BASE_MS = 400
@@ -982,146 +981,40 @@ export const useDocStore = create<DocStore>((set, get) => ({
   },
   joinDoc: async (invite, options) => {
     const trimmed = typeof invite === 'string' ? invite.trim() : ''
-    if (!trimmed) {
-      throw new Error('Invite code is required')
-    }
+    if (!trimmed) throw new Error('Invite code is required')
+    if (options?.signal?.aborted) throw new Error('Join cancelled')
 
-    const onStatus = options?.onStatus
-    const signal = options?.signal
-    const timeoutMs = Math.max(1000, options?.timeoutMs ?? DEFAULT_JOIN_TIMEOUT)
     const rpc = getRpc()
-    const stream = rpc.pairInvite({ invite: trimmed })
+    options?.onStatus?.({ state: 'pairing', message: 'Joining document…' })
 
-    return await new Promise<void>((resolve, reject) => {
-      let resolved = false
-      let finished = false
-      let timeoutId: ReturnType<typeof setTimeout> | null = null
+    try {
+      const response = await rpc.joinDoc({ invite: trimmed })
+      const doc = response?.doc
+      if (!doc) throw new Error('Join response missing document')
 
-      const clearJoinTimeout = () => {
-        if (timeoutId !== null) {
-          clearTimeout(timeoutId)
-          timeoutId = null
-        }
-      }
-
-      const cleanup = () => {
-        clearJoinTimeout()
-        if (signal) {
-          signal.removeEventListener('abort', handleAbort)
-        }
-        if (typeof stream.off === 'function') {
-          stream.off('data', handleStatus)
-          stream.off('error', handleError)
-          stream.off('close', handleClose)
-        }
-        if (!stream.destroyed) {
-          try {
-            stream.destroy()
-          } catch {}
-        }
-      }
-
-      const succeed = () => {
-        if (finished) return
-        finished = true
-        resolved = true
-        cleanup()
-        resolve()
-      }
-
-      const fail = (reason: Error) => {
-        if (finished) return
-        finished = true
-        cleanup()
-        reject(reason)
-      }
-
-      const handleAbort = () => {
-        fail(new Error('Join cancelled'))
-      }
-
-      const handleTimeout = () => {
-        if (resolved || finished) return
-        const error = new Error('Timed out waiting for peers')
-        set({ error: error.message })
-        fail(error)
-      }
-
-      const refreshTimeout = () => {
-        if (timeoutMs <= 0 || finished) return
-        clearJoinTimeout()
-        timeoutId = setTimeout(handleTimeout, timeoutMs)
-      }
-
-      if (signal) {
-        if (signal.aborted) {
-          handleAbort()
-          return
-        }
-        signal.addEventListener('abort', handleAbort, { once: true })
-      }
-
-      const handleStatus = (payload: unknown) => {
-        refreshTimeout()
-        const status = normalizePairStatus(payload)
-        if (onStatus) {
-          onStatus(status)
-        }
-
-        if (status.state === 'joined') {
-          const doc = status.doc
-          if (!doc) {
-            fail(new Error('Join response missing document'))
-            return
-          }
-
-          set((state) => ({
-            docs: [
-              doc,
-              ...state.docs.filter((existing) => existing.key !== doc.key)
-            ],
-            error: null
-          }))
-
-          Promise.resolve()
-            .then(() => {
-              updateLocalUserFromKey(set, get, status.writerKey)
-            })
-            .then(() => get().selectDoc(doc.key))
-            .then(() => {
-              succeed()
-            })
-            .catch((error) => {
-              const reason =
-                error instanceof Error ? error : new Error(String(error))
-              fail(reason)
-            })
-        } else if (status.state === 'error') {
-          const message =
-            status.message && status.message.length > 0
-              ? status.message
-              : 'Failed to join document'
-          set({ error: message })
-          fail(new Error(message))
-        }
-      }
-
-      const handleError = (error: Error) => {
-        if (resolved || finished) return
-        fail(error)
-      }
-
-      const handleClose = () => {
-        if (resolved || finished) return
-        fail(new Error('Join cancelled'))
-      }
-
-      stream.on('data', handleStatus)
-      stream.on('error', handleError)
-      stream.on('close', handleClose)
-
-      refreshTimeout()
-    })
+      set((state) => ({
+        docs: [
+          doc,
+          ...state.docs.filter((existing) => existing.key !== doc.key)
+        ],
+        error: null
+      }))
+      updateLocalUserFromKey(set, get, response?.writerKey)
+      options?.onStatus?.({
+        state: 'joined',
+        message: 'Document joined',
+        progress: 100,
+        doc,
+        writerKey: response?.writerKey ?? null
+      })
+      await get().selectDoc(doc.key)
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Failed to join document'
+      set({ error: message })
+      options?.onStatus?.({ state: 'error', message })
+      throw error instanceof Error ? error : new Error(message)
+    }
   },
   lockDoc: async (key) => {
     if (!key) return
@@ -1329,82 +1222,3 @@ export const useDocStore = create<DocStore>((set, get) => ({
     await get().loadInvites(activeDoc, { includeRevoked: false })
   }
 }))
-
-function normalizePairStatus(value: unknown): DocPairStatus {
-  if (!isPlainObject(value)) {
-    return { state: 'unknown', message: null, progress: null, doc: null }
-  }
-
-  const state = typeof value.state === 'string' ? value.state : 'unknown'
-  const message =
-    typeof value.message === 'string' && value.message.length > 0
-      ? value.message
-      : null
-  const progress =
-    typeof value.progress === 'number' && Number.isFinite(value.progress)
-      ? value.progress
-      : null
-
-  let doc: DocRecord | null = null
-  const candidate = value.doc
-  if (isPlainObject(candidate) && typeof candidate.key === 'string') {
-    doc = {
-      key: candidate.key,
-      encryptionKey:
-        typeof candidate.encryptionKey === 'string'
-          ? candidate.encryptionKey
-          : '',
-      createdAt:
-        typeof candidate.createdAt === 'number'
-          ? candidate.createdAt
-          : Date.now(),
-      joinedAt:
-        typeof candidate.joinedAt === 'number'
-          ? candidate.joinedAt
-          : candidate.createdAt && Number.isFinite(candidate.createdAt)
-            ? Number(candidate.createdAt)
-            : null,
-      isCreator: candidate.isCreator === true,
-      title:
-        typeof candidate.title === 'string' && candidate.title.length > 0
-          ? candidate.title
-          : null,
-      lastRevision:
-        typeof candidate.lastRevision === 'number'
-          ? candidate.lastRevision
-          : null,
-      lastOpenedAt:
-        typeof candidate.lastOpenedAt === 'number'
-          ? candidate.lastOpenedAt
-          : null,
-      lockedAt:
-        typeof candidate.lockedAt === 'number' &&
-        Number.isFinite(candidate.lockedAt)
-          ? candidate.lockedAt
-          : null,
-      lockedBy:
-        typeof candidate.lockedBy === 'string' && candidate.lockedBy.length > 0
-          ? candidate.lockedBy
-          : null
-    }
-  }
-
-  const writerKey =
-    typeof value.writerKey === 'string' && value.writerKey.length > 0
-      ? value.writerKey
-      : null
-
-  return {
-    state,
-    message,
-    progress,
-    doc,
-    writerKey
-  }
-}
-
-function isPlainObject(
-  value: unknown
-): value is Record<string | number | symbol, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
-}

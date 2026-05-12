@@ -1636,66 +1636,6 @@ const encoding56 = {
   }
 }
 
-// @bonk-docs-rpc/pair-invite-request
-const encoding57 = {
-  preencode(state, m) {
-    c.string.preencode(state, m.invite)
-  },
-  encode(state, m) {
-    c.string.encode(state, m.invite)
-  },
-  decode(state) {
-    const r0 = c.string.decode(state)
-
-    return {
-      invite: r0
-    }
-  }
-}
-
-// @bonk-docs-rpc/pair-status.doc
-const encoding58_3 = encoding35_0
-
-// @bonk-docs-rpc/pair-status
-const encoding58 = {
-  preencode(state, m) {
-    c.string.preencode(state, m.state)
-    state.end++ // max flag is 8 so always one byte
-
-    if (version >= 2 && m.message) c.string.preencode(state, m.message)
-    if (version >= 2 && m.progress) c.uint.preencode(state, m.progress)
-    if (version >= 2 && m.doc) encoding58_3.preencode(state, m.doc)
-    if (version >= 2 && m.writerKey) c.string.preencode(state, m.writerKey)
-  },
-  encode(state, m) {
-    const flags =
-      ((version >= 2 && m.message) ? 1 : 0) |
-      ((version >= 2 && m.progress) ? 2 : 0) |
-      ((version >= 2 && m.doc) ? 4 : 0) |
-      ((version >= 2 && m.writerKey) ? 8 : 0)
-
-    c.string.encode(state, m.state)
-    c.uint.encode(state, flags)
-
-    if (version >= 2 && m.message) c.string.encode(state, m.message)
-    if (version >= 2 && m.progress) c.uint.encode(state, m.progress)
-    if (version >= 2 && m.doc) encoding58_3.encode(state, m.doc)
-    if (version >= 2 && m.writerKey) c.string.encode(state, m.writerKey)
-  },
-  decode(state) {
-    const r0 = c.string.decode(state)
-    const flags = c.uint.decode(state)
-
-    return {
-      state: r0,
-      message: (version >= 2 && (flags & 1) !== 0) ? c.string.decode(state) : null,
-      progress: (version >= 2 && (flags & 2) !== 0) ? c.uint.decode(state) : 0,
-      doc: (version >= 2 && (flags & 4) !== 0) ? encoding58_3.decode(state) : null,
-      writerKey: (version >= 2 && (flags & 8) !== 0) ? c.string.decode(state) : null
-    }
-  }
-}
-
 function setVersion(v) {
   version = v
 }
@@ -1833,10 +1773,6 @@ function getEncoding(name) {
       return encoding55
     case '@bonk-docs-rpc/revoke-invite-response':
       return encoding56
-    case '@bonk-docs-rpc/pair-invite-request':
-      return encoding57
-    case '@bonk-docs-rpc/pair-status':
-      return encoding58
     default:
       throw new Error('Encoder not found ' + name)
   }

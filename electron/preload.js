@@ -12,18 +12,6 @@ contextBridge.exposeInMainWorld('bridge', {
     return () => ipcRenderer.removeListener('pear:event:' + name, wrap)
   },
   startWorker: (specifier) => ipcRenderer.invoke('pear:startWorker', specifier),
-  onWorkerStdout: (specifier, listener) => {
-    const wrap = (evt, data) => listener(Buffer.from(data))
-    ipcRenderer.on('pear:worker:stdout:' + specifier, wrap)
-    return () =>
-      ipcRenderer.removeListener('pear:worker:stdout:' + specifier, wrap)
-  },
-  onWorkerStderr: (specifier, listener) => {
-    const wrap = (evt, data) => listener(Buffer.from(data))
-    ipcRenderer.on('pear:worker:stderr:' + specifier, wrap)
-    return () =>
-      ipcRenderer.removeListener('pear:worker:stderr:' + specifier, wrap)
-  },
   onWorkerIPC: (specifier, listener) => {
     const wrap = (evt, data) => listener(Buffer.from(data))
     ipcRenderer.on('pear:worker:ipc:' + specifier, wrap)

@@ -121,21 +121,6 @@ export class DocWorker {
     }
   }
 
-  async pairInvite(options = {}, onStatus) {
-    if (!options.invite) throw new Error('Invite is required to join doc')
-
-    console.log('[doc-worker] joining document invite')
-    await onStatus?.({ state: 'pairing', message: 'Joining document…' })
-    const result = await this.joinDoc(options)
-    await onStatus?.({
-      state: 'joined',
-      message: 'Document joined',
-      progress: 100,
-      doc: result.doc,
-      writerKey: result.writerKey
-    })
-  }
-
   async removeDoc(keyHex) {
     await this.ready()
     this._stopWatchers(keyHex)

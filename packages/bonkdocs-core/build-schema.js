@@ -372,24 +372,6 @@ rpc.register({
   fields: [{ name: 'revoked', type: 'bool', required: true }]
 })
 
-rpc.register({
-  name: 'pair-invite-request',
-  compact: false,
-  fields: [{ name: 'invite', type: 'string', required: true }]
-})
-
-rpc.register({
-  name: 'pair-status',
-  compact: false,
-  fields: [
-    { name: 'state', type: 'string', required: true },
-    { name: 'message', type: 'string', required: false },
-    { name: 'progress', type: 'uint', required: false },
-    { name: 'doc', type: '@local/doc', required: false },
-    { name: 'writerKey', type: 'string', required: false }
-  ]
-})
-
 Hyperschema.toDisk(schema)
 
 // --- HRPC ----------------------------------------------------------------
@@ -425,12 +407,6 @@ workerRpc.register({
   name: 'join-doc',
   request: { name: '@bonk-docs-rpc/join-doc-request' },
   response: { name: '@bonk-docs-rpc/join-doc-response' }
-})
-
-workerRpc.register({
-  name: 'pair-invite',
-  request: { name: '@bonk-docs-rpc/pair-invite-request' },
-  response: { name: '@bonk-docs-rpc/pair-status', stream: true }
 })
 
 workerRpc.register({

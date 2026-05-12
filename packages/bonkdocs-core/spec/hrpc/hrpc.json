@@ -58,18 +58,6 @@
     },
     {
       "id": 5,
-      "name": "@bonk-docs/pair-invite",
-      "request": {
-        "name": "@bonk-docs-rpc/pair-invite-request"
-      },
-      "response": {
-        "name": "@bonk-docs-rpc/pair-status",
-        "stream": true
-      },
-      "version": 1
-    },
-    {
-      "id": 6,
       "name": "@bonk-docs/remove-doc",
       "request": {
         "name": "@bonk-docs-rpc/remove-doc-request"
@@ -80,7 +68,7 @@
       "version": 1
     },
     {
-      "id": 7,
+      "id": 6,
       "name": "@bonk-docs/get-doc",
       "request": {
         "name": "@bonk-docs-rpc/get-doc-request"
@@ -91,7 +79,7 @@
       "version": 1
     },
     {
-      "id": 8,
+      "id": 7,
       "name": "@bonk-docs/watch-doc",
       "request": {
         "name": "@bonk-docs-rpc/watch-doc-request"
@@ -103,7 +91,7 @@
       "version": 1
     },
     {
-      "id": 9,
+      "id": 8,
       "name": "@bonk-docs/apply-updates",
       "request": {
         "name": "@bonk-docs-rpc/apply-updates-request"
@@ -114,7 +102,7 @@
       "version": 1
     },
     {
-      "id": 10,
+      "id": 9,
       "name": "@bonk-docs/apply-awareness",
       "request": {
         "name": "@bonk-docs-rpc/apply-awareness-request"
@@ -125,7 +113,7 @@
       "version": 1
     },
     {
-      "id": 11,
+      "id": 10,
       "name": "@bonk-docs/list-invites",
       "request": {
         "name": "@bonk-docs-rpc/list-invites-request"
@@ -136,7 +124,7 @@
       "version": 1
     },
     {
-      "id": 12,
+      "id": 11,
       "name": "@bonk-docs/create-invite",
       "request": {
         "name": "@bonk-docs-rpc/create-invite-request"
@@ -147,7 +135,7 @@
       "version": 1
     },
     {
-      "id": 13,
+      "id": 12,
       "name": "@bonk-docs/revoke-invite",
       "request": {
         "name": "@bonk-docs-rpc/revoke-invite-request"
@@ -158,7 +146,7 @@
       "version": 1
     },
     {
-      "id": 14,
+      "id": 13,
       "name": "@bonk-docs/rename-doc",
       "request": {
         "name": "@bonk-docs-rpc/rename-doc-request"
@@ -169,7 +157,7 @@
       "version": 1
     },
     {
-      "id": 15,
+      "id": 14,
       "name": "@bonk-docs/lock-doc",
       "request": {
         "name": "@bonk-docs-rpc/lock-doc-request"

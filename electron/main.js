@@ -146,12 +146,10 @@ function getWorker(specifier) {
 
   function sendWorkerStdout(data) {
     process.stdout.write(data)
-    sendToAll('pear:worker:stdout:' + specifier, data)
   }
 
   function sendWorkerStderr(data) {
     process.stderr.write(data)
-    sendToAll('pear:worker:stderr:' + specifier, data)
   }
 
   function sendWorkerIPC(data) {

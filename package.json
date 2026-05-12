@@ -47,10 +47,6 @@
       "bare": "bare-crypto",
       "default": "crypto"
     },
-    "node:crypto": {
-      "bare": "bare-crypto",
-      "default": "node:crypto"
-    },
     "url": {
       "bare": "bare-url",
       "default": "url"
@@ -61,8 +57,6 @@
     "@radix-ui/react-dialog": "^1.1.15",
     "@radix-ui/react-dropdown-menu": "^2.1.16",
     "@radix-ui/react-label": "^2.1.8",
-    "@radix-ui/react-popover": "^1.1.15",
-    "@radix-ui/react-separator": "^1.1.8",
     "@radix-ui/react-slot": "^1.2.4",
     "@radix-ui/react-tooltip": "^1.2.8",
     "@tiptap/extension-collaboration": "^3.20.4",
@@ -80,7 +74,6 @@
     "bare-url": "^2.3.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "fs": "npm:bare-fs@^4.5.5",
     "hrpc": "^4.3.0",
     "hyperdb": "^6.6.0",
     "hyperdispatch": "^1.5.1",

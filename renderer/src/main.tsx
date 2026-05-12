@@ -2,10 +2,7 @@ import React from 'react'
 import { createRoot } from 'react-dom/client'
 import { App } from './app'
 import { teardownRpc } from './lib/rpc'
-import { ensurePearCompat } from './lib/pear-compat'
 import './global.css'
-
-ensurePearCompat()
 
 const rootElement = document.getElementById('root')
 
@@ -32,9 +29,8 @@ try {
     </React.StrictMode>
   )
 
-  window.Pear?.teardown(async () => {
-    console.log('teardown')
-    await teardownRpc()
+  window.addEventListener('beforeunload', () => {
+    void teardownRpc()
   })
 } catch (error) {
   console.error('Renderer bootstrap failed', error)

@@ -1566,58 +1566,6 @@
           "version": 2
         }
       ]
-    },
-    {
-      "name": "pair-invite-request",
-      "namespace": "bonk-docs-rpc",
-      "compact": false,
-      "flagsPosition": -1,
-      "fields": [
-        {
-          "name": "invite",
-          "required": true,
-          "type": "string",
-          "version": 2
-        }
-      ]
-    },
-    {
-      "name": "pair-status",
-      "namespace": "bonk-docs-rpc",
-      "compact": false,
-      "flagsPosition": 1,
-      "fields": [
-        {
-          "name": "state",
-          "required": true,
-          "type": "string",
-          "version": 2
-        },
-        {
-          "name": "message",
-          "required": false,
-          "type": "string",
-          "version": 2
-        },
-        {
-          "name": "progress",
-          "required": false,
-          "type": "uint",
-          "version": 2
-        },
-        {
-          "name": "doc",
-          "required": false,
-          "type": "@local/doc",
-          "version": 2
-        },
-        {
-          "name": "writerKey",
-          "required": false,
-          "type": "string",
-          "version": 2
-        }
-      ]
     }
   ]
 }
