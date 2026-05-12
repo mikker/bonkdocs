@@ -23,8 +23,11 @@ class Router {
     this._handler12 = null
     this._handler13 = null
     this._handler14 = null
+    this._handler15 = null
+    this._handler16 = null
+    this._handler17 = null
 
-    this._missing = 15
+    this._missing = 18
   }
 
   add (name, handler) {
@@ -32,47 +35,56 @@ class Router {
       case '@bonkdocs-doc/metadata-upsert':
         this._handler0 = handler
         break
-      case '@spaces/add-writer':
+      case '@pear/contract-upgrade':
         this._handler1 = handler
         break
-      case '@spaces/remove-writer':
+      case '@spaces/add-writer':
         this._handler2 = handler
         break
-      case '@spaces/add-invite':
+      case '@spaces/remove-writer':
         this._handler3 = handler
         break
-      case '@spaces/accept-invite':
+      case '@spaces/add-invite':
         this._handler4 = handler
         break
-      case '@spaces/revoke-invite':
+      case '@spaces/accept-invite':
         this._handler5 = handler
         break
-      case '@spaces/init':
+      case '@spaces/revoke-invite':
         this._handler6 = handler
         break
-      case '@spaces/define-role':
+      case '@spaces/init':
         this._handler7 = handler
         break
-      case '@spaces/grant-roles':
+      case '@spaces/define-role':
         this._handler8 = handler
         break
-      case '@spaces/revoke-roles':
+      case '@spaces/grant-roles':
         this._handler9 = handler
         break
-      case '@bonk-docs/yjs-append-update':
+      case '@spaces/revoke-roles':
         this._handler10 = handler
         break
-      case '@bonk-docs/yjs-save-snapshot':
+      case '@bonk-docs/yjs-append-update':
         this._handler11 = handler
         break
-      case '@bonk-docs/yjs-append-awareness':
+      case '@bonk-docs/yjs-save-snapshot':
         this._handler12 = handler
         break
-      case '@bonk-docs/lock-acquire':
+      case '@bonk-docs/yjs-append-awareness':
         this._handler13 = handler
         break
-      case '@bonk-docs/lock-release':
+      case '@bonk-docs/lock-acquire':
         this._handler14 = handler
+        break
+      case '@bonk-docs/lock-release':
+        this._handler15 = handler
+        break
+      case '@pear/data-set':
+        this._handler16 = handler
+        break
+      case '@pear/data-compare-and-set':
+        this._handler17 = handler
         break
       default:
         throw DispatchError.NONEXISTENT_ROUTE(name)
@@ -82,20 +94,23 @@ class Router {
 
   _checkAll () {
     assert(this._handler0 !== null, 'Missing handler for "@bonkdocs-doc/metadata-upsert"')
-    assert(this._handler1 !== null, 'Missing handler for "@spaces/add-writer"')
-    assert(this._handler2 !== null, 'Missing handler for "@spaces/remove-writer"')
-    assert(this._handler3 !== null, 'Missing handler for "@spaces/add-invite"')
-    assert(this._handler4 !== null, 'Missing handler for "@spaces/accept-invite"')
-    assert(this._handler5 !== null, 'Missing handler for "@spaces/revoke-invite"')
-    assert(this._handler6 !== null, 'Missing handler for "@spaces/init"')
-    assert(this._handler7 !== null, 'Missing handler for "@spaces/define-role"')
-    assert(this._handler8 !== null, 'Missing handler for "@spaces/grant-roles"')
-    assert(this._handler9 !== null, 'Missing handler for "@spaces/revoke-roles"')
-    assert(this._handler10 !== null, 'Missing handler for "@bonk-docs/yjs-append-update"')
-    assert(this._handler11 !== null, 'Missing handler for "@bonk-docs/yjs-save-snapshot"')
-    assert(this._handler12 !== null, 'Missing handler for "@bonk-docs/yjs-append-awareness"')
-    assert(this._handler13 !== null, 'Missing handler for "@bonk-docs/lock-acquire"')
-    assert(this._handler14 !== null, 'Missing handler for "@bonk-docs/lock-release"')
+    assert(this._handler1 !== null, 'Missing handler for "@pear/contract-upgrade"')
+    assert(this._handler2 !== null, 'Missing handler for "@spaces/add-writer"')
+    assert(this._handler3 !== null, 'Missing handler for "@spaces/remove-writer"')
+    assert(this._handler4 !== null, 'Missing handler for "@spaces/add-invite"')
+    assert(this._handler5 !== null, 'Missing handler for "@spaces/accept-invite"')
+    assert(this._handler6 !== null, 'Missing handler for "@spaces/revoke-invite"')
+    assert(this._handler7 !== null, 'Missing handler for "@spaces/init"')
+    assert(this._handler8 !== null, 'Missing handler for "@spaces/define-role"')
+    assert(this._handler9 !== null, 'Missing handler for "@spaces/grant-roles"')
+    assert(this._handler10 !== null, 'Missing handler for "@spaces/revoke-roles"')
+    assert(this._handler11 !== null, 'Missing handler for "@bonk-docs/yjs-append-update"')
+    assert(this._handler12 !== null, 'Missing handler for "@bonk-docs/yjs-save-snapshot"')
+    assert(this._handler13 !== null, 'Missing handler for "@bonk-docs/yjs-append-awareness"')
+    assert(this._handler14 !== null, 'Missing handler for "@bonk-docs/lock-acquire"')
+    assert(this._handler15 !== null, 'Missing handler for "@bonk-docs/lock-release"')
+    assert(this._handler16 !== null, 'Missing handler for "@pear/data-set"')
+    assert(this._handler17 !== null, 'Missing handler for "@pear/data-compare-and-set"')
   }
 
   async dispatch (message, context) {
@@ -138,6 +153,12 @@ class Router {
         return this._handler13(op.value, context)
       case 14:
         return this._handler14(op.value, context)
+      case 15:
+        return this._handler15(op.value, context)
+      case 16:
+        return this._handler16(op.value, context)
+      case 17:
+        return this._handler17(op.value, context)
       default:
         throw DispatchError.HANDLER_NOT_FOUND_BY_ID(op.id)
     }
@@ -178,121 +199,145 @@ const route0 = {
 }
 
 const route1 = {
-  name: '@spaces/add-writer',
+  name: '@pear/contract-upgrade',
   id: 1,
-  enc: getEncoding('@spaces/writer')
+  enc: getEncoding('@pear-contracts/upgrade')
 }
 
 const route2 = {
-  name: '@spaces/remove-writer',
+  name: '@spaces/add-writer',
   id: 2,
   enc: getEncoding('@spaces/writer')
 }
 
 const route3 = {
-  name: '@spaces/add-invite',
+  name: '@spaces/remove-writer',
   id: 3,
-  enc: getEncoding('@spaces/invite')
+  enc: getEncoding('@spaces/writer')
 }
 
 const route4 = {
-  name: '@spaces/accept-invite',
+  name: '@spaces/add-invite',
   id: 4,
-  enc: getEncoding('@spaces/accept-invite')
+  enc: getEncoding('@spaces/invite')
 }
 
 const route5 = {
-  name: '@spaces/revoke-invite',
+  name: '@spaces/accept-invite',
   id: 5,
-  enc: getEncoding('@spaces/revoke-invite')
+  enc: getEncoding('@spaces/accept-invite')
 }
 
 const route6 = {
-  name: '@spaces/init',
+  name: '@spaces/revoke-invite',
   id: 6,
-  enc: getEncoding('@spaces/space-init')
+  enc: getEncoding('@spaces/revoke-invite')
 }
 
 const route7 = {
-  name: '@spaces/define-role',
+  name: '@spaces/init',
   id: 7,
-  enc: getEncoding('@spaces/role-def')
+  enc: getEncoding('@spaces/space-init')
 }
 
 const route8 = {
-  name: '@spaces/grant-roles',
+  name: '@spaces/define-role',
   id: 8,
-  enc: getEncoding('@spaces/acl-entry')
+  enc: getEncoding('@spaces/role-def')
 }
 
 const route9 = {
-  name: '@spaces/revoke-roles',
+  name: '@spaces/grant-roles',
   id: 9,
   enc: getEncoding('@spaces/acl-entry')
 }
 
 const route10 = {
-  name: '@bonk-docs/yjs-append-update',
+  name: '@spaces/revoke-roles',
   id: 10,
-  enc: getEncoding('@bonk-docs/yjs-update-entry')
+  enc: getEncoding('@spaces/acl-entry')
 }
 
 const route11 = {
-  name: '@bonk-docs/yjs-save-snapshot',
+  name: '@bonk-docs/yjs-append-update',
   id: 11,
-  enc: getEncoding('@bonk-docs/yjs-snapshot')
+  enc: getEncoding('@bonk-docs/yjs-update-entry')
 }
 
 const route12 = {
-  name: '@bonk-docs/yjs-append-awareness',
+  name: '@bonk-docs/yjs-save-snapshot',
   id: 12,
-  enc: getEncoding('@bonk-docs/yjs-awareness-entry')
+  enc: getEncoding('@bonk-docs/yjs-snapshot')
 }
 
 const route13 = {
-  name: '@bonk-docs/lock-acquire',
+  name: '@bonk-docs/yjs-append-awareness',
   id: 13,
-  enc: getEncoding('@bonk-docs/lock-acquire')
+  enc: getEncoding('@bonk-docs/yjs-awareness-entry')
 }
 
 const route14 = {
-  name: '@bonk-docs/lock-release',
+  name: '@bonk-docs/lock-acquire',
   id: 14,
+  enc: getEncoding('@bonk-docs/lock-acquire')
+}
+
+const route15 = {
+  name: '@bonk-docs/lock-release',
+  id: 15,
   enc: getEncoding('@bonk-docs/lock-release')
+}
+
+const route16 = {
+  name: '@pear/data-set',
+  id: 16,
+  enc: getEncoding('@pear-data/write')
+}
+
+const route17 = {
+  name: '@pear/data-compare-and-set',
+  id: 17,
+  enc: getEncoding('@pear-data/compare-and-set')
 }
 
 function getRouteByName (name) {
   switch (name) {
     case '@bonkdocs-doc/metadata-upsert':
       return route0
-    case '@spaces/add-writer':
+    case '@pear/contract-upgrade':
       return route1
-    case '@spaces/remove-writer':
+    case '@spaces/add-writer':
       return route2
-    case '@spaces/add-invite':
+    case '@spaces/remove-writer':
       return route3
-    case '@spaces/accept-invite':
+    case '@spaces/add-invite':
       return route4
-    case '@spaces/revoke-invite':
+    case '@spaces/accept-invite':
       return route5
-    case '@spaces/init':
+    case '@spaces/revoke-invite':
       return route6
-    case '@spaces/define-role':
+    case '@spaces/init':
       return route7
-    case '@spaces/grant-roles':
+    case '@spaces/define-role':
       return route8
-    case '@spaces/revoke-roles':
+    case '@spaces/grant-roles':
       return route9
-    case '@bonk-docs/yjs-append-update':
+    case '@spaces/revoke-roles':
       return route10
-    case '@bonk-docs/yjs-save-snapshot':
+    case '@bonk-docs/yjs-append-update':
       return route11
-    case '@bonk-docs/yjs-append-awareness':
+    case '@bonk-docs/yjs-save-snapshot':
       return route12
-    case '@bonk-docs/lock-acquire':
+    case '@bonk-docs/yjs-append-awareness':
       return route13
-    case '@bonk-docs/lock-release':
+    case '@bonk-docs/lock-acquire':
       return route14
+    case '@bonk-docs/lock-release':
+      return route15
+    case '@pear/data-set':
+      return route16
+    case '@pear/data-compare-and-set':
+      return route17
     default:
       throw DispatchError.ROUTE_NOT_FOUND_BY_NAME(name)
   }
@@ -330,6 +375,12 @@ function getRouteById (id) {
       return route13
     case 14:
       return route14
+    case 15:
+      return route15
+    case 16:
+      return route16
+    case 17:
+      return route17
     default:
       throw DispatchError.HANDLER_NOT_FOUND_BY_ID(id)
   }

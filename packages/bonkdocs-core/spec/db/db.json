@@ -18,9 +18,24 @@
       "trigger": null
     },
     {
+      "name": "contracts",
+      "namespace": "pear",
+      "id": 1,
+      "type": 1,
+      "version": 1,
+      "versionField": null,
+      "indexes": [],
+      "schema": "@pear/contracts",
+      "derived": false,
+      "key": [
+        "id"
+      ],
+      "trigger": null
+    },
+    {
       "name": "writers",
       "namespace": "spaces",
-      "id": 1,
+      "id": 2,
       "type": 1,
       "version": 1,
       "versionField": null,
@@ -35,7 +50,7 @@
     {
       "name": "invites",
       "namespace": "spaces",
-      "id": 2,
+      "id": 3,
       "type": 1,
       "version": 1,
       "versionField": null,
@@ -50,7 +65,7 @@
     {
       "name": "space-init",
       "namespace": "spaces",
-      "id": 3,
+      "id": 4,
       "type": 1,
       "version": 1,
       "versionField": null,
@@ -65,7 +80,7 @@
     {
       "name": "roles",
       "namespace": "spaces",
-      "id": 4,
+      "id": 5,
       "type": 1,
       "version": 1,
       "versionField": null,
@@ -80,7 +95,7 @@
     {
       "name": "acl",
       "namespace": "spaces",
-      "id": 5,
+      "id": 6,
       "type": 1,
       "version": 1,
       "versionField": null,
@@ -95,7 +110,7 @@
     {
       "name": "yjs-updates",
       "namespace": "bonk-docs",
-      "id": 6,
+      "id": 7,
       "type": 1,
       "version": 1,
       "versionField": null,
@@ -110,7 +125,7 @@
     {
       "name": "yjs-snapshots",
       "namespace": "bonk-docs",
-      "id": 7,
+      "id": 8,
       "type": 1,
       "version": 1,
       "versionField": null,
@@ -125,7 +140,7 @@
     {
       "name": "yjs-awareness",
       "namespace": "bonk-docs",
-      "id": 8,
+      "id": 9,
       "type": 1,
       "version": 1,
       "versionField": null,
@@ -140,7 +155,7 @@
     {
       "name": "locks",
       "namespace": "bonk-docs",
-      "id": 9,
+      "id": 10,
       "type": 1,
       "version": 1,
       "versionField": null,

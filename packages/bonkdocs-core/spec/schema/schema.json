@@ -2,6 +2,20 @@
   "version": 2,
   "schema": [
     {
+      "name": "upgrade",
+      "namespace": "pear-contracts",
+      "compact": false,
+      "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "version",
+          "required": true,
+          "type": "uint",
+          "version": 1
+        }
+      ]
+    },
+    {
       "name": "writer",
       "namespace": "spaces",
       "compact": false,
@@ -545,6 +559,59 @@
       ]
     },
     {
+      "name": "write",
+      "namespace": "pear-data",
+      "compact": false,
+      "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "collection",
+          "required": true,
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "value",
+          "required": true,
+          "type": "buffer",
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "compare-and-set",
+      "namespace": "pear-data",
+      "compact": false,
+      "flagsPosition": 3,
+      "fields": [
+        {
+          "name": "collection",
+          "required": true,
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "key",
+          "required": true,
+          "type": "buffer",
+          "version": 1
+        },
+        {
+          "name": "value",
+          "required": true,
+          "type": "buffer",
+          "version": 1
+        },
+        {
+          "name": "ifRev",
+          "required": false,
+          "array": false,
+          "type": "uint",
+          "version": 1
+        }
+      ]
+    },
+    {
       "name": "metadata",
       "namespace": "bonkdocs-doc",
       "compact": false,
@@ -592,6 +659,26 @@
         },
         {
           "name": "rev",
+          "required": true,
+          "type": "uint",
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "contracts",
+      "namespace": "pear",
+      "compact": false,
+      "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "id",
+          "required": true,
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "version",
           "required": true,
           "type": "uint",
           "version": 1

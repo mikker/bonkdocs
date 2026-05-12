@@ -73,20 +73,20 @@ const collection0 = {
   decodedVersion: 0
 }
 
-// '@spaces/writers' collection key
+// '@pear/contracts' collection key
 const collection1_key = new IndexEncoder([
-  IndexEncoder.BUFFER
+  IndexEncoder.STRING
 ], { prefix: 1 })
 
 function collection1_indexify (record) {
-  const a = record.key
+  const a = record.id
   return a === undefined ? [] : [a]
 }
 
-// '@spaces/writers' value encoding
-const collection1_enc = getEncoding('@spaces/writer/hyperdb#1')
+// '@pear/contracts' value encoding
+const collection1_enc = getEncoding('@pear/contracts/hyperdb#1')
 
-// '@spaces/writers' reconstruction function
+// '@pear/contracts' reconstruction function
 function collection1_reconstruct (schemaVersion, keyBuf, valueBuf) {
   const key = collection1_key.decode(keyBuf)
   setVersion(schemaVersion)
@@ -95,24 +95,24 @@ function collection1_reconstruct (schemaVersion, keyBuf, valueBuf) {
   if (type !== 0) throw new Error('Unknown collection type: ' + type)
   collection1.decodedVersion = c.uint.decode(state)
   const record = collection1_enc.decode(state)
-  record.key = key[0]
+  record.id = key[0]
   return record
 }
-// '@spaces/writers' key reconstruction function
+// '@pear/contracts' key reconstruction function
 function collection1_reconstruct_key (keyBuf) {
   const key = collection1_key.decode(keyBuf)
   return {
-    key: key[0]
+    id: key[0]
   }
 }
 
-// '@spaces/writers'
+// '@pear/contracts'
 const collection1 = {
-  name: '@spaces/writers',
+  name: '@pear/contracts',
   id: 1,
   version: 1,
   encodeKey (record) {
-    const key = [record.key]
+    const key = [record.id]
     return collection1_key.encode(key)
   },
   encodeKeyRange ({ gt, lt, gte, lte } = {}) {
@@ -140,20 +140,20 @@ const collection1 = {
   decodedVersion: 0
 }
 
-// '@spaces/invites' collection key
+// '@spaces/writers' collection key
 const collection2_key = new IndexEncoder([
   IndexEncoder.BUFFER
 ], { prefix: 2 })
 
 function collection2_indexify (record) {
-  const a = record.id
+  const a = record.key
   return a === undefined ? [] : [a]
 }
 
-// '@spaces/invites' value encoding
-const collection2_enc = getEncoding('@spaces/invite/hyperdb#2')
+// '@spaces/writers' value encoding
+const collection2_enc = getEncoding('@spaces/writer/hyperdb#2')
 
-// '@spaces/invites' reconstruction function
+// '@spaces/writers' reconstruction function
 function collection2_reconstruct (schemaVersion, keyBuf, valueBuf) {
   const key = collection2_key.decode(keyBuf)
   setVersion(schemaVersion)
@@ -162,24 +162,24 @@ function collection2_reconstruct (schemaVersion, keyBuf, valueBuf) {
   if (type !== 0) throw new Error('Unknown collection type: ' + type)
   collection2.decodedVersion = c.uint.decode(state)
   const record = collection2_enc.decode(state)
-  record.id = key[0]
+  record.key = key[0]
   return record
 }
-// '@spaces/invites' key reconstruction function
+// '@spaces/writers' key reconstruction function
 function collection2_reconstruct_key (keyBuf) {
   const key = collection2_key.decode(keyBuf)
   return {
-    id: key[0]
+    key: key[0]
   }
 }
 
-// '@spaces/invites'
+// '@spaces/writers'
 const collection2 = {
-  name: '@spaces/invites',
+  name: '@spaces/writers',
   id: 2,
   version: 1,
   encodeKey (record) {
-    const key = [record.id]
+    const key = [record.key]
     return collection2_key.encode(key)
   },
   encodeKeyRange ({ gt, lt, gte, lte } = {}) {
@@ -207,20 +207,20 @@ const collection2 = {
   decodedVersion: 0
 }
 
-// '@spaces/space-init' collection key
+// '@spaces/invites' collection key
 const collection3_key = new IndexEncoder([
   IndexEncoder.BUFFER
 ], { prefix: 3 })
 
 function collection3_indexify (record) {
-  const a = record.creatorKey
+  const a = record.id
   return a === undefined ? [] : [a]
 }
 
-// '@spaces/space-init' value encoding
-const collection3_enc = getEncoding('@spaces/space-init/hyperdb#3')
+// '@spaces/invites' value encoding
+const collection3_enc = getEncoding('@spaces/invite/hyperdb#3')
 
-// '@spaces/space-init' reconstruction function
+// '@spaces/invites' reconstruction function
 function collection3_reconstruct (schemaVersion, keyBuf, valueBuf) {
   const key = collection3_key.decode(keyBuf)
   setVersion(schemaVersion)
@@ -229,24 +229,24 @@ function collection3_reconstruct (schemaVersion, keyBuf, valueBuf) {
   if (type !== 0) throw new Error('Unknown collection type: ' + type)
   collection3.decodedVersion = c.uint.decode(state)
   const record = collection3_enc.decode(state)
-  record.creatorKey = key[0]
+  record.id = key[0]
   return record
 }
-// '@spaces/space-init' key reconstruction function
+// '@spaces/invites' key reconstruction function
 function collection3_reconstruct_key (keyBuf) {
   const key = collection3_key.decode(keyBuf)
   return {
-    creatorKey: key[0]
+    id: key[0]
   }
 }
 
-// '@spaces/space-init'
+// '@spaces/invites'
 const collection3 = {
-  name: '@spaces/space-init',
+  name: '@spaces/invites',
   id: 3,
   version: 1,
   encodeKey (record) {
-    const key = [record.creatorKey]
+    const key = [record.id]
     return collection3_key.encode(key)
   },
   encodeKeyRange ({ gt, lt, gte, lte } = {}) {
@@ -274,20 +274,20 @@ const collection3 = {
   decodedVersion: 0
 }
 
-// '@spaces/roles' collection key
+// '@spaces/space-init' collection key
 const collection4_key = new IndexEncoder([
-  IndexEncoder.STRING
+  IndexEncoder.BUFFER
 ], { prefix: 4 })
 
 function collection4_indexify (record) {
-  const a = record.name
+  const a = record.creatorKey
   return a === undefined ? [] : [a]
 }
 
-// '@spaces/roles' value encoding
-const collection4_enc = getEncoding('@spaces/role-def/hyperdb#4')
+// '@spaces/space-init' value encoding
+const collection4_enc = getEncoding('@spaces/space-init/hyperdb#4')
 
-// '@spaces/roles' reconstruction function
+// '@spaces/space-init' reconstruction function
 function collection4_reconstruct (schemaVersion, keyBuf, valueBuf) {
   const key = collection4_key.decode(keyBuf)
   setVersion(schemaVersion)
@@ -296,24 +296,24 @@ function collection4_reconstruct (schemaVersion, keyBuf, valueBuf) {
   if (type !== 0) throw new Error('Unknown collection type: ' + type)
   collection4.decodedVersion = c.uint.decode(state)
   const record = collection4_enc.decode(state)
-  record.name = key[0]
+  record.creatorKey = key[0]
   return record
 }
-// '@spaces/roles' key reconstruction function
+// '@spaces/space-init' key reconstruction function
 function collection4_reconstruct_key (keyBuf) {
   const key = collection4_key.decode(keyBuf)
   return {
-    name: key[0]
+    creatorKey: key[0]
   }
 }
 
-// '@spaces/roles'
+// '@spaces/space-init'
 const collection4 = {
-  name: '@spaces/roles',
+  name: '@spaces/space-init',
   id: 4,
   version: 1,
   encodeKey (record) {
-    const key = [record.name]
+    const key = [record.creatorKey]
     return collection4_key.encode(key)
   },
   encodeKeyRange ({ gt, lt, gte, lte } = {}) {
@@ -341,20 +341,20 @@ const collection4 = {
   decodedVersion: 0
 }
 
-// '@spaces/acl' collection key
+// '@spaces/roles' collection key
 const collection5_key = new IndexEncoder([
-  IndexEncoder.BUFFER
+  IndexEncoder.STRING
 ], { prefix: 5 })
 
 function collection5_indexify (record) {
-  const a = record.subjectKey
+  const a = record.name
   return a === undefined ? [] : [a]
 }
 
-// '@spaces/acl' value encoding
-const collection5_enc = getEncoding('@spaces/acl-entry/hyperdb#5')
+// '@spaces/roles' value encoding
+const collection5_enc = getEncoding('@spaces/role-def/hyperdb#5')
 
-// '@spaces/acl' reconstruction function
+// '@spaces/roles' reconstruction function
 function collection5_reconstruct (schemaVersion, keyBuf, valueBuf) {
   const key = collection5_key.decode(keyBuf)
   setVersion(schemaVersion)
@@ -363,24 +363,24 @@ function collection5_reconstruct (schemaVersion, keyBuf, valueBuf) {
   if (type !== 0) throw new Error('Unknown collection type: ' + type)
   collection5.decodedVersion = c.uint.decode(state)
   const record = collection5_enc.decode(state)
-  record.subjectKey = key[0]
+  record.name = key[0]
   return record
 }
-// '@spaces/acl' key reconstruction function
+// '@spaces/roles' key reconstruction function
 function collection5_reconstruct_key (keyBuf) {
   const key = collection5_key.decode(keyBuf)
   return {
-    subjectKey: key[0]
+    name: key[0]
   }
 }
 
-// '@spaces/acl'
+// '@spaces/roles'
 const collection5 = {
-  name: '@spaces/acl',
+  name: '@spaces/roles',
   id: 5,
   version: 1,
   encodeKey (record) {
-    const key = [record.subjectKey]
+    const key = [record.name]
     return collection5_key.encode(key)
   },
   encodeKeyRange ({ gt, lt, gte, lte } = {}) {
@@ -408,20 +408,20 @@ const collection5 = {
   decodedVersion: 0
 }
 
-// '@bonk-docs/yjs-updates' collection key
+// '@spaces/acl' collection key
 const collection6_key = new IndexEncoder([
-  IndexEncoder.UINT
+  IndexEncoder.BUFFER
 ], { prefix: 6 })
 
 function collection6_indexify (record) {
-  const a = record.rev
+  const a = record.subjectKey
   return a === undefined ? [] : [a]
 }
 
-// '@bonk-docs/yjs-updates' value encoding
-const collection6_enc = getEncoding('@bonk-docs/yjs-update/hyperdb#6')
+// '@spaces/acl' value encoding
+const collection6_enc = getEncoding('@spaces/acl-entry/hyperdb#6')
 
-// '@bonk-docs/yjs-updates' reconstruction function
+// '@spaces/acl' reconstruction function
 function collection6_reconstruct (schemaVersion, keyBuf, valueBuf) {
   const key = collection6_key.decode(keyBuf)
   setVersion(schemaVersion)
@@ -430,24 +430,24 @@ function collection6_reconstruct (schemaVersion, keyBuf, valueBuf) {
   if (type !== 0) throw new Error('Unknown collection type: ' + type)
   collection6.decodedVersion = c.uint.decode(state)
   const record = collection6_enc.decode(state)
-  record.rev = key[0]
+  record.subjectKey = key[0]
   return record
 }
-// '@bonk-docs/yjs-updates' key reconstruction function
+// '@spaces/acl' key reconstruction function
 function collection6_reconstruct_key (keyBuf) {
   const key = collection6_key.decode(keyBuf)
   return {
-    rev: key[0]
+    subjectKey: key[0]
   }
 }
 
-// '@bonk-docs/yjs-updates'
+// '@spaces/acl'
 const collection6 = {
-  name: '@bonk-docs/yjs-updates',
+  name: '@spaces/acl',
   id: 6,
   version: 1,
   encodeKey (record) {
-    const key = [record.rev]
+    const key = [record.subjectKey]
     return collection6_key.encode(key)
   },
   encodeKeyRange ({ gt, lt, gte, lte } = {}) {
@@ -475,7 +475,7 @@ const collection6 = {
   decodedVersion: 0
 }
 
-// '@bonk-docs/yjs-snapshots' collection key
+// '@bonk-docs/yjs-updates' collection key
 const collection7_key = new IndexEncoder([
   IndexEncoder.UINT
 ], { prefix: 7 })
@@ -485,10 +485,10 @@ function collection7_indexify (record) {
   return a === undefined ? [] : [a]
 }
 
-// '@bonk-docs/yjs-snapshots' value encoding
-const collection7_enc = getEncoding('@bonk-docs/yjs-snapshot/hyperdb#7')
+// '@bonk-docs/yjs-updates' value encoding
+const collection7_enc = getEncoding('@bonk-docs/yjs-update/hyperdb#7')
 
-// '@bonk-docs/yjs-snapshots' reconstruction function
+// '@bonk-docs/yjs-updates' reconstruction function
 function collection7_reconstruct (schemaVersion, keyBuf, valueBuf) {
   const key = collection7_key.decode(keyBuf)
   setVersion(schemaVersion)
@@ -500,7 +500,7 @@ function collection7_reconstruct (schemaVersion, keyBuf, valueBuf) {
   record.rev = key[0]
   return record
 }
-// '@bonk-docs/yjs-snapshots' key reconstruction function
+// '@bonk-docs/yjs-updates' key reconstruction function
 function collection7_reconstruct_key (keyBuf) {
   const key = collection7_key.decode(keyBuf)
   return {
@@ -508,9 +508,9 @@ function collection7_reconstruct_key (keyBuf) {
   }
 }
 
-// '@bonk-docs/yjs-snapshots'
+// '@bonk-docs/yjs-updates'
 const collection7 = {
-  name: '@bonk-docs/yjs-snapshots',
+  name: '@bonk-docs/yjs-updates',
   id: 7,
   version: 1,
   encodeKey (record) {
@@ -542,7 +542,7 @@ const collection7 = {
   decodedVersion: 0
 }
 
-// '@bonk-docs/yjs-awareness' collection key
+// '@bonk-docs/yjs-snapshots' collection key
 const collection8_key = new IndexEncoder([
   IndexEncoder.UINT
 ], { prefix: 8 })
@@ -552,10 +552,10 @@ function collection8_indexify (record) {
   return a === undefined ? [] : [a]
 }
 
-// '@bonk-docs/yjs-awareness' value encoding
-const collection8_enc = getEncoding('@bonk-docs/yjs-awareness/hyperdb#8')
+// '@bonk-docs/yjs-snapshots' value encoding
+const collection8_enc = getEncoding('@bonk-docs/yjs-snapshot/hyperdb#8')
 
-// '@bonk-docs/yjs-awareness' reconstruction function
+// '@bonk-docs/yjs-snapshots' reconstruction function
 function collection8_reconstruct (schemaVersion, keyBuf, valueBuf) {
   const key = collection8_key.decode(keyBuf)
   setVersion(schemaVersion)
@@ -567,7 +567,7 @@ function collection8_reconstruct (schemaVersion, keyBuf, valueBuf) {
   record.rev = key[0]
   return record
 }
-// '@bonk-docs/yjs-awareness' key reconstruction function
+// '@bonk-docs/yjs-snapshots' key reconstruction function
 function collection8_reconstruct_key (keyBuf) {
   const key = collection8_key.decode(keyBuf)
   return {
@@ -575,9 +575,9 @@ function collection8_reconstruct_key (keyBuf) {
   }
 }
 
-// '@bonk-docs/yjs-awareness'
+// '@bonk-docs/yjs-snapshots'
 const collection8 = {
-  name: '@bonk-docs/yjs-awareness',
+  name: '@bonk-docs/yjs-snapshots',
   id: 8,
   version: 1,
   encodeKey (record) {
@@ -609,20 +609,20 @@ const collection8 = {
   decodedVersion: 0
 }
 
-// '@bonk-docs/locks' collection key
+// '@bonk-docs/yjs-awareness' collection key
 const collection9_key = new IndexEncoder([
-  IndexEncoder.STRING
+  IndexEncoder.UINT
 ], { prefix: 9 })
 
 function collection9_indexify (record) {
-  const a = record.id
+  const a = record.rev
   return a === undefined ? [] : [a]
 }
 
-// '@bonk-docs/locks' value encoding
-const collection9_enc = getEncoding('@bonk-docs/lock/hyperdb#9')
+// '@bonk-docs/yjs-awareness' value encoding
+const collection9_enc = getEncoding('@bonk-docs/yjs-awareness/hyperdb#9')
 
-// '@bonk-docs/locks' reconstruction function
+// '@bonk-docs/yjs-awareness' reconstruction function
 function collection9_reconstruct (schemaVersion, keyBuf, valueBuf) {
   const key = collection9_key.decode(keyBuf)
   setVersion(schemaVersion)
@@ -631,24 +631,24 @@ function collection9_reconstruct (schemaVersion, keyBuf, valueBuf) {
   if (type !== 0) throw new Error('Unknown collection type: ' + type)
   collection9.decodedVersion = c.uint.decode(state)
   const record = collection9_enc.decode(state)
-  record.id = key[0]
+  record.rev = key[0]
   return record
 }
-// '@bonk-docs/locks' key reconstruction function
+// '@bonk-docs/yjs-awareness' key reconstruction function
 function collection9_reconstruct_key (keyBuf) {
   const key = collection9_key.decode(keyBuf)
   return {
-    id: key[0]
+    rev: key[0]
   }
 }
 
-// '@bonk-docs/locks'
+// '@bonk-docs/yjs-awareness'
 const collection9 = {
-  name: '@bonk-docs/locks',
+  name: '@bonk-docs/yjs-awareness',
   id: 9,
   version: 1,
   encodeKey (record) {
-    const key = [record.id]
+    const key = [record.rev]
     return collection9_key.encode(key)
   },
   encodeKeyRange ({ gt, lt, gte, lte } = {}) {
@@ -676,6 +676,73 @@ const collection9 = {
   decodedVersion: 0
 }
 
+// '@bonk-docs/locks' collection key
+const collection10_key = new IndexEncoder([
+  IndexEncoder.STRING
+], { prefix: 10 })
+
+function collection10_indexify (record) {
+  const a = record.id
+  return a === undefined ? [] : [a]
+}
+
+// '@bonk-docs/locks' value encoding
+const collection10_enc = getEncoding('@bonk-docs/lock/hyperdb#10')
+
+// '@bonk-docs/locks' reconstruction function
+function collection10_reconstruct (schemaVersion, keyBuf, valueBuf) {
+  const key = collection10_key.decode(keyBuf)
+  setVersion(schemaVersion)
+  const state = { start: 0, end: valueBuf.byteLength, buffer: valueBuf }
+  const type = c.uint.decode(state)
+  if (type !== 0) throw new Error('Unknown collection type: ' + type)
+  collection10.decodedVersion = c.uint.decode(state)
+  const record = collection10_enc.decode(state)
+  record.id = key[0]
+  return record
+}
+// '@bonk-docs/locks' key reconstruction function
+function collection10_reconstruct_key (keyBuf) {
+  const key = collection10_key.decode(keyBuf)
+  return {
+    id: key[0]
+  }
+}
+
+// '@bonk-docs/locks'
+const collection10 = {
+  name: '@bonk-docs/locks',
+  id: 10,
+  version: 1,
+  encodeKey (record) {
+    const key = [record.id]
+    return collection10_key.encode(key)
+  },
+  encodeKeyRange ({ gt, lt, gte, lte } = {}) {
+    return collection10_key.encodeRange({
+      gt: gt ? collection10_indexify(gt) : null,
+      lt: lt ? collection10_indexify(lt) : null,
+      gte: gte ? collection10_indexify(gte) : null,
+      lte: lte ? collection10_indexify(lte) : null
+    })
+  },
+  encodeValue (schemaVersion, collectionVersion, record) {
+    setVersion(schemaVersion)
+    const state = { start: 0, end: 2, buffer: null }
+    collection10_enc.preencode(state, record)
+    state.buffer = b4a.allocUnsafe(state.end)
+    state.buffer[state.start++] = 0
+    state.buffer[state.start++] = collectionVersion
+    collection10_enc.encode(state, record)
+    return state.buffer
+  },
+  trigger: null,
+  reconstruct: collection10_reconstruct,
+  reconstructKey: collection10_reconstruct_key,
+  indexes: [],
+  decodedVersion: 0
+}
+
 const collections = [
   collection0,
   collection1,
@@ -686,7 +753,8 @@ const collections = [
   collection6,
   collection7,
   collection8,
-  collection9
+  collection9,
+  collection10
 ]
 
 const indexes = [
@@ -697,15 +765,16 @@ export default { versions, collections, indexes, resolveCollection, resolveIndex
 function resolveCollection (name) {
   switch (name) {
     case '@bonkdocs-doc/metadata': return collection0
-    case '@spaces/writers': return collection1
-    case '@spaces/invites': return collection2
-    case '@spaces/space-init': return collection3
-    case '@spaces/roles': return collection4
-    case '@spaces/acl': return collection5
-    case '@bonk-docs/yjs-updates': return collection6
-    case '@bonk-docs/yjs-snapshots': return collection7
-    case '@bonk-docs/yjs-awareness': return collection8
-    case '@bonk-docs/locks': return collection9
+    case '@pear/contracts': return collection1
+    case '@spaces/writers': return collection2
+    case '@spaces/invites': return collection3
+    case '@spaces/space-init': return collection4
+    case '@spaces/roles': return collection5
+    case '@spaces/acl': return collection6
+    case '@bonk-docs/yjs-updates': return collection7
+    case '@bonk-docs/yjs-snapshots': return collection8
+    case '@bonk-docs/yjs-awareness': return collection9
+    case '@bonk-docs/locks': return collection10
     default: return null
   }
 }

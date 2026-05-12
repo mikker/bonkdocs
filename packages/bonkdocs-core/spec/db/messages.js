@@ -11,8 +11,25 @@ const VERSION = 1
 // eslint-disable-next-line no-unused-vars
 let version = VERSION
 
-// @spaces/writer
+// @pear-contracts/upgrade
 const encoding0 = {
+  preencode(state, m) {
+    c.uint.preencode(state, m.version)
+  },
+  encode(state, m) {
+    c.uint.encode(state, m.version)
+  },
+  decode(state) {
+    const r0 = c.uint.decode(state)
+
+    return {
+      version: r0
+    }
+  }
+}
+
+// @spaces/writer
+const encoding1 = {
   preencode(state, m) {
     c.buffer.preencode(state, m.key)
     state.end++ // max flag is 1 so always one byte
@@ -35,10 +52,10 @@ const encoding0 = {
 }
 
 // @spaces/invite.roles
-const encoding1_5 = c.array(c.string)
+const encoding2_5 = c.array(c.string)
 
 // @spaces/invite
-const encoding1 = {
+const encoding2 = {
   preencode(state, m) {
     c.buffer.preencode(state, m.id)
     state.end++ // max flag is 64 so always one byte
@@ -47,7 +64,7 @@ const encoding1 = {
     if (m.publicKey) c.buffer.preencode(state, m.publicKey)
     if (m.secretHash) c.buffer.preencode(state, m.secretHash)
     c.int.preencode(state, m.expires)
-    if (m.roles) encoding1_5.preencode(state, m.roles)
+    if (m.roles) encoding2_5.preencode(state, m.roles)
     if (m.createdBy) c.buffer.preencode(state, m.createdBy)
     if (m.createdAt) c.uint.preencode(state, m.createdAt)
     if (m.revokedAt) c.uint.preencode(state, m.revokedAt)
@@ -69,7 +86,7 @@ const encoding1 = {
     if (m.publicKey) c.buffer.encode(state, m.publicKey)
     if (m.secretHash) c.buffer.encode(state, m.secretHash)
     c.int.encode(state, m.expires)
-    if (m.roles) encoding1_5.encode(state, m.roles)
+    if (m.roles) encoding2_5.encode(state, m.roles)
     if (m.createdBy) c.buffer.encode(state, m.createdBy)
     if (m.createdAt) c.uint.encode(state, m.createdAt)
     if (m.revokedAt) c.uint.encode(state, m.revokedAt)
@@ -84,7 +101,7 @@ const encoding1 = {
       publicKey: (flags & 2) !== 0 ? c.buffer.decode(state) : null,
       secretHash: (flags & 4) !== 0 ? c.buffer.decode(state) : null,
       expires: c.int.decode(state),
-      roles: (flags & 8) !== 0 ? encoding1_5.decode(state) : null,
+      roles: (flags & 8) !== 0 ? encoding2_5.decode(state) : null,
       createdBy: (flags & 16) !== 0 ? c.buffer.decode(state) : null,
       createdAt: (flags & 32) !== 0 ? c.uint.decode(state) : 0,
       revokedAt: (flags & 64) !== 0 ? c.uint.decode(state) : 0
@@ -93,17 +110,17 @@ const encoding1 = {
 }
 
 // @spaces/accept-invite.roles
-const encoding2_5 = encoding1_5
+const encoding3_5 = encoding2_5
 
 // @spaces/accept-invite
-const encoding2 = {
+const encoding3 = {
   preencode(state, m) {
     c.buffer.preencode(state, m.id)
     c.buffer.preencode(state, m.secret)
     c.uint.preencode(state, m.acceptedAt)
     state.end++ // max flag is 4 so always one byte
 
-    if (m.roles) encoding2_5.preencode(state, m.roles)
+    if (m.roles) encoding3_5.preencode(state, m.roles)
   },
   encode(state, m) {
     const flags = (m.isIndexer ? 1 : 0) | (m.optimistic ? 2 : 0) | (m.roles ? 4 : 0)
@@ -113,7 +130,7 @@ const encoding2 = {
     c.uint.encode(state, m.acceptedAt)
     c.uint.encode(state, flags)
 
-    if (m.roles) encoding2_5.encode(state, m.roles)
+    if (m.roles) encoding3_5.encode(state, m.roles)
   },
   decode(state) {
     const r0 = c.buffer.decode(state)
@@ -127,13 +144,13 @@ const encoding2 = {
       acceptedAt: r2,
       isIndexer: (flags & 1) !== 0,
       optimistic: (flags & 2) !== 0,
-      roles: (flags & 4) !== 0 ? encoding2_5.decode(state) : null
+      roles: (flags & 4) !== 0 ? encoding3_5.decode(state) : null
     }
   }
 }
 
 // @spaces/revoke-invite
-const encoding3 = {
+const encoding4 = {
   preencode(state, m) {
     c.buffer.preencode(state, m.id)
     c.uint.preencode(state, m.revokedAt)
@@ -154,7 +171,7 @@ const encoding3 = {
 }
 
 // @spaces/space-init
-const encoding4 = {
+const encoding5 = {
   preencode(state, m) {
     c.buffer.preencode(state, m.creatorKey)
     c.uint.preencode(state, m.version)
@@ -183,27 +200,27 @@ const encoding4 = {
 }
 
 // @spaces/role-def.permissions
-const encoding5_1 = encoding1_5
+const encoding6_1 = encoding2_5
 
 // @spaces/role-def
-const encoding5 = {
+const encoding6 = {
   preencode(state, m) {
     c.string.preencode(state, m.name)
-    encoding5_1.preencode(state, m.permissions)
+    encoding6_1.preencode(state, m.permissions)
     c.uint.preencode(state, m.rev)
     c.uint.preencode(state, m.index)
     c.uint.preencode(state, m.timestamp)
   },
   encode(state, m) {
     c.string.encode(state, m.name)
-    encoding5_1.encode(state, m.permissions)
+    encoding6_1.encode(state, m.permissions)
     c.uint.encode(state, m.rev)
     c.uint.encode(state, m.index)
     c.uint.encode(state, m.timestamp)
   },
   decode(state) {
     const r0 = c.string.decode(state)
-    const r1 = encoding5_1.decode(state)
+    const r1 = encoding6_1.decode(state)
     const r2 = c.uint.decode(state)
     const r3 = c.uint.decode(state)
     const r4 = c.uint.decode(state)
@@ -219,27 +236,27 @@ const encoding5 = {
 }
 
 // @spaces/acl-entry.roles
-const encoding6_1 = encoding1_5
+const encoding7_1 = encoding2_5
 
 // @spaces/acl-entry
-const encoding6 = {
+const encoding7 = {
   preencode(state, m) {
     c.buffer.preencode(state, m.subjectKey)
-    encoding6_1.preencode(state, m.roles)
+    encoding7_1.preencode(state, m.roles)
     c.uint.preencode(state, m.rev)
     c.uint.preencode(state, m.index)
     c.uint.preencode(state, m.timestamp)
   },
   encode(state, m) {
     c.buffer.encode(state, m.subjectKey)
-    encoding6_1.encode(state, m.roles)
+    encoding7_1.encode(state, m.roles)
     c.uint.encode(state, m.rev)
     c.uint.encode(state, m.index)
     c.uint.encode(state, m.timestamp)
   },
   decode(state) {
     const r0 = c.buffer.decode(state)
-    const r1 = encoding6_1.decode(state)
+    const r1 = encoding7_1.decode(state)
     const r2 = c.uint.decode(state)
     const r3 = c.uint.decode(state)
     const r4 = c.uint.decode(state)
@@ -255,7 +272,7 @@ const encoding6 = {
 }
 
 // @bonk-docs/yjs-update
-const encoding7 = {
+const encoding8 = {
   preencode(state, m) {
     c.uint.preencode(state, m.rev)
     c.string.preencode(state, m.clientId)
@@ -294,7 +311,7 @@ const encoding7 = {
 }
 
 // @bonk-docs/yjs-update-entry
-const encoding8 = {
+const encoding9 = {
   preencode(state, m) {
     c.string.preencode(state, m.clientId)
     state.end++ // max flag is 2 so always one byte
@@ -327,7 +344,7 @@ const encoding8 = {
 }
 
 // @bonk-docs/yjs-snapshot
-const encoding9 = {
+const encoding10 = {
   preencode(state, m) {
     c.uint.preencode(state, m.rev)
     c.uint.preencode(state, m.createdAt)
@@ -362,7 +379,7 @@ const encoding9 = {
 }
 
 // @bonk-docs/yjs-awareness
-const encoding10 = {
+const encoding11 = {
   preencode(state, m) {
     c.uint.preencode(state, m.rev)
     c.uint.preencode(state, m.timestamp)
@@ -397,7 +414,7 @@ const encoding10 = {
 }
 
 // @bonk-docs/yjs-awareness-entry
-const encoding11 = {
+const encoding12 = {
   preencode(state, m) {
     state.end++ // max flag is 2 so always one byte
 
@@ -426,7 +443,7 @@ const encoding11 = {
 }
 
 // @bonk-docs/lock
-const encoding12 = {
+const encoding13 = {
   preencode(state, m) {
     c.string.preencode(state, m.id)
     c.buffer.preencode(state, m.ownerKey)
@@ -470,7 +487,7 @@ const encoding12 = {
 }
 
 // @bonk-docs/lock-acquire
-const encoding13 = {
+const encoding14 = {
   preencode(state, m) {
     c.string.preencode(state, m.id)
     state.end++ // max flag is 4 so always one byte
@@ -503,7 +520,7 @@ const encoding13 = {
 }
 
 // @bonk-docs/lock-release
-const encoding14 = {
+const encoding15 = {
   preencode(state, m) {
     c.string.preencode(state, m.id)
     state.end++ // max flag is 1 so always one byte
@@ -529,8 +546,64 @@ const encoding14 = {
   }
 }
 
+// @pear-data/write
+const encoding16 = {
+  preencode(state, m) {
+    c.string.preencode(state, m.collection)
+    c.buffer.preencode(state, m.value)
+  },
+  encode(state, m) {
+    c.string.encode(state, m.collection)
+    c.buffer.encode(state, m.value)
+  },
+  decode(state) {
+    const r0 = c.string.decode(state)
+    const r1 = c.buffer.decode(state)
+
+    return {
+      collection: r0,
+      value: r1
+    }
+  }
+}
+
+// @pear-data/compare-and-set
+const encoding17 = {
+  preencode(state, m) {
+    c.string.preencode(state, m.collection)
+    c.buffer.preencode(state, m.key)
+    c.buffer.preencode(state, m.value)
+    state.end++ // max flag is 1 so always one byte
+
+    if (m.ifRev) c.uint.preencode(state, m.ifRev)
+  },
+  encode(state, m) {
+    const flags = m.ifRev ? 1 : 0
+
+    c.string.encode(state, m.collection)
+    c.buffer.encode(state, m.key)
+    c.buffer.encode(state, m.value)
+    c.uint.encode(state, flags)
+
+    if (m.ifRev) c.uint.encode(state, m.ifRev)
+  },
+  decode(state) {
+    const r0 = c.string.decode(state)
+    const r1 = c.buffer.decode(state)
+    const r2 = c.buffer.decode(state)
+    const flags = c.uint.decode(state)
+
+    return {
+      collection: r0,
+      key: r1,
+      value: r2,
+      ifRev: (flags & 1) !== 0 ? c.uint.decode(state) : 0
+    }
+  }
+}
+
 // @bonkdocs-doc/metadata
-const encoding15 = {
+const encoding18 = {
   preencode(state, m) {
     c.string.preencode(state, m.id)
     state.end++ // max flag is 8 so always one byte
@@ -572,11 +645,32 @@ const encoding15 = {
   }
 }
 
+// @pear/contracts
+const encoding19 = {
+  preencode(state, m) {
+    c.string.preencode(state, m.id)
+    c.uint.preencode(state, m.version)
+  },
+  encode(state, m) {
+    c.string.encode(state, m.id)
+    c.uint.encode(state, m.version)
+  },
+  decode(state) {
+    const r0 = c.string.decode(state)
+    const r1 = c.uint.decode(state)
+
+    return {
+      id: r0,
+      version: r1
+    }
+  }
+}
+
 // @bonkdocs-doc/metadata-upsert
-const encoding16 = encoding15
+const encoding20 = encoding18
 
 // @bonkdocs-doc/metadata/hyperdb#0
-const encoding17 = {
+const encoding21 = {
   preencode(state, m) {
     state.end++ // max flag is 8 so always one byte
 
@@ -615,8 +709,26 @@ const encoding17 = {
   }
 }
 
-// @spaces/writer/hyperdb#1
-const encoding18 = {
+// @pear/contracts/hyperdb#1
+const encoding22 = {
+  preencode(state, m) {
+    c.uint.preencode(state, m.version)
+  },
+  encode(state, m) {
+    c.uint.encode(state, m.version)
+  },
+  decode(state) {
+    const r1 = c.uint.decode(state)
+
+    return {
+      id: null,
+      version: r1
+    }
+  }
+}
+
+// @spaces/writer/hyperdb#2
+const encoding23 = {
   preencode(state, m) {
     state.end++ // max flag is 1 so always one byte
   },
@@ -635,11 +747,11 @@ const encoding18 = {
   }
 }
 
-// @spaces/invite/hyperdb#2.roles
-const encoding19_5 = encoding1_5
+// @spaces/invite/hyperdb#3.roles
+const encoding24_5 = encoding2_5
 
-// @spaces/invite/hyperdb#2
-const encoding19 = {
+// @spaces/invite/hyperdb#3
+const encoding24 = {
   preencode(state, m) {
     state.end++ // max flag is 64 so always one byte
 
@@ -647,7 +759,7 @@ const encoding19 = {
     if (m.publicKey) c.buffer.preencode(state, m.publicKey)
     if (m.secretHash) c.buffer.preencode(state, m.secretHash)
     c.int.preencode(state, m.expires)
-    if (m.roles) encoding19_5.preencode(state, m.roles)
+    if (m.roles) encoding24_5.preencode(state, m.roles)
     if (m.createdBy) c.buffer.preencode(state, m.createdBy)
     if (m.createdAt) c.uint.preencode(state, m.createdAt)
     if (m.revokedAt) c.uint.preencode(state, m.revokedAt)
@@ -668,7 +780,7 @@ const encoding19 = {
     if (m.publicKey) c.buffer.encode(state, m.publicKey)
     if (m.secretHash) c.buffer.encode(state, m.secretHash)
     c.int.encode(state, m.expires)
-    if (m.roles) encoding19_5.encode(state, m.roles)
+    if (m.roles) encoding24_5.encode(state, m.roles)
     if (m.createdBy) c.buffer.encode(state, m.createdBy)
     if (m.createdAt) c.uint.encode(state, m.createdAt)
     if (m.revokedAt) c.uint.encode(state, m.revokedAt)
@@ -682,7 +794,7 @@ const encoding19 = {
       publicKey: (flags & 2) !== 0 ? c.buffer.decode(state) : null,
       secretHash: (flags & 4) !== 0 ? c.buffer.decode(state) : null,
       expires: c.int.decode(state),
-      roles: (flags & 8) !== 0 ? encoding19_5.decode(state) : null,
+      roles: (flags & 8) !== 0 ? encoding24_5.decode(state) : null,
       createdBy: (flags & 16) !== 0 ? c.buffer.decode(state) : null,
       createdAt: (flags & 32) !== 0 ? c.uint.decode(state) : 0,
       revokedAt: (flags & 64) !== 0 ? c.uint.decode(state) : 0
@@ -690,8 +802,8 @@ const encoding19 = {
   }
 }
 
-// @spaces/space-init/hyperdb#3
-const encoding20 = {
+// @spaces/space-init/hyperdb#4
+const encoding25 = {
   preencode(state, m) {
     c.uint.preencode(state, m.version)
     c.uint.preencode(state, m.index)
@@ -716,25 +828,25 @@ const encoding20 = {
   }
 }
 
-// @spaces/role-def/hyperdb#4.permissions
-const encoding21_1 = encoding1_5
+// @spaces/role-def/hyperdb#5.permissions
+const encoding26_1 = encoding2_5
 
-// @spaces/role-def/hyperdb#4
-const encoding21 = {
+// @spaces/role-def/hyperdb#5
+const encoding26 = {
   preencode(state, m) {
-    encoding21_1.preencode(state, m.permissions)
+    encoding26_1.preencode(state, m.permissions)
     c.uint.preencode(state, m.rev)
     c.uint.preencode(state, m.index)
     c.uint.preencode(state, m.timestamp)
   },
   encode(state, m) {
-    encoding21_1.encode(state, m.permissions)
+    encoding26_1.encode(state, m.permissions)
     c.uint.encode(state, m.rev)
     c.uint.encode(state, m.index)
     c.uint.encode(state, m.timestamp)
   },
   decode(state) {
-    const r1 = encoding21_1.decode(state)
+    const r1 = encoding26_1.decode(state)
     const r2 = c.uint.decode(state)
     const r3 = c.uint.decode(state)
     const r4 = c.uint.decode(state)
@@ -749,25 +861,25 @@ const encoding21 = {
   }
 }
 
-// @spaces/acl-entry/hyperdb#5.roles
-const encoding22_1 = encoding1_5
+// @spaces/acl-entry/hyperdb#6.roles
+const encoding27_1 = encoding2_5
 
-// @spaces/acl-entry/hyperdb#5
-const encoding22 = {
+// @spaces/acl-entry/hyperdb#6
+const encoding27 = {
   preencode(state, m) {
-    encoding22_1.preencode(state, m.roles)
+    encoding27_1.preencode(state, m.roles)
     c.uint.preencode(state, m.rev)
     c.uint.preencode(state, m.index)
     c.uint.preencode(state, m.timestamp)
   },
   encode(state, m) {
-    encoding22_1.encode(state, m.roles)
+    encoding27_1.encode(state, m.roles)
     c.uint.encode(state, m.rev)
     c.uint.encode(state, m.index)
     c.uint.encode(state, m.timestamp)
   },
   decode(state) {
-    const r1 = encoding22_1.decode(state)
+    const r1 = encoding27_1.decode(state)
     const r2 = c.uint.decode(state)
     const r3 = c.uint.decode(state)
     const r4 = c.uint.decode(state)
@@ -782,8 +894,8 @@ const encoding22 = {
   }
 }
 
-// @bonk-docs/yjs-update/hyperdb#6
-const encoding23 = {
+// @bonk-docs/yjs-update/hyperdb#7
+const encoding28 = {
   preencode(state, m) {
     c.string.preencode(state, m.clientId)
     c.uint.preencode(state, m.timestamp)
@@ -818,8 +930,8 @@ const encoding23 = {
   }
 }
 
-// @bonk-docs/yjs-snapshot/hyperdb#7
-const encoding24 = {
+// @bonk-docs/yjs-snapshot/hyperdb#8
+const encoding29 = {
   preencode(state, m) {
     c.uint.preencode(state, m.createdAt)
     c.buffer.preencode(state, m.data)
@@ -850,8 +962,8 @@ const encoding24 = {
   }
 }
 
-// @bonk-docs/yjs-awareness/hyperdb#8
-const encoding25 = {
+// @bonk-docs/yjs-awareness/hyperdb#9
+const encoding30 = {
   preencode(state, m) {
     c.uint.preencode(state, m.timestamp)
     c.buffer.preencode(state, m.data)
@@ -882,8 +994,8 @@ const encoding25 = {
   }
 }
 
-// @bonk-docs/lock/hyperdb#9
-const encoding26 = {
+// @bonk-docs/lock/hyperdb#10
+const encoding31 = {
   preencode(state, m) {
     c.buffer.preencode(state, m.ownerKey)
     c.uint.preencode(state, m.acquiredAt)
@@ -946,60 +1058,70 @@ function getEnum(name) {
 
 function getEncoding(name) {
   switch (name) {
-    case '@spaces/writer':
+    case '@pear-contracts/upgrade':
       return encoding0
-    case '@spaces/invite':
+    case '@spaces/writer':
       return encoding1
-    case '@spaces/accept-invite':
+    case '@spaces/invite':
       return encoding2
-    case '@spaces/revoke-invite':
+    case '@spaces/accept-invite':
       return encoding3
-    case '@spaces/space-init':
+    case '@spaces/revoke-invite':
       return encoding4
-    case '@spaces/role-def':
+    case '@spaces/space-init':
       return encoding5
-    case '@spaces/acl-entry':
+    case '@spaces/role-def':
       return encoding6
-    case '@bonk-docs/yjs-update':
+    case '@spaces/acl-entry':
       return encoding7
-    case '@bonk-docs/yjs-update-entry':
+    case '@bonk-docs/yjs-update':
       return encoding8
-    case '@bonk-docs/yjs-snapshot':
+    case '@bonk-docs/yjs-update-entry':
       return encoding9
-    case '@bonk-docs/yjs-awareness':
+    case '@bonk-docs/yjs-snapshot':
       return encoding10
-    case '@bonk-docs/yjs-awareness-entry':
+    case '@bonk-docs/yjs-awareness':
       return encoding11
-    case '@bonk-docs/lock':
+    case '@bonk-docs/yjs-awareness-entry':
       return encoding12
-    case '@bonk-docs/lock-acquire':
+    case '@bonk-docs/lock':
       return encoding13
-    case '@bonk-docs/lock-release':
+    case '@bonk-docs/lock-acquire':
       return encoding14
-    case '@bonkdocs-doc/metadata':
+    case '@bonk-docs/lock-release':
       return encoding15
-    case '@bonkdocs-doc/metadata-upsert':
+    case '@pear-data/write':
       return encoding16
-    case '@bonkdocs-doc/metadata/hyperdb#0':
+    case '@pear-data/compare-and-set':
       return encoding17
-    case '@spaces/writer/hyperdb#1':
+    case '@bonkdocs-doc/metadata':
       return encoding18
-    case '@spaces/invite/hyperdb#2':
+    case '@pear/contracts':
       return encoding19
-    case '@spaces/space-init/hyperdb#3':
+    case '@bonkdocs-doc/metadata-upsert':
       return encoding20
-    case '@spaces/role-def/hyperdb#4':
+    case '@bonkdocs-doc/metadata/hyperdb#0':
       return encoding21
-    case '@spaces/acl-entry/hyperdb#5':
+    case '@pear/contracts/hyperdb#1':
       return encoding22
-    case '@bonk-docs/yjs-update/hyperdb#6':
+    case '@spaces/writer/hyperdb#2':
       return encoding23
-    case '@bonk-docs/yjs-snapshot/hyperdb#7':
+    case '@spaces/invite/hyperdb#3':
       return encoding24
-    case '@bonk-docs/yjs-awareness/hyperdb#8':
+    case '@spaces/space-init/hyperdb#4':
       return encoding25
-    case '@bonk-docs/lock/hyperdb#9':
+    case '@spaces/role-def/hyperdb#5':
       return encoding26
+    case '@spaces/acl-entry/hyperdb#6':
+      return encoding27
+    case '@bonk-docs/yjs-update/hyperdb#7':
+      return encoding28
+    case '@bonk-docs/yjs-snapshot/hyperdb#8':
+      return encoding29
+    case '@bonk-docs/yjs-awareness/hyperdb#9':
+      return encoding30
+    case '@bonk-docs/lock/hyperdb#10':
+      return encoding31
     default:
       throw new Error('Encoder not found ' + name)
   }

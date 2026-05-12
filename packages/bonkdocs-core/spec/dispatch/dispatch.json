@@ -10,86 +10,104 @@
     },
     {
       "id": 1,
+      "name": "@pear/contract-upgrade",
+      "requestType": "@pear-contracts/upgrade",
+      "version": 1
+    },
+    {
+      "id": 2,
       "name": "@spaces/add-writer",
       "requestType": "@spaces/writer",
       "version": 1
     },
     {
-      "id": 2,
+      "id": 3,
       "name": "@spaces/remove-writer",
       "requestType": "@spaces/writer",
       "version": 1
     },
     {
-      "id": 3,
+      "id": 4,
       "name": "@spaces/add-invite",
       "requestType": "@spaces/invite",
       "version": 1
     },
     {
-      "id": 4,
+      "id": 5,
       "name": "@spaces/accept-invite",
       "requestType": "@spaces/accept-invite",
       "version": 1
     },
     {
-      "id": 5,
+      "id": 6,
       "name": "@spaces/revoke-invite",
       "requestType": "@spaces/revoke-invite",
       "version": 1
     },
     {
-      "id": 6,
+      "id": 7,
       "name": "@spaces/init",
       "requestType": "@spaces/space-init",
       "version": 1
     },
     {
-      "id": 7,
+      "id": 8,
       "name": "@spaces/define-role",
       "requestType": "@spaces/role-def",
       "version": 1
     },
     {
-      "id": 8,
+      "id": 9,
       "name": "@spaces/grant-roles",
       "requestType": "@spaces/acl-entry",
       "version": 1
     },
     {
-      "id": 9,
+      "id": 10,
       "name": "@spaces/revoke-roles",
       "requestType": "@spaces/acl-entry",
       "version": 1
     },
     {
-      "id": 10,
+      "id": 11,
       "name": "@bonk-docs/yjs-append-update",
       "requestType": "@bonk-docs/yjs-update-entry",
       "version": 1
     },
     {
-      "id": 11,
+      "id": 12,
       "name": "@bonk-docs/yjs-save-snapshot",
       "requestType": "@bonk-docs/yjs-snapshot",
       "version": 1
     },
     {
-      "id": 12,
+      "id": 13,
       "name": "@bonk-docs/yjs-append-awareness",
       "requestType": "@bonk-docs/yjs-awareness-entry",
       "version": 1
     },
     {
-      "id": 13,
+      "id": 14,
       "name": "@bonk-docs/lock-acquire",
       "requestType": "@bonk-docs/lock-acquire",
       "version": 1
     },
     {
-      "id": 14,
+      "id": 15,
       "name": "@bonk-docs/lock-release",
       "requestType": "@bonk-docs/lock-release",
+      "version": 1
+    },
+    {
+      "id": 16,
+      "name": "@pear/data-set",
+      "requestType": "@pear-data/write",
+      "version": 1
+    },
+    {
+      "id": 17,
+      "name": "@pear/data-compare-and-set",
+      "requestType": "@pear-data/compare-and-set",
       "version": 1
     }
   ]
