@@ -30,8 +30,6 @@ function getRoleLabel(role: string) {
       return 'Read'
     case WRITE_ROLE:
       return 'Write'
-    case 'doc-commenter':
-      return 'Comment'
     case 'doc-owner':
       return 'Owner'
     default:

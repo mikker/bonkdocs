@@ -1,14 +1,16 @@
 {
-  "version": 0,
+  "version": 1,
   "offset": 0,
   "schema": [
     {
-      "name": "invite",
-      "namespace": "autobonk",
+      "name": "metadata",
+      "namespace": "bonkdocs-doc",
       "id": 0,
       "type": 1,
+      "version": 1,
+      "versionField": null,
       "indexes": [],
-      "schema": "@autobonk/invite",
+      "schema": "@bonkdocs-doc/metadata",
       "derived": false,
       "key": [
         "id"
@@ -16,12 +18,29 @@
       "trigger": null
     },
     {
-      "name": "writer",
-      "namespace": "autobonk",
+      "name": "contracts",
+      "namespace": "pear",
       "id": 1,
       "type": 1,
+      "version": 1,
+      "versionField": null,
       "indexes": [],
-      "schema": "@autobonk/writer",
+      "schema": "@pear/contracts",
+      "derived": false,
+      "key": [
+        "id"
+      ],
+      "trigger": null
+    },
+    {
+      "name": "writers",
+      "namespace": "spaces",
+      "id": 2,
+      "type": 1,
+      "version": 1,
+      "versionField": null,
+      "indexes": [],
+      "schema": "@spaces/writer",
       "derived": false,
       "key": [
         "key"
@@ -29,12 +48,29 @@
       "trigger": null
     },
     {
-      "name": "context-init",
-      "namespace": "autobonk",
-      "id": 2,
+      "name": "invites",
+      "namespace": "spaces",
+      "id": 3,
       "type": 1,
+      "version": 1,
+      "versionField": null,
       "indexes": [],
-      "schema": "@autobonk/context-init",
+      "schema": "@spaces/invite",
+      "derived": false,
+      "key": [
+        "id"
+      ],
+      "trigger": null
+    },
+    {
+      "name": "space-init",
+      "namespace": "spaces",
+      "id": 4,
+      "type": 1,
+      "version": 1,
+      "versionField": null,
+      "indexes": [],
+      "schema": "@spaces/space-init",
       "derived": false,
       "key": [
         "creatorKey"
@@ -42,12 +78,14 @@
       "trigger": null
     },
     {
-      "name": "role-def",
-      "namespace": "autobonk",
-      "id": 3,
+      "name": "roles",
+      "namespace": "spaces",
+      "id": 5,
       "type": 1,
+      "version": 1,
+      "versionField": null,
       "indexes": [],
-      "schema": "@autobonk/role-def",
+      "schema": "@spaces/role-def",
       "derived": false,
       "key": [
         "name"
@@ -55,12 +93,14 @@
       "trigger": null
     },
     {
-      "name": "acl-entry",
-      "namespace": "autobonk",
-      "id": 4,
+      "name": "acl",
+      "namespace": "spaces",
+      "id": 6,
       "type": 1,
+      "version": 1,
+      "versionField": null,
       "indexes": [],
-      "schema": "@autobonk/acl-entry",
+      "schema": "@spaces/acl-entry",
       "derived": false,
       "key": [
         "subjectKey"
@@ -68,38 +108,14 @@
       "trigger": null
     },
     {
-      "name": "metadata",
-      "namespace": "bonk-docs",
-      "id": 5,
-      "type": 1,
-      "indexes": [],
-      "schema": "@bonk-docs/metadata",
-      "derived": false,
-      "key": [
-        "id"
-      ],
-      "trigger": null
-    },
-    {
-      "name": "updates",
-      "namespace": "bonk-docs",
-      "id": 6,
-      "type": 1,
-      "indexes": [],
-      "schema": "@bonk-docs/update",
-      "derived": false,
-      "key": [
-        "rev"
-      ],
-      "trigger": null
-    },
-    {
-      "name": "snapshots",
+      "name": "yjs-updates",
       "namespace": "bonk-docs",
       "id": 7,
       "type": 1,
+      "version": 1,
+      "versionField": null,
       "indexes": [],
-      "schema": "@bonk-docs/snapshot",
+      "schema": "@bonk-docs/yjs-update",
       "derived": false,
       "key": [
         "rev"
@@ -107,12 +123,14 @@
       "trigger": null
     },
     {
-      "name": "awareness",
+      "name": "yjs-snapshots",
       "namespace": "bonk-docs",
       "id": 8,
       "type": 1,
+      "version": 1,
+      "versionField": null,
       "indexes": [],
-      "schema": "@bonk-docs/awareness",
+      "schema": "@bonk-docs/yjs-snapshot",
       "derived": false,
       "key": [
         "rev"
@@ -120,15 +138,32 @@
       "trigger": null
     },
     {
-      "name": "docs",
-      "namespace": "local",
+      "name": "yjs-awareness",
+      "namespace": "bonk-docs",
       "id": 9,
       "type": 1,
+      "version": 1,
+      "versionField": null,
       "indexes": [],
-      "schema": "@local/doc",
+      "schema": "@bonk-docs/yjs-awareness",
       "derived": false,
       "key": [
-        "key"
+        "rev"
+      ],
+      "trigger": null
+    },
+    {
+      "name": "locks",
+      "namespace": "bonk-docs",
+      "id": 10,
+      "type": 1,
+      "version": 1,
+      "versionField": null,
+      "indexes": [],
+      "schema": "@bonk-docs/lock",
+      "derived": false,
+      "key": [
+        "id"
       ],
       "trigger": null
     }

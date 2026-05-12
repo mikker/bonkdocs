@@ -9,14 +9,6 @@ declare global {
         listener: (eventName?: string) => void
       ) => () => void
       startWorker: (specifier: string) => Promise<unknown>
-      onWorkerStdout: (
-        specifier: string,
-        listener: (data: Uint8Array) => void
-      ) => () => void
-      onWorkerStderr: (
-        specifier: string,
-        listener: (data: Uint8Array) => void
-      ) => () => void
       onWorkerIPC: (
         specifier: string,
         listener: (data: Uint8Array) => void
@@ -27,17 +19,7 @@ declare global {
       ) => () => void
       writeWorkerIPC: (specifier: string, data: Uint8Array) => Promise<unknown>
     }
-
-    Pear: {
-      reload: () => void
-      teardown: (callback: () => void | Promise<void>) => void
-      config: {
-        [key: string]: any
-      }
-    }
   }
-
-  const Pear: Window['Pear']
 }
 
 declare module '../../../packages/bonkdocs-core/hrpc.js' {

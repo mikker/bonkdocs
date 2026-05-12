@@ -1,46 +1,58 @@
-import { Manager } from 'autobonk'
-import { DocContext } from './doc-context.js'
-import { schema } from '../schema.js'
+import { SpaceManager } from 'pear-sdk/spaces'
 
-export class DocManager extends Manager {
+import { DocContext } from './doc-context.js'
+import docSpace, { DOC_SPACE_TYPE } from './space.js'
+
+export class DocManager {
   constructor(baseDir, opts = {}) {
-    super(baseDir, {
-      ...opts,
-      ContextClass: opts.ContextClass || DocContext,
-      schema: opts.schema || schema
+    this.manager = new SpaceManager(baseDir, {
+      appId: opts.appId || 'bonkdocs',
+      spaces: [opts.space || docSpace],
+      bootstrap: opts.bootstrap,
+      recoverySeed: opts.recoverySeed
     })
   }
 
+  async ready() {
+    await this.manager.ready()
+  }
+
+  async close() {
+    await this.manager.close()
+  }
+
   async createDoc(opts = {}) {
+    await this.ready()
     const { title, description, name } = opts
-    const context = await super.createContext({ name: name || title })
-
-    if (context && typeof context.bootstrapDoc === 'function') {
-      await context.bootstrapDoc({ title, description })
-    }
-
+    const space = await this.manager.createSpace(DOC_SPACE_TYPE, {
+      name: name || title
+    })
+    const context = new DocContext(space)
+    await context.bootstrapDoc({ title, description })
     return context
   }
 
   async joinDoc(invite, opts = {}) {
-    const context = await super.joinContext(invite, opts)
-
-    if (context && typeof context.ensureDocRoles === 'function') {
-      await context.ensureDocRoles()
-    }
-
-    return context
+    await this.ready()
+    const space = await this.manager.joinSpace(DOC_SPACE_TYPE, invite, {
+      name: opts.name || opts.title
+    })
+    return new DocContext(space)
   }
 
   async getDoc(keyHex) {
-    return await super.getContext(keyHex)
+    await this.ready()
+    const space = await this.manager.getSpace(keyHex)
+    return space ? new DocContext(space) : null
   }
 
   async listDocs() {
-    return await super.listContexts()
+    await this.ready()
+    return await this.manager.listSpaces()
   }
 
   async removeDoc(keyHex) {
-    return await super.removeContext(keyHex)
+    await this.ready()
+    return await this.manager.removeSpace(keyHex)
   }
 }

@@ -3,12 +3,12 @@ import { tmpdir } from 'os'
 import * as fs from 'fs/promises'
 
 import test from 'brittle'
-import * as Y from 'yjs'
 import {
   Awareness,
   applyAwarenessUpdate,
-  encodeAwarenessUpdate
-} from 'y-protocols/awareness'
+  encodeAwarenessUpdate,
+  Y
+} from 'pear-sdk-yjs'
 import { DocWorker } from '../worker/src/doc-worker.js'
 import { toUint8Array } from '../lib/codec.js'
 

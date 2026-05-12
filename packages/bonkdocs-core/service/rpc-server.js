@@ -1,64 +1,5 @@
 import HRPC from '../hrpc.js'
 
-const scheduleMicrotask =
-  typeof queueMicrotask === 'function'
-    ? queueMicrotask
-    : (fn) =>
-        Promise.resolve()
-          .then(fn)
-          .catch(() => {})
-
-function createLocalAbortController() {
-  const listeners = new Set()
-
-  const signal = {
-    aborted: false,
-    addEventListener(type, listener, options = {}) {
-      if (type !== 'abort' || typeof listener !== 'function') return
-      const entry = { listener, once: options.once === true }
-      listeners.add(entry)
-      if (signal.aborted) {
-        scheduleMicrotask(() =>
-          listener.call(signal, { type: 'abort', target: signal })
-        )
-      }
-    },
-    removeEventListener(type, listener) {
-      if (type !== 'abort' || typeof listener !== 'function') return
-      for (const entry of listeners) {
-        if (entry.listener === listener) {
-          listeners.delete(entry)
-          break
-        }
-      }
-    }
-  }
-
-  return {
-    signal,
-    abort() {
-      if (signal.aborted) return
-      signal.aborted = true
-      for (const entry of [...listeners]) {
-        try {
-          entry.listener.call(signal, { type: 'abort', target: signal })
-        } catch {}
-        if (entry.once) {
-          listeners.delete(entry)
-        }
-      }
-      listeners.clear()
-    }
-  }
-}
-
-function createAbortController() {
-  if (typeof globalThis.AbortController === 'function') {
-    return new globalThis.AbortController()
-  }
-  return createLocalAbortController()
-}
-
 export function createRpcServer(stream, worker) {
   const rpc = new HRPC(stream)
 
@@ -71,33 +12,15 @@ export function createRpcServer(stream, worker) {
     return { docs, identity: identity ?? undefined }
   })
 
-  rpc.onGetIdentity(async () => {
-    console.log('[worker] get-identity request')
-    const identity = await worker.getIdentity()
-    return { identity: identity ?? undefined }
-  })
-
-  rpc.onGetIdentityAvatar(async () => {
-    console.log('[worker] get-identity-avatar request')
-    const avatar = await worker.getIdentityAvatar()
-    return { avatar: avatar ?? undefined }
-  })
-
-  rpc.onLinkIdentity(async (request = {}) => {
-    console.log('[worker] link-identity request')
-    const identity = await worker.linkIdentity(request.invite)
-    return { identity }
-  })
-
-  rpc.onResetIdentity(async () => {
-    console.log('[worker] reset-identity request')
-    return await worker.resetIdentity()
-  })
-
   rpc.onListDocs(async () => {
     console.log('[worker] list-docs request')
     const docs = await worker.listDocs()
     return { docs }
+  })
+
+  rpc.onSetPublicProfile(async (request = {}) => {
+    console.log('[worker] set-public-profile request')
+    return await worker.setPublicProfile({ displayName: request.displayName })
   })
 
   rpc.onCreateDoc(async (request = {}) => {
@@ -129,50 +52,6 @@ export function createRpcServer(stream, worker) {
       invite: request.invite,
       title: request.title
     })
-  })
-
-  rpc.onPairInvite((stream) => {
-    const request = stream.data || {}
-    if (!request.invite) {
-      stream.destroy(new Error('Invite is required to pair document'))
-      return
-    }
-
-    const controller = createAbortController()
-    let finished = false
-
-    const cancel = () => {
-      if (finished) return
-      finished = true
-      controller.abort()
-    }
-
-    stream.on('close', cancel)
-    stream.on('error', cancel)
-
-    const emitStatus = async (status) => {
-      if (finished || stream.destroyed) return
-      stream.write(status)
-    }
-
-    worker
-      .pairInvite(request, emitStatus, controller.signal)
-      .then(() => {
-        if (!finished && !stream.destroyed) {
-          finished = true
-          stream.end()
-        }
-      })
-      .catch((error) => {
-        if (!finished) {
-          finished = true
-          stream.destroy(error)
-        }
-      })
-      .finally(() => {
-        stream.off('close', cancel)
-        stream.off('error', cancel)
-      })
   })
 
   rpc.onRemoveDoc(async (request = {}) => {

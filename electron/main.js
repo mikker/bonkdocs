@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, nativeTheme } from 'electron'
+import { app, BrowserWindow, ipcMain, Menu, nativeTheme } from 'electron'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -26,6 +26,10 @@ const cmd = command(
   appName,
   flag('--storage [dir]', 'pass custom storage to pear-runtime'),
   flag('--no-updates', 'start without OTA updates'),
+  flag('--multi-instance', 'allow multiple app instances'),
+  flag('--bootstrap [nodes]', 'comma-separated DHT bootstrap nodes'),
+  flag('--isolated', 'run without DHT bootstrap nodes'),
+  flag('--offline', 'alias for --isolated'),
   flag(
     '--remote-debugging-port [port]',
     'enable Chromium remote debugging on a port'
@@ -37,6 +41,9 @@ cmd.parse(app.isPackaged ? process.argv.slice(1) : process.argv.slice(2))
 const pearStore = cmd.flags.storage
 const updates = cmd.flags.updates
 const remoteDebuggingPort = cmd.flags.remoteDebuggingPort
+const multiInstance = cmd.flags.multiInstance === true
+const isolated = cmd.flags.isolated === true || cmd.flags.offline === true
+const bootstrapNodes = isolated ? '__isolated__' : cmd.flags.bootstrap
 const runtimeUpdates = Boolean(updates && upgrade)
 const runtimeUpgrade = upgrade || 'pear://updates-disabled'
 
@@ -131,14 +138,18 @@ function getWorker(specifier) {
 
   const pearRuntime = getPear()
   const workerPath = path.resolve(__dirname, '..' + specifier)
-  const worker = pearRuntime.run(workerPath, [pearRuntime.storage])
+  const workerArgs = [pearRuntime.storage]
+  if (bootstrapNodes !== undefined && bootstrapNodes !== null) {
+    workerArgs.push(String(bootstrapNodes))
+  }
+  const worker = pearRuntime.run(workerPath, workerArgs)
 
   function sendWorkerStdout(data) {
-    sendToAll('pear:worker:stdout:' + specifier, data)
+    process.stdout.write(data)
   }
 
   function sendWorkerStderr(data) {
-    sendToAll('pear:worker:stderr:' + specifier, data)
+    process.stderr.write(data)
   }
 
   function sendWorkerIPC(data) {
@@ -173,6 +184,7 @@ function getWorker(specifier) {
 }
 
 nativeTheme.themeSource = 'dark'
+Menu.setApplicationMenu(null)
 
 async function createWindow() {
   const win = new BrowserWindow({
@@ -259,15 +271,17 @@ app.on('open-url', (evt, url) => {
   handleDeepLink(url)
 })
 
-const lock = app.requestSingleInstanceLock()
+const lock = multiInstance || app.requestSingleInstanceLock()
 
 if (!lock) {
   app.quit()
 } else {
-  app.on('second-instance', (evt, args) => {
-    const url = args.find((arg) => arg.startsWith(protocol + '://'))
-    if (url) handleDeepLink(url)
-  })
+  if (!multiInstance) {
+    app.on('second-instance', (evt, args) => {
+      const url = args.find((arg) => arg.startsWith(protocol + '://'))
+      if (url) handleDeepLink(url)
+    })
+  }
 
   app.whenReady().then(() => {
     if (process.platform === 'darwin') {

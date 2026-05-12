@@ -1,42 +1,27 @@
 # Bonk Docs Roadmap
 
-## Phase 0 — Autobonk Foundations
+## Phase 0 — Pear SDK Rewrite
 
-- Overhaul `schema.js` with doc namespaces and regenerate specs.
-- Implement `core/doc-context.js` and `core/doc-manager.js` in plain JS using Bare shims.
-- Scaffold HRPC handlers for create/join/list/remove/watch before Yjs wiring.
-- Build minimal renderer flow: docs list, create/join dialogs, static TipTap mount fed by snapshot.
-- Validate invite pairing and local metadata persistence end-to-end.
+- Replace Autobonk contexts with `pear-sdk/spaces`.
+- Replace custom Yjs routing with `pear-sdk-yjs`.
+- Keep Electron UI close to the current Bonk Docs surface.
+- Remove external identity linking and use Pear profile identity.
+- Add a generic Pear SDK lock capability and dogfood it for document locks.
 
-## Phase 1 — Collaborative Editing Core
+## Phase 1 — MVP Hardening
 
-- Adopt Yjs CRDT core with TipTap Collaboration + CollaborationCursor.
-- Add `worker/doc-worker.js` apply/watch handlers that commit Yjs updates and stream diffs.
-- Stream state-vector sync + update tail via watcher; hydrate renderer store with Y.Doc.
-- Implement Yjs Awareness presence (peer cursors optional).
-- Harden offline update replay and snapshot compaction; add brittle coverage for Yjs convergence.
+- Verify create/open/rename/edit/watch flows under Electron.
+- Verify invite create/join/revoke with multiple local stores.
+- Add focused brittle coverage for Pear Space document sync.
+- Tighten lock semantics: release/force-release UI, stale lock handling, permission tests.
 
-## Phase 2 — Collaboration Polish
+## Phase 2 — SDK Feedback
 
-- Land Facebonk linking in Bonk Docs so the desktop app can sign in to an existing shared identity.
-- Activate comment storage (`@bonk-docs/comments`) and renderer drawer UI.
-- Enhance presence UI (avatars, named cursors, doc activity sidebar).
-- Add document history view powered by Autobonk log replay.
-- Expand invites management (role changes, revocation, resend) in worker + renderer.
-- Increase test depth: watcher streaming scenarios, invite ACL enforcement, presence expiry.
+- Promote lock capability docs/tests in `../pear-sdk`.
+- Evaluate whether lock ownership should support leases, reasons, and force permissions.
+- Feed Bonk Docs findings back into Pear Spaces API ergonomics.
 
-## Phase 3 — Asset & Extensibility Prep
+## Later
 
-- Finalize schema + storage plan for embedded assets (`@bonk-docs/assets`, Hyperblobs pointers).
-- Prototype image/table insertion flows without shipping them in earlier phases.
-- Integrate asset permissions and upload/download HRPC routes.
-- Document extension hooks for future features (templates, export).
-- Conduct broader reliability testing (offline → online transitions, large doc playback).
-
-## Phase 4 — Hybrid Hosts
-
-- Keep the shared backend in `packages/bonkdocs-core` as the only owner of schema/spec generation and runtime contracts.
-- Keep the current Electron app as the first `desktop` host over that package boundary.
-- Land the first React Native `native` host with drawer-based doc navigation and a WebView-backed editor surface.
-- Reuse the same worker/runtime and HRPC contract across desktop and native through `packages/bonkdocs-core` entrypoints instead of direct generated-file imports.
-- Keep simplifying native chrome so document-level actions stay in the platform header and the editor surface remains minimal.
+- Rebuild native on the new core after Electron stabilizes.
+- Add comments/assets/history as Pear Space modules or SDK capabilities.

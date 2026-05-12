@@ -10,12 +10,12 @@ const methods = new Map([
   [0, '@bonk-docs/initialize'],
   ['@bonk-docs/list-docs', 1],
   [1, '@bonk-docs/list-docs'],
-  ['@bonk-docs/create-doc', 2],
-  [2, '@bonk-docs/create-doc'],
-  ['@bonk-docs/join-doc', 3],
-  [3, '@bonk-docs/join-doc'],
-  ['@bonk-docs/pair-invite', 4],
-  [4, '@bonk-docs/pair-invite'],
+  ['@bonk-docs/set-public-profile', 2],
+  [2, '@bonk-docs/set-public-profile'],
+  ['@bonk-docs/create-doc', 3],
+  [3, '@bonk-docs/create-doc'],
+  ['@bonk-docs/join-doc', 4],
+  [4, '@bonk-docs/join-doc'],
   ['@bonk-docs/remove-doc', 5],
   [5, '@bonk-docs/remove-doc'],
   ['@bonk-docs/get-doc', 6],
@@ -35,15 +35,7 @@ const methods = new Map([
   ['@bonk-docs/rename-doc', 13],
   [13, '@bonk-docs/rename-doc'],
   ['@bonk-docs/lock-doc', 14],
-  [14, '@bonk-docs/lock-doc'],
-  ['@bonk-docs/get-identity', 15],
-  [15, '@bonk-docs/get-identity'],
-  ['@bonk-docs/link-identity', 16],
-  [16, '@bonk-docs/link-identity'],
-  ['@bonk-docs/get-identity-avatar', 17],
-  [17, '@bonk-docs/get-identity-avatar'],
-  ['@bonk-docs/reset-identity', 18],
-  [18, '@bonk-docs/reset-identity']
+  [14, '@bonk-docs/lock-doc']
 ])
 
 class HRPC {
@@ -53,9 +45,9 @@ class HRPC {
     this._requestEncodings = new Map([
       ['@bonk-docs/initialize', getEncoding('@bonk-docs-rpc/initialize-request')],
       ['@bonk-docs/list-docs', getEncoding('@bonk-docs-rpc/list-docs-request')],
+      ['@bonk-docs/set-public-profile', getEncoding('@bonk-docs-rpc/set-public-profile-request')],
       ['@bonk-docs/create-doc', getEncoding('@bonk-docs-rpc/create-doc-request')],
       ['@bonk-docs/join-doc', getEncoding('@bonk-docs-rpc/join-doc-request')],
-      ['@bonk-docs/pair-invite', getEncoding('@bonk-docs-rpc/pair-invite-request')],
       ['@bonk-docs/remove-doc', getEncoding('@bonk-docs-rpc/remove-doc-request')],
       ['@bonk-docs/get-doc', getEncoding('@bonk-docs-rpc/get-doc-request')],
       ['@bonk-docs/watch-doc', getEncoding('@bonk-docs-rpc/watch-doc-request')],
@@ -65,18 +57,14 @@ class HRPC {
       ['@bonk-docs/create-invite', getEncoding('@bonk-docs-rpc/create-invite-request')],
       ['@bonk-docs/revoke-invite', getEncoding('@bonk-docs-rpc/revoke-invite-request')],
       ['@bonk-docs/rename-doc', getEncoding('@bonk-docs-rpc/rename-doc-request')],
-      ['@bonk-docs/lock-doc', getEncoding('@bonk-docs-rpc/lock-doc-request')],
-      ['@bonk-docs/get-identity', getEncoding('@bonk-docs-rpc/get-identity-request')],
-      ['@bonk-docs/link-identity', getEncoding('@bonk-docs-rpc/link-identity-request')],
-      ['@bonk-docs/get-identity-avatar', getEncoding('@bonk-docs-rpc/get-identity-avatar-request')],
-      ['@bonk-docs/reset-identity', getEncoding('@bonk-docs-rpc/reset-identity-request')]
+      ['@bonk-docs/lock-doc', getEncoding('@bonk-docs-rpc/lock-doc-request')]
     ])
     this._responseEncodings = new Map([
       ['@bonk-docs/initialize', getEncoding('@bonk-docs-rpc/initialize-response')],
       ['@bonk-docs/list-docs', getEncoding('@bonk-docs-rpc/list-docs-response')],
+      ['@bonk-docs/set-public-profile', getEncoding('@bonk-docs-rpc/set-public-profile-response')],
       ['@bonk-docs/create-doc', getEncoding('@bonk-docs-rpc/create-doc-response')],
       ['@bonk-docs/join-doc', getEncoding('@bonk-docs-rpc/join-doc-response')],
-      ['@bonk-docs/pair-invite', getEncoding('@bonk-docs-rpc/pair-status')],
       ['@bonk-docs/remove-doc', getEncoding('@bonk-docs-rpc/remove-doc-response')],
       ['@bonk-docs/get-doc', getEncoding('@bonk-docs-rpc/get-doc-response')],
       ['@bonk-docs/watch-doc', getEncoding('@bonk-docs-rpc/doc-update')],
@@ -86,11 +74,7 @@ class HRPC {
       ['@bonk-docs/create-invite', getEncoding('@bonk-docs-rpc/create-invite-response')],
       ['@bonk-docs/revoke-invite', getEncoding('@bonk-docs-rpc/revoke-invite-response')],
       ['@bonk-docs/rename-doc', getEncoding('@bonk-docs-rpc/rename-doc-response')],
-      ['@bonk-docs/lock-doc', getEncoding('@bonk-docs-rpc/lock-doc-response')],
-      ['@bonk-docs/get-identity', getEncoding('@bonk-docs-rpc/get-identity-response')],
-      ['@bonk-docs/link-identity', getEncoding('@bonk-docs-rpc/link-identity-response')],
-      ['@bonk-docs/get-identity-avatar', getEncoding('@bonk-docs-rpc/get-identity-avatar-response')],
-      ['@bonk-docs/reset-identity', getEncoding('@bonk-docs-rpc/reset-identity-response')]
+      ['@bonk-docs/lock-doc', getEncoding('@bonk-docs-rpc/lock-doc-response')]
     ])
     this._rpc = new RPC(stream, async (req) => {
       const command = methods.get(req.command)
@@ -196,16 +180,16 @@ class HRPC {
     return this._call('@bonk-docs/list-docs', args)
   }
 
+  async setPublicProfile(args) {
+    return this._call('@bonk-docs/set-public-profile', args)
+  }
+
   async createDoc(args) {
     return this._call('@bonk-docs/create-doc', args)
   }
 
   async joinDoc(args) {
     return this._call('@bonk-docs/join-doc', args)
-  }
-
-  pairInvite(args) {
-    return this._callSync('@bonk-docs/pair-invite', args)
   }
 
   async removeDoc(args) {
@@ -248,22 +232,6 @@ class HRPC {
     return this._call('@bonk-docs/lock-doc', args)
   }
 
-  async getIdentity(args) {
-    return this._call('@bonk-docs/get-identity', args)
-  }
-
-  async linkIdentity(args) {
-    return this._call('@bonk-docs/link-identity', args)
-  }
-
-  async getIdentityAvatar(args) {
-    return this._call('@bonk-docs/get-identity-avatar', args)
-  }
-
-  async resetIdentity(args) {
-    return this._call('@bonk-docs/reset-identity', args)
-  }
-
   onInitialize(responseFn) {
     this._handlers['@bonk-docs/initialize'] = responseFn
   }
@@ -272,16 +240,16 @@ class HRPC {
     this._handlers['@bonk-docs/list-docs'] = responseFn
   }
 
+  onSetPublicProfile(responseFn) {
+    this._handlers['@bonk-docs/set-public-profile'] = responseFn
+  }
+
   onCreateDoc(responseFn) {
     this._handlers['@bonk-docs/create-doc'] = responseFn
   }
 
   onJoinDoc(responseFn) {
     this._handlers['@bonk-docs/join-doc'] = responseFn
-  }
-
-  onPairInvite(responseFn) {
-    this._handlers['@bonk-docs/pair-invite'] = responseFn
   }
 
   onRemoveDoc(responseFn) {
@@ -324,22 +292,6 @@ class HRPC {
     this._handlers['@bonk-docs/lock-doc'] = responseFn
   }
 
-  onGetIdentity(responseFn) {
-    this._handlers['@bonk-docs/get-identity'] = responseFn
-  }
-
-  onLinkIdentity(responseFn) {
-    this._handlers['@bonk-docs/link-identity'] = responseFn
-  }
-
-  onGetIdentityAvatar(responseFn) {
-    this._handlers['@bonk-docs/get-identity-avatar'] = responseFn
-  }
-
-  onResetIdentity(responseFn) {
-    this._handlers['@bonk-docs/reset-identity'] = responseFn
-  }
-
   _requestIsStream(command) {
     return [
     ].includes(command)
@@ -347,7 +299,6 @@ class HRPC {
 
   _responseIsStream(command) {
     return [
-      '@bonk-docs/pair-invite',
       '@bonk-docs/watch-doc'
     ].includes(command)
   }

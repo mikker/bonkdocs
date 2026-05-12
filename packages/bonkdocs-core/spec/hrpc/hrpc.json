@@ -1,5 +1,5 @@
 {
-  "version": 4,
+  "version": 1,
   "schema": [
     {
       "id": 0,
@@ -25,6 +25,17 @@
     },
     {
       "id": 2,
+      "name": "@bonk-docs/set-public-profile",
+      "request": {
+        "name": "@bonk-docs-rpc/set-public-profile-request"
+      },
+      "response": {
+        "name": "@bonk-docs-rpc/set-public-profile-response"
+      },
+      "version": 1
+    },
+    {
+      "id": 3,
       "name": "@bonk-docs/create-doc",
       "request": {
         "name": "@bonk-docs-rpc/create-doc-request"
@@ -35,25 +46,13 @@
       "version": 1
     },
     {
-      "id": 3,
+      "id": 4,
       "name": "@bonk-docs/join-doc",
       "request": {
         "name": "@bonk-docs-rpc/join-doc-request"
       },
       "response": {
         "name": "@bonk-docs-rpc/join-doc-response"
-      },
-      "version": 1
-    },
-    {
-      "id": 4,
-      "name": "@bonk-docs/pair-invite",
-      "request": {
-        "name": "@bonk-docs-rpc/pair-invite-request"
-      },
-      "response": {
-        "name": "@bonk-docs-rpc/pair-status",
-        "stream": true
       },
       "version": 1
     },
@@ -167,50 +166,6 @@
         "name": "@bonk-docs-rpc/lock-doc-response"
       },
       "version": 1
-    },
-    {
-      "id": 1,
-      "name": "@bonk-docs/get-identity",
-      "request": {
-        "name": "@bonk-docs-rpc/get-identity-request"
-      },
-      "response": {
-        "name": "@bonk-docs-rpc/get-identity-response"
-      },
-      "version": 2
-    },
-    {
-      "id": 2,
-      "name": "@bonk-docs/link-identity",
-      "request": {
-        "name": "@bonk-docs-rpc/link-identity-request"
-      },
-      "response": {
-        "name": "@bonk-docs-rpc/link-identity-response"
-      },
-      "version": 2
-    },
-    {
-      "id": 2,
-      "name": "@bonk-docs/get-identity-avatar",
-      "request": {
-        "name": "@bonk-docs-rpc/get-identity-avatar-request"
-      },
-      "response": {
-        "name": "@bonk-docs-rpc/get-identity-avatar-response"
-      },
-      "version": 3
-    },
-    {
-      "id": 4,
-      "name": "@bonk-docs/reset-identity",
-      "request": {
-        "name": "@bonk-docs-rpc/reset-identity-request"
-      },
-      "response": {
-        "name": "@bonk-docs-rpc/reset-identity-response"
-      },
-      "version": 4
     }
   ]
 }

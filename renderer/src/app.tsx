@@ -27,15 +27,7 @@ import {
   SidebarTrigger,
   useSidebar
 } from './components/ui/sidebar'
-import {
-  FilePlus2,
-  Link2,
-  Lock,
-  LogOut,
-  MoreHorizontal,
-  Pencil,
-  Unplug
-} from 'lucide-react'
+import { FilePlus2, Lock, LogOut, MoreHorizontal, Pencil } from 'lucide-react'
 import {
   Tooltip,
   TooltipContent,
@@ -73,7 +65,6 @@ type PresenceUser = {
   color: string
   key: string
   name: string
-  avatarDataUrl?: string | null
   isLocal: boolean
   resolved: boolean
 }
@@ -97,17 +88,11 @@ function getPresenceUsers(
           ? user.color
           : colorFromKey(key)
         : UNRESOLVED_USER_COLOR
-      const avatarDataUrl =
-        typeof user.avatarDataUrl === 'string' && user.avatarDataUrl.length > 0
-          ? user.avatarDataUrl
-          : null
-
       return {
         clientId,
         color,
         key,
         name: name || (resolved ? key : 'Resolving…'),
-        avatarDataUrl,
         isLocal: clientId === localClientId,
         resolved
       }
@@ -153,7 +138,7 @@ function usePresenceUsers(
     return () => {
       awareness.off('update', handleUpdate)
     }
-  }, [awareness, localUser.avatarDataUrl, localUser.color, localUser.key, localUser.name])
+  }, [awareness, localUser.color, localUser.key, localUser.name])
 
   return users
 }
@@ -526,7 +511,6 @@ function DocUsersBar({
               <IdentityAvatar
                 className={user.resolved ? '' : 'animate-pulse'}
                 name={user.name}
-                avatarDataUrl={user.avatarDataUrl}
                 color={user.color}
                 ariaLabel={tooltipLabel}
               />
@@ -557,6 +541,7 @@ function DocsSidebar({ ...props }) {
   const docs = useDocState((state) => state.docs)
   const loading = useDocState((state) => state.loading)
   const identity = useDocState((state) => state.identity)
+  const setPublicProfile = useDocState((state) => state.setPublicProfile)
   const selectDoc = useDocState((state) => state.selectDoc)
   const createDoc = useDocState((state) => state.createDoc)
   const creatingDoc = useDocState((state) => state.creatingDoc)
@@ -576,7 +561,6 @@ function DocsSidebar({ ...props }) {
   return (
     <Sidebar {...props}>
       <SidebarHeader className='flex-row border-b h-(--header-height) flex items-center justify-end'>
-        <FacebonkLinkDialog />
         <DocJoinDialog />
         <Tooltip>
           <TooltipTrigger asChild>
@@ -596,9 +580,12 @@ function DocsSidebar({ ...props }) {
 
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Facebonk</SidebarGroupLabel>
+          <SidebarGroupLabel>Identity</SidebarGroupLabel>
           <SidebarGroupContent>
-            <FacebonkIdentitySection identity={identity} />
+            <IdentitySection
+              identity={identity}
+              setPublicProfile={setPublicProfile}
+            />
           </SidebarGroupContent>
         </SidebarGroup>
         <SidebarGroup>
@@ -654,20 +641,21 @@ function DocsSidebar({ ...props }) {
   )
 }
 
-function FacebonkIdentitySection({
-  identity
+function IdentitySection({
+  identity,
+  setPublicProfile
 }: {
   identity: ReturnType<typeof useDocStore.getState>['identity']
+  setPublicProfile: ReturnType<typeof useDocStore.getState>['setPublicProfile']
 }) {
-  const resetIdentity = useDocState((state) => state.resetIdentity)
-  const resettingIdentity = useDocState((state) => state.resettingIdentity)
-  const identityError = useDocState((state) => state.identityError)
+  const [editing, setEditing] = useState(false)
+  const [displayNameValue, setDisplayNameValue] = useState('')
+  const [saving, setSaving] = useState(false)
 
   if (!identity) {
     return (
       <div className='px-2 text-sm text-muted-foreground space-y-2'>
-        <p>Not linked yet.</p>
-        <p>Create an invite in Facebonk, keep `facebonk serve` running, then link here.</p>
+        <p>Creating local Pear identity…</p>
       </div>
     )
   }
@@ -681,23 +669,23 @@ function FacebonkIdentitySection({
   const bio =
     typeof identity.profile?.bio === 'string' ? identity.profile.bio.trim() : ''
 
-  const handleReset = async () => {
-    const confirmed =
-      typeof window === 'undefined' || typeof window.confirm !== 'function'
-        ? true
-        : window.confirm(
-            'Reset Facebonk auth for this Bonk Docs install? This only unlinks this local app.'
-          )
+  const openEditor = () => {
+    setDisplayNameValue(identity.profile?.displayName?.trim() ?? '')
+    setEditing(true)
+  }
 
-    if (!confirmed) return
-
+  const handleSave = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    setSaving(true)
     try {
-      await resetIdentity()
-      toast.success('Facebonk reset')
+      await setPublicProfile({ displayName: displayNameValue })
+      setEditing(false)
     } catch (error) {
       const message =
-        error instanceof Error ? error.message : 'Failed to reset Facebonk'
-      toast.error('Facebonk reset failed', { description: message })
+        error instanceof Error ? error.message : 'Failed to update profile'
+      toast.error('Profile update failed', { description: message })
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -706,150 +694,66 @@ function FacebonkIdentitySection({
       <div className='flex items-center gap-3'>
         <IdentityAvatar
           name={displayName}
-          avatarDataUrl={identity.profile?.avatarDataUrl}
           color={colorFromKey(identity.identityKey)}
           size='lg'
           ariaLabel={displayName}
         />
-        <div className='min-w-0 space-y-1'>
+        <div className='min-w-0 flex-1 space-y-1'>
           <div className='font-medium truncate'>{displayName}</div>
           <div className='text-muted-foreground font-mono text-xs truncate'>
             {identity.identityKey}
           </div>
         </div>
+        <Button size='icon-sm' variant='ghost' onClick={openEditor}>
+          <Pencil className='h-3.5 w-3.5' />
+        </Button>
       </div>
-      {bio ? <p className='text-muted-foreground text-xs leading-5'>{bio}</p> : null}
-      <Button
-        type='button'
-        variant='outline'
-        size='sm'
-        onClick={() => void handleReset()}
-        disabled={resettingIdentity}
-        aria-busy={resettingIdentity}
-        className='w-full justify-start'
-      >
-        <Unplug className='h-4 w-4' />
-        {resettingIdentity ? 'Resetting auth…' : 'Reset auth'}
-      </Button>
-      {identityError ? (
-        <p className='text-destructive text-xs leading-5'>{identityError}</p>
+      {bio ? (
+        <p className='text-muted-foreground text-xs leading-5'>{bio}</p>
+      ) : null}
+      {editing ? (
+        <form className='space-y-2' onSubmit={handleSave}>
+          <Input
+            value={displayNameValue}
+            onChange={(event) => setDisplayNameValue(event.target.value)}
+            maxLength={80}
+            placeholder='Public display name'
+            autoFocus
+          />
+          <div className='flex justify-end gap-2'>
+            <Button
+              type='button'
+              size='sm'
+              variant='outline'
+              disabled={saving}
+              onClick={() => setEditing(false)}
+            >
+              Cancel
+            </Button>
+            <Button type='submit' size='sm' disabled={saving}>
+              {saving ? 'Saving…' : 'Save'}
+            </Button>
+          </div>
+        </form>
       ) : null}
     </div>
   )
 }
 
-function FacebonkLinkDialog() {
-  const linkIdentity = useDocState((state) => state.linkIdentity)
-  const linkingIdentity = useDocState((state) => state.linkingIdentity)
-  const identity = useDocState((state) => state.identity)
-  const identityError = useDocState((state) => state.identityError)
-
-  const [open, setOpen] = useState(false)
-  const [invite, setInvite] = useState('')
-
-  const handleSubmit = async (event?: FormEvent<HTMLFormElement>) => {
-    event?.preventDefault()
-
-    try {
-      await linkIdentity(invite)
-      setInvite('')
-      setOpen(false)
-      toast.success('Facebonk linked')
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : 'Failed to link Facebonk'
-      toast.error('Facebonk link failed', { description: message })
-    }
-  }
-
-  return (
-    <Dialog
-      open={open}
-      onOpenChange={(nextOpen) => {
-        setOpen(nextOpen)
-        if (!nextOpen) setInvite('')
-      }}
-    >
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <DialogTriggerButton onClick={() => setOpen(true)} linked={Boolean(identity)} />
-        </TooltipTrigger>
-        <TooltipContent>
-          {identity ? 'Linked with Facebonk' : 'Link Facebonk identity'}
-        </TooltipContent>
-      </Tooltip>
-
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Link Facebonk</DialogTitle>
-          <DialogDescription>
-            Create an invite in Facebonk with `facebonk link create`, keep `facebonk serve`
-            running, then paste the invite here.
-          </DialogDescription>
-        </DialogHeader>
-
-        <form className='space-y-4' onSubmit={handleSubmit}>
-          <Input
-            value={invite}
-            onChange={(event) => setInvite(event.target.value)}
-            placeholder='Paste Facebonk invite'
-            autoFocus
-          />
-          {identityError ? (
-            <p className='text-sm text-destructive'>{identityError}</p>
-          ) : null}
-          <DialogFooter>
-            <Button type='submit' disabled={linkingIdentity} aria-busy={linkingIdentity}>
-              {linkingIdentity ? 'Linking…' : 'Link identity'}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
-  )
-}
-
-function DialogTriggerButton({
-  linked,
-  onClick
-}: {
-  linked: boolean
-  onClick: () => void
-}) {
-  return (
-    <Button size='icon-sm' variant={linked ? 'secondary' : 'outline'} onClick={onClick}>
-      <Link2 />
-    </Button>
-  )
-}
-
 function IdentityAvatar({
   name,
-  avatarDataUrl,
   color,
   ariaLabel,
   className = '',
   size = 'sm'
 }: {
   name: string
-  avatarDataUrl?: string | null
   color: string
   ariaLabel: string
   className?: string
   size?: 'sm' | 'lg'
 }) {
   const dimensions = size === 'lg' ? 'size-10' : 'size-6'
-
-  if (avatarDataUrl) {
-    return (
-      <img
-        src={avatarDataUrl}
-        alt={name}
-        aria-label={ariaLabel}
-        className={`shrink-0 rounded-full object-cover ${dimensions} ${className}`.trim()}
-      />
-    )
-  }
 
   return (
     <span
